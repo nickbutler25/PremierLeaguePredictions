@@ -1,0 +1,24 @@
+import { apiClient } from './api';
+import { mockFixturesService } from './fixtures.mock';
+import type { Fixture, Gameweek } from '@/types';
+
+const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true';
+
+const realFixturesService = {
+  getFixtures: async (): Promise<Fixture[]> => {
+    const response = await apiClient.get<Fixture[]>('/fixtures');
+    return response.data;
+  },
+
+  getFixturesByGameweek: async (gameweekId: string): Promise<Fixture[]> => {
+    const response = await apiClient.get<Fixture[]>(`/fixtures/gameweek/${gameweekId}`);
+    return response.data;
+  },
+
+  getGameweeks: async (): Promise<Gameweek[]> => {
+    const response = await apiClient.get<Gameweek[]>('/gameweeks');
+    return response.data;
+  },
+};
+
+export const fixturesService = USE_MOCK_API ? mockFixturesService : realFixturesService;

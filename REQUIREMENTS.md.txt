@@ -3,6 +3,7 @@ I would like to create a very professional looking website which is an English P
 Tech Stack
 
 React + TypeScript + Tailwind CSS + shadcn/ui + React Hook Form + TanStack Query for the front end
+The UI needs to work in Mobile too
 C# API for the backend 
 Postgres for the DB  
 Render to host the api 
