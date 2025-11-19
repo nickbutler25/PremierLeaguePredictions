@@ -1,0 +1,89 @@
+I would like to create a very professional looking website which is an English Premier League predictions competition.
+
+Tech Stack
+
+React + TypeScript + Tailwind CSS + shadcn/ui + React Hook Form + TanStack Query for the front end
+C# API for the backend 
+Postgres for the DB  
+Render to host the api 
+Vercel to host the web page
+
+
+The competition has the following rules:
+
+There are 38 gameweeks in a season
+Each gameweek of fixtures a player must select an English Premier League team they think will win.
+If the side they select wins they get 3 points
+If the side they select draws they get 1 point
+If the side they select loses they get 0 points
+We also calculate the goal difference of their picks, so if their pick wins 3-1, they would have 3 goals for and 1 goal against for a goal difference of 2. 
+The goal difference is used to separate teams that have the same number of points.
+Once you select a team once you can no longer select them again.
+At the 21 gameweek when you have selected each team once, the teams are refreshed and you can pick them all again but only once for the final 18 gameweeks of the season.
+The player with the most points at the end of 38 weeks will win the competition.
+Once the first game of a gameweek starts you can no longer make a pick that week
+If you have forgotten to make a pick, you get the team available to you that is in the lowest position in the real English Premier League table
+
+
+In order to allow this we need to create the following controls / components 
+
+A login page 
+A create user page
+User should have first name, last name, email addresses, phone number (optional), photo (optional)
+An admin page
+Allow to deactivate users
+Mark users as paid
+
+A dashboard screen for a logged in user containing the following controls
+
+Summary Component 
+Shows the current gameweek
+When the deadline is for the current gameweek
+Your total points
+Your rank among other players
+A summary of your picks which is a one row grid, with the following columns
+- P : The number of picks you’ve made that have results
+- W: The number of winning picks you’ve made
+- D: The number of drawing picks you’ve made
+- L: The number of losing picks you’ve made
+- GF: The number of goals for from your picks
+- GA: The number of goals against from your picks
+- GD: The resultant goal difference of your picks
+- PT: The number of points from your picks
+
+
+Picks Component
+This component should be a grid with three columns
+Gameweek
+Team Selected
+Pts  
+The grid should have 38 rows for each Gameweek
+The pick field should be populated with the side you have selected for that gameweek 
+If you haven’t selected a side for that Gameweek it should show ‘No Pick Yet’
+Gameweeks in the future you should be able to select a pick from a drop down of sides that you haven’t yet selected
+In the first half of the season gameweek 1 - 20.  Picks in the 2nd half of the season should be locked
+
+Fixtures Component 
+This should contain the fixtures for each gameweek
+Grouped by gameweek
+For each gameweek it should show the team in Red if you’ve already selected them in a past gameweek
+It should show the team in Green if you’ve selected them in that gameweek
+It should show the team in Grey if you’ve selected them in a future gameweek
+
+A League Component
+
+This should rank all players in the game in a grid
+Highlighted the currently logged in player 
+Have the following columns
+- Name: Name of the player 
+- P : The number of picks you’ve made that have results
+- W: The number of winning picks you’ve made
+- D: The number of drawing picks you’ve made
+- L: The number of losing picks you’ve made
+- GF: The number of goals for from your picks
+- GA: The number of goals against from your picks
+- GD: The resultant goal difference of your picks
+- PT: The number of points from your picks
+
+
+Finally the application should email and text if phone number provided users who haven’t made a pick for the current gameweek 24 hours before the deadline
