@@ -98,6 +98,9 @@ coverage/
 build/
 out/
 
+# Claude Code
+.claude/
+
 # Misc
 .cache/
 temp/

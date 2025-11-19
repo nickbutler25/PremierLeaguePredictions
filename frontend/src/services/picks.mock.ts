@@ -81,7 +81,7 @@ export const mockPicksService = {
     return newPick;
   },
 
-  updatePick: async (userId: string, pickId: string, pickData: PickSelection): Promise<Pick> => {
+  updatePick: async (_userId: string, pickId: string, pickData: PickSelection): Promise<Pick> => {
     console.log('[MOCK PICKS] Updating pick:', pickId, pickData);
     await delay(500);
 
@@ -105,7 +105,7 @@ export const mockPicksService = {
     return mockPicksData[pickIndex];
   },
 
-  deletePick: async (userId: string, pickId: string): Promise<void> => {
+  deletePick: async (_userId: string, pickId: string): Promise<void> => {
     console.log('[MOCK PICKS] Deleting pick:', pickId);
     await delay(500);
 
