@@ -563,25 +563,201 @@ If production build fails:
 
 ### Vercel (Recommended)
 
-1. Push your code to GitHub
+#### Prerequisites
 
-2. Go to [Vercel](https://vercel.com/) and sign in
+Before deploying to Vercel, ensure you have:
 
-3. Click "New Project" and import your repository
+1. ✅ A GitHub/GitLab/Bitbucket account with your code pushed
+2. ✅ A Vercel account (sign up at [vercel.com](https://vercel.com/))
+3. ✅ Your production backend API URL
+4. ✅ A production Google OAuth Client ID configured with your Vercel domain
 
-4. Configure build settings:
-   - **Framework Preset**: Vite
-   - **Build Command**: `npm run build`
-   - **Output Directory**: `dist`
-   - **Install Command**: `npm install`
+#### Step-by-Step Deployment
 
-5. Add environment variables:
-   - `VITE_API_URL`
-   - `VITE_GOOGLE_CLIENT_ID`
+##### 1. Push Your Code to GitHub
 
-6. Click "Deploy"
+```bash
+# Make sure all changes are committed
+git add .
+git commit -m "Prepare for deployment"
+git push origin main
+```
+
+##### 2. Import Project to Vercel
+
+1. Go to [vercel.com](https://vercel.com/) and sign in
+2. Click **"Add New..."** → **"Project"**
+3. Select your Git provider (GitHub, GitLab, or Bitbucket)
+4. Import your repository:
+   - Search for "PremierLeaguePredictions"
+   - Click **"Import"**
+
+##### 3. Configure Project Settings
+
+Vercel will automatically detect that this is a Vite project. Configure the following:
+
+**Framework Preset**: Vite (should auto-detect)
+
+**Root Directory**:
+- Set to `frontend` (since the React app is in a subdirectory)
+- Click **"Edit"** next to Root Directory
+- Enter `frontend`
+
+**Build and Output Settings**:
+- **Build Command**: `npm run build` (default)
+- **Output Directory**: `dist` (default)
+- **Install Command**: `npm install` (default)
+
+##### 4. Add Environment Variables
+
+Before deploying, add your environment variables:
+
+1. Click **"Environment Variables"** section
+2. Add the following variables:
+
+| Name | Value | Notes |
+|------|-------|-------|
+| `VITE_API_URL` | `https://your-api-domain.com` | Your production backend API URL |
+| `VITE_GOOGLE_CLIENT_ID` | `your-client-id.apps.googleusercontent.com` | Production Google OAuth Client ID |
+
+**Important**:
+- Don't include quotes around values
+- Make sure there are no trailing slashes in `VITE_API_URL`
+- All environment variables should be available for Production, Preview, and Development
+
+##### 5. Deploy
+
+1. Click **"Deploy"**
+2. Wait for the build to complete (usually 1-2 minutes)
+3. Once deployed, Vercel will show you the deployment URL
+
+##### 6. Configure Custom Domain (Optional)
+
+1. Go to your project settings in Vercel
+2. Navigate to **"Domains"**
+3. Click **"Add"**
+4. Enter your custom domain (e.g., `predictions.yourdomain.com`)
+5. Follow DNS configuration instructions
+6. Wait for DNS propagation (can take up to 48 hours)
+
+##### 7. Update Google OAuth Settings
+
+After deployment, update your Google OAuth configuration:
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Navigate to **APIs & Services** → **Credentials**
+3. Click your OAuth 2.0 Client ID
+4. Add your Vercel URLs to **Authorized JavaScript origins**:
+   - `https://your-app.vercel.app`
+   - `https://your-custom-domain.com` (if using custom domain)
+5. Add same URLs to **Authorized redirect URIs**
+6. Click **"Save"**
+
+#### Vercel Configuration
+
+The project includes a `vercel.json` file that handles client-side routing:
+
+```json
+{
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
+```
+
+This ensures that React Router works correctly on all routes.
+
+#### Automatic Deployments
+
+Once configured, Vercel will automatically deploy:
+
+- **Production**: Every push to your `main` branch
+- **Preview**: Every push to any other branch or pull request
+
+You can disable auto-deployments in project settings if needed.
+
+#### Monitoring Your Deployment
+
+1. **Build Logs**: Check build logs in Vercel dashboard if deployment fails
+2. **Runtime Logs**: View function logs for debugging
+3. **Analytics**: Enable Vercel Analytics for performance monitoring
+4. **Environment Variables**: Update anytime in project settings
+
+#### Troubleshooting Vercel Deployment
+
+**Issue**: "Build failed: Command failed with exit code 1"
+- **Solution**: Check build logs for specific errors
+- Run `npm run build` locally to test
+- Verify all dependencies are in `package.json`
+- Check that TypeScript types are correct
+
+**Issue**: "Blank page after deployment"
+- **Solution**: Check browser console for errors
+- Verify environment variables are set correctly
+- Make sure `VITE_API_URL` is accessible from the browser
+- Check that Google OAuth is configured with production URLs
+
+**Issue**: "Cannot GET /dashboard" or 404 on routes"
+- **Solution**: This should be handled by `vercel.json`
+- Verify `vercel.json` exists in the frontend directory
+- Check Vercel build output for the rewrite rule
+
+**Issue**: "Google Sign-In not working"
+- **Solution**: Make sure you've added your Vercel URL to Google OAuth settings
+- Check that `VITE_GOOGLE_CLIENT_ID` is set correctly
+- Clear browser cache and cookies
+- Test in incognito mode
+
+**Issue**: "API calls failing with CORS errors"
+- **Solution**: Your backend API needs to allow your Vercel domain
+- Add your Vercel URL to backend CORS configuration
+- Check that `VITE_API_URL` is correct
+
+#### Vercel CLI Deployment (Alternative)
+
+You can also deploy using the Vercel CLI:
+
+1. Install Vercel CLI:
+   ```bash
+   npm install -g vercel
+   ```
+
+2. Login to Vercel:
+   ```bash
+   vercel login
+   ```
+
+3. Navigate to frontend directory:
+   ```bash
+   cd frontend
+   ```
+
+4. Deploy:
+   ```bash
+   # For preview deployment
+   vercel
+
+   # For production deployment
+   vercel --prod
+   ```
+
+5. Follow the prompts to configure your project
+
+#### Environment Variables via CLI
+
+Set environment variables via CLI:
+
+```bash
+vercel env add VITE_API_URL production
+vercel env add VITE_GOOGLE_CLIENT_ID production
+```
 
 ### Manual Deployment
+
+If you prefer other hosting platforms:
 
 1. Build the project:
    ```bash
@@ -589,17 +765,32 @@ If production build fails:
    ```
 
 2. The `dist/` folder contains all static files
-3. Upload to any static hosting service (Netlify, AWS S3, etc.)
+3. Upload to any static hosting service:
+   - **Netlify**: Drag and drop `dist` folder
+   - **AWS S3**: Upload to S3 bucket + CloudFront
+   - **GitHub Pages**: Use `gh-pages` package
+   - **Firebase Hosting**: Use `firebase deploy`
+
 4. Configure environment variables on hosting platform
+5. Ensure routing is configured for single-page apps
 
 ### Environment Variables for Production
 
-Don't forget to set these in your hosting platform:
+Required environment variables for production:
 
-```
+```env
+# Backend API URL (no trailing slash)
 VITE_API_URL=https://your-api-domain.com
-VITE_GOOGLE_CLIENT_ID=your-production-google-client-id
+
+# Google OAuth Client ID for production
+VITE_GOOGLE_CLIENT_ID=your-production-client-id.apps.googleusercontent.com
 ```
+
+**Security Notes**:
+- Never commit `.env.local` or production secrets to Git
+- Use different OAuth clients for development and production
+- Rotate credentials if they're ever exposed
+- Use HTTPS for production API and frontend
 
 ## Contributing
 

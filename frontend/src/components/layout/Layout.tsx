@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 interface LayoutProps {
