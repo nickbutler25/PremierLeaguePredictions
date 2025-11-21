@@ -36,23 +36,23 @@ export interface TeamStatus {
 export const adminService = {
   // Season management
   async getSeasons() {
-    const response = await apiClient.get<Season[]>('/admin/seasons');
+    const response = await apiClient.get<Season[]>('/api/admin/seasons');
     return response.data;
   },
 
   async createSeason(request: CreateSeasonRequest) {
-    const response = await apiClient.post<CreateSeasonResponse>('/admin/seasons', request);
+    const response = await apiClient.post<CreateSeasonResponse>('/api/admin/seasons', request);
     return response.data;
   },
 
   // Team management
   async getTeamStatuses() {
-    const response = await apiClient.get<TeamStatus[]>('/admin/teams/status');
+    const response = await apiClient.get<TeamStatus[]>('/api/admin/teams/status');
     return response.data;
   },
 
   async updateTeamStatus(teamId: string, isActive: boolean) {
-    await apiClient.put(`/admin/teams/${teamId}/status`, { isActive });
+    await apiClient.put(`/api/admin/teams/${teamId}/status`, { isActive });
   },
 
   // Sync operations
@@ -62,12 +62,12 @@ export const adminService = {
       teamsCreated: number;
       teamsUpdated: number;
       totalActiveTeams: number;
-    }>('/admin/sync/teams');
+    }>('/api/admin/sync/teams');
     return response.data;
   },
 
   async syncFixtures(season?: number) {
-    const url = season ? `/admin/sync/fixtures?season=${season}` : '/admin/sync/fixtures';
+    const url = season ? `/api/admin/sync/fixtures?season=${season}` : '/api/admin/sync/fixtures';
     const response = await apiClient.post<{
       message: string;
       fixturesCreated: number;
@@ -78,7 +78,7 @@ export const adminService = {
   },
 
   async syncResults() {
-    const response = await apiClient.post<{ message: string }>('/admin/sync/results');
+    const response = await apiClient.post<{ message: string }>('/api/admin/sync/results');
     return response.data;
   },
 
@@ -89,7 +89,7 @@ export const adminService = {
       picksUpdated: number;
       picksSkipped: number;
       message: string;
-    }>('/admin/picks/backfill', {
+    }>('/api/admin/picks/backfill', {
       userId,
       picks,
     });

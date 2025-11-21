@@ -6,7 +6,7 @@ const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true';
 
 const realTeamsService = {
   getTeams: async (): Promise<Team[]> => {
-    const response = await apiClient.get<Team[]>('/teams');
+    const response = await apiClient.get<Team[]>('/api/teams');
     return response.data;
   },
 };

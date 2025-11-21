@@ -13,12 +13,12 @@ export interface UserListItem {
 
 export const usersService = {
   async getUsers(): Promise<UserListItem[]> {
-    const response = await apiClient.get<UserListItem[]>('/users');
+    const response = await apiClient.get<UserListItem[]>('/api/users');
     return response.data;
   },
 
   async getUser(userId: string): Promise<UserListItem> {
-    const response = await apiClient.get<UserListItem>(`/users/${userId}`);
+    const response = await apiClient.get<UserListItem>(`/api/users/${userId}`);
     return response.data;
   },
 };

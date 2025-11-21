@@ -6,14 +6,14 @@ const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true';
 
 const realAuthService = {
   login: async (googleToken: string): Promise<AuthResponse> => {
-    const response = await apiClient.post<AuthResponse>('/auth/login', {
+    const response = await apiClient.post<AuthResponse>('/api/auth/login', {
       googleToken,
     } as LoginRequest);
     return response.data;
   },
 
   logout: async (): Promise<void> => {
-    await apiClient.post('/auth/logout');
+    await apiClient.post('/api/auth/logout');
   },
 };
 
