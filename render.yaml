@@ -35,19 +35,3 @@ services:
       - key: AllowedOrigins__0
         sync: false
     healthCheckPath: /health
-
-  # Frontend
-  - type: web
-    name: premierleague-frontend
-    runtime: static
-    buildCommand: cd frontend && npm install && npm run build
-    staticPublishPath: frontend/dist
-    envVars:
-      - key: VITE_API_URL
-        value: https://premierleague-api.onrender.com
-      - key: VITE_GOOGLE_CLIENT_ID
-        sync: false
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
