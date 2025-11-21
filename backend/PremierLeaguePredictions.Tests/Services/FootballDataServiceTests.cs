@@ -25,7 +25,7 @@ public class FootballDataServiceTests
         _httpClient = new HttpClient(_httpMessageHandlerMock.Object);
 
         // Setup configuration
-        _configurationMock.Setup(c => c["FootballDataApi:ApiKey"]).Returns(TestApiKey);
+        _configurationMock.Setup(c => c["FootballData:ApiKey"]).Returns(TestApiKey);
     }
 
     #region GetTeamsAsync Tests
@@ -472,7 +472,7 @@ public class FootballDataServiceTests
     {
         // Arrange
         var configMock = new Mock<IConfiguration>();
-        configMock.Setup(c => c["FootballDataApi:ApiKey"]).Returns((string?)null);
+        configMock.Setup(c => c["FootballData:ApiKey"]).Returns((string?)null);
 
         // Act
         Action act = () => new FootballDataService(_httpClient, configMock.Object, _loggerMock.Object);

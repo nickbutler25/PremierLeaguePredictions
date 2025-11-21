@@ -17,7 +17,7 @@ public class FootballDataService : IFootballDataService
     {
         _httpClient = httpClient;
         _logger = logger;
-        _apiKey = configuration["FootballDataApi:ApiKey"] ?? throw new InvalidOperationException("Football Data API key not configured");
+        _apiKey = configuration["FootballData:ApiKey"] ?? throw new InvalidOperationException("Football Data API key not configured");
 
         _httpClient.BaseAddress = new Uri(BaseUrl);
         _httpClient.DefaultRequestHeaders.Add("X-Auth-Token", _apiKey);
