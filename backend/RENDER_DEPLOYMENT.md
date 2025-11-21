@@ -1,45 +1,19 @@
 # Deploying to Render
 
-This guide explains how to deploy the Premier League Predictions API to Render.
+This guide explains how to deploy the Premier League Predictions API to Render's free tier.
 
 ## Prerequisites
 
-1. A [Render](https://render.com) account
+1. A [Render](https://render.com) account (free tier)
 2. Your repository pushed to GitHub
 3. A Football Data API key from [football-data.org](https://www.football-data.org/)
 4. A Google OAuth Client ID from [Google Cloud Console](https://console.cloud.google.com/)
 
+## Important Note
+
+**Blueprints require paid plans on Render.** This guide uses the manual setup approach which works with the free tier.
+
 ## Deployment Steps
-
-### Option 1: Using render.yaml (Recommended)
-
-1. **Connect Your Repository**
-   - Go to [Render Dashboard](https://dashboard.render.com/)
-   - Click "New" → "Blueprint"
-   - Connect your GitHub repository
-   - Render will automatically detect the `render.yaml` file
-
-2. **Configure Environment Variables**
-
-   After the blueprint is created, set these environment variables in the Render dashboard:
-
-   **For the API service (premierleague-api):**
-   - `Google__ClientId`: Your Google OAuth Client ID
-   - `FootballData__ApiKey`: Your Football Data API key
-   - `AllowedOrigins__0`: Your frontend URL (e.g., `https://premierleague-frontend.onrender.com`)
-
-   **For the Frontend service (premierleague-frontend):**
-   - `VITE_GOOGLE_CLIENT_ID`: Same Google OAuth Client ID
-   - `VITE_API_URL`: Your API URL (e.g., `https://premierleague-api.onrender.com`)
-
-3. **Deploy**
-   - Click "Apply" to deploy all services
-   - Render will:
-     - Create a PostgreSQL database
-     - Build and deploy the .NET API
-     - Build and deploy the React frontend
-
-### Option 2: Manual Setup
 
 #### 1. Create PostgreSQL Database
 
@@ -74,33 +48,38 @@ This guide explains how to deploy the Premier League Predictions API to Render.
    JWT__ExpirationInMinutes=43200
    Google__ClientId=[Your Google OAuth Client ID]
    FootballData__ApiKey=[Your Football Data API Key]
-   AllowedOrigins__0=[Your frontend URL when deployed]
+   AllowedOrigins__0=[Your Vercel frontend URL - you'll update this after deploying frontend]
    ```
 
 5. Click "Create Web Service"
+6. Copy your API URL (e.g., `https://premierleague-api.onrender.com`)
 
-#### 3. Deploy the Frontend
+#### 3. Deploy the Frontend to Vercel
 
-1. Go to Render Dashboard → New → Static Site
-2. Connect your repository
-3. Configure:
-   - **Name**: `premierleague-frontend`
+1. Go to [Vercel Dashboard](https://vercel.com/dashboard)
+2. Click "Add New" → "Project"
+3. Import your GitHub repository
+4. Configure:
+   - **Framework Preset**: Vite
    - **Root Directory**: `frontend`
-   - **Build Command**: `npm install && npm run build`
-   - **Publish Directory**: `dist`
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `dist`
 
-4. Add Environment Variables:
+5. Add Environment Variables:
    ```
    VITE_API_URL=https://premierleague-api.onrender.com
    VITE_GOOGLE_CLIENT_ID=[Your Google OAuth Client ID]
    ```
 
-5. Add Rewrite Rule for SPA:
-   - Source: `/*`
-   - Destination: `/index.html`
-   - Action: Rewrite
+6. Click "Deploy"
+7. Copy your Vercel URL (e.g., `https://your-app.vercel.app`)
 
-6. Click "Create Static Site"
+#### 4. Update CORS Settings
+
+After deploying the frontend to Vercel, go back to your Render API service:
+1. Go to Environment tab
+2. Update `AllowedOrigins__0` with your Vercel URL
+3. Save changes (service will redeploy)
 
 ## Post-Deployment
 
@@ -110,19 +89,15 @@ In the [Google Cloud Console](https://console.cloud.google.com/):
 - Go to APIs & Services → Credentials
 - Edit your OAuth 2.0 Client ID
 - Add to "Authorized JavaScript origins":
-  - `https://premierleague-frontend.onrender.com`
+  - Your Vercel URL (e.g., `https://your-app.vercel.app`)
 - Add to "Authorized redirect URIs":
-  - `https://premierleague-frontend.onrender.com`
+  - Your Vercel URL (e.g., `https://your-app.vercel.app`)
 
-### 2. Update CORS Origins
-
-Update the API's `AllowedOrigins__0` environment variable with your actual frontend URL.
-
-### 3. Run Database Migrations
+### 2. Run Database Migrations
 
 The API should automatically run migrations on startup. Check the API logs to verify.
 
-### 4. Initialize Data
+### 3. Initialize Data
 
 1. Log in to the app as an admin
 2. Go to Admin panel
@@ -131,9 +106,9 @@ The API should automatically run migrations on startup. Check the API logs to ve
 
 ## Monitoring
 
-- **API Logs**: Dashboard → premierleague-api → Logs
-- **Database**: Dashboard → premierleague-db → Connect
-- **Frontend**: Dashboard → premierleague-frontend → Logs
+- **API Logs**: Render Dashboard → premierleague-api → Logs
+- **Database**: Render Dashboard → premierleague-db → Connect
+- **Frontend**: Vercel Dashboard → Your project → Deployments
 
 ## Troubleshooting
 
@@ -184,7 +159,7 @@ To upgrade from free tier:
 | `FootballData__ApiKey` | Football Data API key | From football-data.org |
 | `AllowedOrigins__0` | CORS allowed origin | Frontend URL |
 
-### Frontend Required Variables
+### Frontend Required Variables (Vercel)
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `VITE_API_URL` | Backend API URL | `https://premierleague-api.onrender.com` |
@@ -193,6 +168,6 @@ To upgrade from free tier:
 ## Additional Notes
 
 - The first deployment may take 5-10 minutes
-- Free tier services automatically sleep after 15 minutes of inactivity
+- **Free tier API services automatically sleep after 15 minutes of inactivity** - first request takes ~50 seconds to wake up
 - Database backups are available on paid plans only
-- Consider using Render's Infrastructure as Code (render.yaml) for version-controlled deployments
+- Vercel provides instant deploys and automatic preview deployments for pull requests
