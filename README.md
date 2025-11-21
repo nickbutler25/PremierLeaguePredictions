@@ -1,226 +1,277 @@
-# Premier League Predictions Competition
+# Premier League Predictions
 
-A web application for running an English Premier League predictions competition. Players select one team per gameweek to win, with the constraint that each team can only be picked once per half-season.
+A full-stack web application for making weekly Premier League predictions and competing with friends in a fantasy-style prediction league.
+
+## Overview
+
+Premier League Predictions is a competitive prediction game where users select one team to win each gameweek. The application automatically tracks predictions, calculates points based on real match results from the Football-Data.org API, and maintains live league standings with detailed statistics.
 
 ## Tech Stack
 
 ### Frontend
-- **React** - UI library
-- **TypeScript** - Type safety
+- **React 18** - Modern component-based UI library
+- **TypeScript** - Full type safety
+- **Vite** - Fast development and optimized builds
+- **TanStack Query (React Query)** - Server state management and caching
+- **React Router v6** - Client-side routing
 - **Tailwind CSS** - Utility-first styling
-- **shadcn/ui** - Component library
-- **React Hook Form** - Form management
-- **TanStack Query** - Server state management
-- **Vercel** - Hosting
+- **shadcn/ui** - High-quality component library
+- **Vercel** - Frontend hosting (optional)
 
 ### Backend
-- **C# / .NET 9** - Web API
-- **Entity Framework Core** - ORM
-- **PostgreSQL** - Database
-- **Google OAuth** - Authentication
-- **JWT** - Authorization
-- **Resend** - Email notifications
-- **football-data.org API** - Live fixture data
-- **Render** - API hosting
+- **.NET 9.0** - Modern ASP.NET Core Web API
+- **Clean Architecture** - Separated Core, Application, Infrastructure, and API layers
+- **Entity Framework Core** - Code-first database migrations and ORM
+- **PostgreSQL** - Production-grade relational database
+- **JWT Authentication** - Secure token-based authentication
+- **Google OAuth** - Single sign-on integration
+- **Repository Pattern** - Unit of Work for clean data access
+- **football-data.org API** - Live Premier League fixture and result data
+- **Render** - API and database hosting (Docker)
 
-## Competition Rules
+## Game Rules
 
-1. **38 Gameweeks** - One pick per gameweek across the entire Premier League season
-2. **Pick Once Rule** - Each team can only be selected once per half-season
-   - Weeks 1-20: Pick each of the 20 teams once
-   - Weeks 21-38: Teams reset, pick each team once again
-3. **Scoring System**:
-   - Win: 3 points
-   - Draw: 1 point
-   - Loss: 0 points
-   - Goal difference is tracked as a tiebreaker
-4. **Deadline** - Picks lock when the first fixture of a gameweek kicks off
-5. **Auto-Assignment** - If no pick is made, the lowest-ranked available team is automatically assigned
-6. **Winner** - Player with the most points after 38 weeks wins
+### Predictions
+- Each gameweek, select **one** Premier League team to win their match
+- Predictions must be submitted before the gameweek deadline
+- You cannot change your prediction after the deadline passes
+
+### Scoring
+Points are awarded based on your selected team's match result:
+- **Win**: 3 points + goals scored and conceded tracked
+- **Draw**: 1 point + goals scored and conceded tracked
+- **Loss**: 0 points + goals scored and conceded tracked
+
+### League Standings
+Users are ranked by:
+1. **Total Points** (primary)
+2. **Goal Difference** (tiebreaker)
+3. **Goals For** (second tiebreaker)
+
+Statistics tracked:
+- Wins, Draws, Losses (W-D-L record)
+- Goals For, Goals Against, Goal Difference
+- Total Picks Made (only completed gameweeks count)
 
 ## Features
 
-### User Features
-- **Dashboard** with live standings and personal stats
-- **Pick Selection** with visual team availability status
-- **Fixtures View** showing all gameweek matches with color-coded pick status
-- **League Table** ranking all players
-- **Email Reminders** sent 24 hours before deadline
+### Core Functionality
+- **Google OAuth Authentication** - Secure single sign-on with Google
+- **Personal Dashboard** - View your picks, upcoming fixtures, and performance statistics
+- **Weekly Predictions** - Select one team to win per gameweek
+- **Automatic Scoring** - Points calculated automatically from live match results
+- **League Standings** - Real-time rankings with points, W-D-L records, and goal statistics
+- **Fixtures View** - Color-coded display of all matches showing picked teams
+- **Responsive Design** - Full mobile support with light/dark theme toggle
 
 ### Admin Features
-- User management (activate/deactivate, mark as paid)
-- Override picks
-- Override deadlines
-- Manage fixtures
-- Season management (create, archive)
-- Audit log of all admin actions
+- **Season Management** - Sync teams and fixtures from Football-Data.org API
+- **Gameweek Creation** - Automatically create gameweeks from fixture data
+- **Backfill Picks** - Enter historical picks for past gameweeks
+- **User Management** - View and manage league participants
 
 ## Project Structure
 
 ```
 PremierLeaguePredictions/
 ├── backend/
-│   └── PremierLeaguePredictions.API/
-│       ├── Models/              # Domain entities
-│       ├── Data/                # DbContext & migrations
-│       ├── DTOs/                # Data transfer objects
-│       ├── Controllers/         # API endpoints
-│       ├── Services/            # Business logic
-│       └── Configuration/       # App settings
-├── frontend/                    # React application (to be created)
-├── database/
-│   ├── schema.sql              # PostgreSQL schema
-│   └── README.md               # Database documentation
-└── README.md
+│   ├── PremierLeaguePredictions.API/            # Web API controllers, middleware, filters
+│   ├── PremierLeaguePredictions.Application/    # Business logic, services, DTOs
+│   ├── PremierLeaguePredictions.Core/           # Domain entities, interfaces
+│   ├── PremierLeaguePredictions.Infrastructure/ # EF Core, repositories, external APIs
+│   ├── PremierLeaguePredictions.Tests/          # Unit and integration tests
+│   ├── Dockerfile                               # Docker container configuration
+│   └── RENDER_DEPLOYMENT.md                     # Deployment guide for Render
+├── frontend/
+│   ├── src/
+│   │   ├── components/    # Reusable React components
+│   │   ├── contexts/      # Auth and Theme contexts
+│   │   ├── pages/         # Route page components
+│   │   ├── services/      # API client services
+│   │   └── types/         # TypeScript type definitions
+│   └── public/            # Static assets
+└── render.yaml            # Render.com blueprint for deployment
 ```
 
 ## Getting Started
 
 ### Prerequisites
 
-- [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
-- [Node.js 18+](https://nodejs.org/)
-- [PostgreSQL 15+](https://www.postgresql.org/download/)
-- [Git](https://git-scm.com/downloads)
-
-### Database Setup
-
-1. Create a PostgreSQL database:
-   ```bash
-   createdb premier_league_predictions
-   ```
-
-2. Run the schema:
-   ```bash
-   psql -U your_username -d premier_league_predictions -f database/schema.sql
-   ```
+- .NET 9.0 SDK
+- Node.js 18+
+- PostgreSQL 14+
+- Google OAuth Client ID ([Get one here](https://console.cloud.google.com/))
+- Football-Data.org API Key ([Get one here](https://www.football-data.org/))
 
 ### Backend Setup
 
 1. Navigate to the backend directory:
-   ```bash
-   cd backend/PremierLeaguePredictions.API
-   ```
+```bash
+cd backend
+```
 
-2. Create `appsettings.Development.json`:
-   ```json
-   {
-     "ConnectionStrings": {
-       "DefaultConnection": "Host=localhost;Database=premier_league_predictions;Username=your_username;Password=your_password"
-     },
-     "Authentication": {
-       "Google": {
-         "ClientId": "your-google-client-id",
-         "ClientSecret": "your-google-client-secret"
-       },
-       "Jwt": {
-         "SecretKey": "your-jwt-secret-key-min-32-chars",
-         "Issuer": "PremierLeaguePredictions",
-         "Audience": "PremierLeaguePredictionsUsers",
-         "ExpiryMinutes": 60
-       }
-     },
-     "FootballData": {
-       "ApiKey": "your-football-data-org-api-key"
-     },
-     "Resend": {
-       "ApiKey": "your-resend-api-key"
-     }
-   }
-   ```
+2. Create `appsettings.Development.json` based on the example file:
+```json
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=localhost;Database=premierleague;Username=postgres;Password=yourpassword"
+  },
+  "JWT": {
+    "Secret": "your-secret-key-minimum-32-characters-long",
+    "Issuer": "PremierLeaguePredictions",
+    "Audience": "PremierLeaguePredictions",
+    "ExpirationInMinutes": 43200
+  },
+  "Google": {
+    "ClientId": "your-google-oauth-client-id.apps.googleusercontent.com"
+  },
+  "FootballData": {
+    "ApiKey": "your-football-data-api-key"
+  },
+  "AllowedOrigins": {
+    "0": "http://localhost:5173"
+  }
+}
+```
 
-3. Run the API:
-   ```bash
-   dotnet run
-   ```
+3. Create the database:
+```bash
+dotnet ef database update --project PremierLeaguePredictions.Infrastructure --startup-project PremierLeaguePredictions.API
+```
 
-The API will be available at `https://localhost:5001` (or the port shown in console).
+4. Run the API:
+```bash
+cd PremierLeaguePredictions.API
+dotnet run
+```
+
+The API will be available at `http://localhost:5000`
 
 ### Frontend Setup
 
+1. Navigate to the frontend directory:
 ```bash
 cd frontend
+```
+
+2. Install dependencies:
+```bash
 npm install
+```
+
+3. Create `.env.local`:
+```env
+VITE_API_URL=http://localhost:5000
+VITE_GOOGLE_CLIENT_ID=your-google-oauth-client-id.apps.googleusercontent.com
+```
+
+4. Run the development server:
+```bash
 npm run dev
 ```
 
-The frontend will be available at `http://localhost:5173`.
+The app will be available at `http://localhost:5173`
 
-## API Keys Setup
+### Initial Data Setup
 
-### Google OAuth
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project
-3. Enable Google+ API
-4. Create OAuth 2.0 credentials
-5. Add authorized redirect URIs
-
-### football-data.org
-1. Register at [football-data.org](https://www.football-data.org/)
-2. Get your free API key (10 calls/minute)
-
-### Resend
-1. Sign up at [resend.com](https://resend.com/)
-2. Get your API key (3,000 emails/month free)
-
-## Environment Variables
-
-### Backend (.NET)
-See `appsettings.Development.json` template above.
-
-### Frontend (React)
-Create `.env.local`:
-```
-VITE_API_URL=http://localhost:5000
-VITE_GOOGLE_CLIENT_ID=your-google-client-id
-```
+1. Log in to the application with your Google account
+2. The first user is automatically assigned admin privileges
+3. Navigate to the Admin panel
+4. Click "Sync Teams" to import all Premier League teams
+5. Click "Sync Current Season Fixtures" to import fixtures and create gameweeks
 
 ## Deployment
 
-### Backend (Render)
-1. Connect GitHub repository to Render
-2. Create new Web Service
-3. Set build command: `dotnet publish -c Release -o out`
-4. Set start command: `cd out && dotnet PremierLeaguePredictions.API.dll`
-5. Add environment variables from `appsettings.json`
+The application is configured for deployment on [Render.com](https://render.com) using Docker containers and managed PostgreSQL.
 
-### Frontend (Vercel)
-1. Connect GitHub repository to Vercel
-2. Set framework preset to React
-3. Add environment variables
-4. Deploy
+See [backend/RENDER_DEPLOYMENT.md](backend/RENDER_DEPLOYMENT.md) for detailed deployment instructions.
 
-### Database (Render PostgreSQL)
-1. Create PostgreSQL instance on Render
-2. Copy connection string
-3. Run migrations/schema
-4. Update backend environment variables
+### Quick Deploy with Render Blueprint
 
-## Development Workflow
+1. Push your code to GitHub
+2. Connect your repository to Render
+3. Render will auto-detect the `render.yaml` blueprint
+4. Configure environment variables:
+   - `Google__ClientId`
+   - `FootballData__ApiKey`
+   - `AllowedOrigins__0`
+   - `VITE_GOOGLE_CLIENT_ID`
+   - `VITE_API_URL`
+5. Deploy all services (database, API, frontend) with one click
 
-1. Create a feature branch: `git checkout -b feature/your-feature`
-2. Make changes and commit: `git commit -m "Add feature"`
-3. Push to GitHub: `git push origin feature/your-feature`
-4. Create a Pull Request
+The blueprint automatically:
+- Creates a PostgreSQL database
+- Builds and deploys the .NET 9 API using Docker
+- Builds and deploys the React frontend as a static site
 
-## Database Schema
+## API Documentation
 
-See [database/README.md](database/README.md) for detailed schema documentation.
+### Authentication
+- `POST /auth/google` - Authenticate with Google OAuth token
+
+### Picks
+- `GET /picks` - Get current user's picks
+- `POST /picks` - Create a new pick
+- `PUT /picks/{id}` - Update an existing pick
+
+### Dashboard
+- `GET /dashboard` - Get user dashboard with stats and upcoming fixtures
+
+### League
+- `GET /league/standings` - Get league standings with all user stats
+
+### Admin (requires admin role)
+- `POST /admin/teams/sync` - Sync teams from Football-Data.org
+- `POST /admin/fixtures/sync` - Sync current season fixtures
+- `POST /admin/picks/backfill` - Backfill picks for past gameweeks
+
+## Development
+
+### Running Tests
+```bash
+cd backend
+dotnet test
+```
+
+### Database Migrations
+
+Create a new migration:
+```bash
+dotnet ef migrations add MigrationName --project PremierLeaguePredictions.Infrastructure --startup-project PremierLeaguePredictions.API
+```
+
+Apply migrations:
+```bash
+dotnet ef database update --project PremierLeaguePredictions.Infrastructure --startup-project PremierLeaguePredictions.API
+```
+
+### Building for Production
+
+Backend:
+```bash
+cd backend
+dotnet publish -c Release
+```
+
+Frontend:
+```bash
+cd frontend
+npm run build
+```
 
 ## Contributing
 
-This is a private competition application. For bugs or feature requests, please open an issue.
+This is a private project. If you have access and want to contribute:
+- Create a feature branch from `main`
+- Make your changes with clear commit messages
+- Test thoroughly before submitting a pull request
+- Ensure all tests pass and no linting errors exist
 
 ## License
 
-Private - All Rights Reserved
+This project is private and not licensed for public use.
 
-## Support
+## Credits
 
-For questions or issues, please contact the repository owner.
-
----
-
-**Status**: 🚧 In Development
-
-**Current Version**: 0.1.0 (Initial Setup)
+- Football data provided by [Football-Data.org](https://www.football-data.org/)
+- Premier League logo and trademarks are property of the Premier League

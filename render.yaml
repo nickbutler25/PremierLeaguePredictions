@@ -1,15 +1,11 @@
-services:
-  # PostgreSQL Database
-  - type: pserv
-    name: premierleague-db
+databases:
+  - name: premierleague-db
+    databaseName: premierleague
+    user: premierleague_user
     plan: free
     region: oregon
-    env: docker
-    disk:
-      name: premierleague-db-disk
-      mountPath: /var/lib/postgresql/data
-      sizeGB: 1
 
+services:
   # Backend API
   - type: web
     name: premierleague-api
@@ -46,7 +42,6 @@ services:
     name: premierleague-frontend
     runtime: static
     plan: free
-    region: oregon
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: frontend/dist
     envVars:
