@@ -6,17 +6,17 @@ const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true';
 
 const realFixturesService = {
   getFixtures: async (): Promise<Fixture[]> => {
-    const response = await apiClient.get<Fixture[]>('/fixtures');
+    const response = await apiClient.get<Fixture[]>('/api/fixtures');
     return response.data;
   },
 
   getFixturesByGameweek: async (gameweekId: string): Promise<Fixture[]> => {
-    const response = await apiClient.get<Fixture[]>(`/fixtures/gameweek/${gameweekId}`);
+    const response = await apiClient.get<Fixture[]>(`/api/fixtures/gameweek/${gameweekId}`);
     return response.data;
   },
 
   getGameweeks: async (): Promise<Gameweek[]> => {
-    const response = await apiClient.get<Gameweek[]>('/gameweeks');
+    const response = await apiClient.get<Gameweek[]>('/api/gameweeks');
     return response.data;
   },
 };
