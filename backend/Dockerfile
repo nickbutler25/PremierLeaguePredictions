@@ -1,5 +1,5 @@
 # Use the official .NET SDK image for building
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # Copy csproj files and restore dependencies
@@ -18,7 +18,7 @@ WORKDIR "/src/PremierLeaguePredictions.API"
 RUN dotnet publish "PremierLeaguePredictions.API.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Use the runtime image for running the app
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
 # Expose the port that Render will use
