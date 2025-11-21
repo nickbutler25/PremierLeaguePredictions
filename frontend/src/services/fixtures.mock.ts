@@ -17,6 +17,7 @@ const createFixture = (
   return {
     id: `fixture-${gameweekNumber}-${homeTeamIndex}-${awayTeamIndex}`,
     gameweekId: `gw-${gameweekNumber}`,
+    gameweekNumber,
     homeTeamId: homeTeam.id,
     awayTeamId: awayTeam.id,
     homeTeam,
@@ -25,8 +26,6 @@ const createFixture = (
     homeScore,
     awayScore,
     status,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
   };
 };
 

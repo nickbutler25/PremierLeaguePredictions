@@ -2,21 +2,19 @@ import type { DashboardData } from '@/types';
 
 // Mock dashboard data
 const mockDashboardData: DashboardData = {
-  currentGameweek: 15,
-  deadline: '2024-12-20T14:00:00Z',
-  userStats: {
-    userId: 'mock-user-123',
-    name: 'John Doe',
-    played: 15,
-    won: 9,
-    drawn: 4,
-    lost: 2,
-    goalsFor: 24,
-    goalsAgainst: 14,
-    goalDifference: 10,
-    points: 31,
-    rank: 3,
+  currentGameweekId: 'mock-gw-15',
+  user: {
+    id: 'mock-user-123',
+    firstName: 'John',
+    lastName: 'Doe',
+    email: 'john.doe@example.com',
+    totalPoints: 31,
+    totalPicks: 15,
+    totalWins: 9,
+    totalDraws: 4,
+    totalLosses: 2,
   },
+  upcomingGameweeks: [],
   recentPicks: [
     {
       id: 'pick-1',

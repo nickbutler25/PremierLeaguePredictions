@@ -184,14 +184,14 @@ export function Picks() {
                               ? 'text-red-600 dark:text-red-400'
                               : ''
                           }`}>
-                            {pick.team.logoUrl && (
+                            {pick.team?.logoUrl && (
                               <img
                                 src={pick.team.logoUrl}
                                 alt={pick.team.name}
                                 className="w-5 h-5"
                               />
                             )}
-                            <span>{pick.team.name}</span>
+                            <span>{pick.team?.name}</span>
                           </div>
                           {canRemove && (
                             <button

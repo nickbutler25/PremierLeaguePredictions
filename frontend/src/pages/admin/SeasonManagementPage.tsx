@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { adminService, type Season, type TeamStatus } from '@/services/admin';
+import { adminService, type TeamStatus } from '@/services/admin';
 import { teamsService } from '@/services/teams';
 import { usersService } from '@/services/users';
 import { useAuth } from '@/contexts/AuthContext';
@@ -65,7 +65,7 @@ export function SeasonManagementPage() {
     onSuccess: (response) => {
       toast({
         title: 'Season Created Successfully',
-        description: `Teams Created: ${response.teamsCreated}, Activated: ${response.teamsActivated}, Deactivated: ${response.teamsDeactivated}, Gameweeks: ${response.gameweeksCreated}, Fixtures: ${response.fixturesCreated}`,
+        description: `Teams Created: ${response.teamsCreated}, Deactivated: ${response.teamsDeactivated}, Fixtures: ${response.fixturesCreated}`,
         duration: 7000,
       });
       queryClient.invalidateQueries({ queryKey: ['admin', 'seasons'] });
@@ -431,7 +431,7 @@ export function SeasonManagementPage() {
                   Sync Teams
                 </Button>
                 <Button
-                  onClick={() => syncFixturesMutation.mutate()}
+                  onClick={() => syncFixturesMutation.mutate(undefined)}
                   disabled={syncFixturesMutation.isPending}
                 >
                   Sync Current Season Fixtures

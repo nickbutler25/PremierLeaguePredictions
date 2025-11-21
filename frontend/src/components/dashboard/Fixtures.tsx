@@ -182,7 +182,7 @@ export function Fixtures() {
                   <div className="flex items-center justify-between">
                     {/* Home Team */}
                     <div className={`flex items-center gap-2 flex-1 ${homeColor}`}>
-                      {fixture.homeTeam.logoUrl && (
+                      {fixture.homeTeam?.logoUrl && (
                         <img
                           src={fixture.homeTeam.logoUrl}
                           alt={fixture.homeTeam.name}
@@ -190,7 +190,7 @@ export function Fixtures() {
                         />
                       )}
                       <span className="text-sm font-medium">
-                        {fixture.homeTeam.name}
+                        {fixture.homeTeam?.name}
                       </span>
                     </div>
 
@@ -218,9 +218,9 @@ export function Fixtures() {
                     {/* Away Team */}
                     <div className={`flex items-center gap-2 flex-1 justify-end ${awayColor}`}>
                       <span className="text-sm font-medium text-right">
-                        {fixture.awayTeam.name}
+                        {fixture.awayTeam?.name}
                       </span>
-                      {fixture.awayTeam.logoUrl && (
+                      {fixture.awayTeam?.logoUrl && (
                         <img
                           src={fixture.awayTeam.logoUrl}
                           alt={fixture.awayTeam.name}
