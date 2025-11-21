@@ -81,8 +81,18 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
-            ?? new[] { "http://localhost:5173" };
+        var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>();
+
+        // If array is null or empty, check for comma-separated string or default
+        if (allowedOrigins == null || allowedOrigins.Length == 0)
+        {
+            var originsString = builder.Configuration["AllowedOrigins"];
+            allowedOrigins = !string.IsNullOrEmpty(originsString)
+                ? originsString.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                : new[] { "http://localhost:5173" };
+        }
+
+        Log.Information("CORS configured with origins: {Origins}", string.Join(", ", allowedOrigins));
 
         policy.WithOrigins(allowedOrigins)
               .AllowAnyMethod()
