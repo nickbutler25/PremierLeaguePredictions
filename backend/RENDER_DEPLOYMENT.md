@@ -1,58 +1,68 @@
-# Deploying to Render
+# Deploying to Render + Supabase
 
-This guide explains how to deploy the Premier League Predictions API to Render's free tier.
+This guide explains how to deploy the Premier League Predictions API using Render (API) and Supabase (Database).
 
 ## Prerequisites
 
 1. A [Render](https://render.com) account (free tier)
-2. Your repository pushed to GitHub
-3. A Football Data API key from [football-data.org](https://www.football-data.org/)
-4. A Google OAuth Client ID from [Google Cloud Console](https://console.cloud.google.com/)
+2. A [Supabase](https://supabase.com) account (free tier)
+3. A [Vercel](https://vercel.com) account (free tier)
+4. Your repository pushed to GitHub
+5. A Football Data API key from [football-data.org](https://www.football-data.org/)
+6. A Google OAuth Client ID from [Google Cloud Console](https://console.cloud.google.com/)
 
-## Important Note
+## Why This Stack?
 
-**Blueprints require paid plans on Render.** This guide uses the manual setup approach which works with the free tier.
+- **Supabase**: Free PostgreSQL database (500MB) with no expiration
+- **Render**: Free .NET API hosting (spins down after 15min inactivity)
+- **Vercel**: Free React frontend hosting with instant deployments
 
 ## Deployment Steps
 
-#### 1. Create PostgreSQL Database
+#### 1. Create PostgreSQL Database on Supabase
 
-1. Go to Render Dashboard → New → PostgreSQL
-2. Name: `premierleague-db`
-3. Database: `premierleague`
-4. User: `premierleague_user` (or any name)
-5. Region: Choose closest to you
-6. Plan: Free
-7. Click "Create Database"
-8. Copy the "Internal Database URL" for later
+1. Go to [Supabase Dashboard](https://supabase.com/dashboard)
+2. Click "New Project"
+3. Configure:
+   - **Name**: `premierleague-predictions`
+   - **Database Password**: Generate a strong password (save this!)
+   - **Region**: Choose closest to you
+   - **Plan**: Free
+4. Click "Create new project" (takes ~2 minutes to provision)
+5. Once ready, go to **Settings** → **Database**
+6. Scroll down to **Connection String** → **URI**
+7. Copy the connection string (it looks like: `postgresql://postgres:[YOUR-PASSWORD]@db.xxx.supabase.co:5432/postgres`)
+8. Replace `[YOUR-PASSWORD]` with the password you created in step 3
 
-#### 2. Deploy the API
+#### 2. Deploy the API to Render
 
-1. Go to Render Dashboard → New → Web Service
-2. Connect your repository
+1. Go to [Render Dashboard](https://dashboard.render.com/) → New → Web Service
+2. Connect your GitHub repository
 3. Configure:
    - **Name**: `premierleague-api`
-   - **Region**: Same as database
+   - **Region**: Choose closest to you (preferably same region as Supabase)
    - **Root Directory**: `backend`
    - **Runtime**: Docker
-   - **Plan**: Free
    - **Dockerfile Path**: `./Dockerfile`
 
-4. Add Environment Variables:
+4. Add Environment Variables (click "Advanced" to add them):
    ```
    ASPNETCORE_ENVIRONMENT=Production
-   ConnectionStrings__DefaultConnection=[Paste Internal Database URL]
-   JWT__Secret=[Generate a random 32+ character string]
+   ConnectionStrings__DefaultConnection=[Paste your Supabase connection string]
+   JWT__Secret=[Generate a random 32+ character string - use a password generator]
    JWT__Issuer=PremierLeaguePredictions
    JWT__Audience=PremierLeaguePredictions
    JWT__ExpirationInMinutes=43200
    Google__ClientId=[Your Google OAuth Client ID]
    FootballData__ApiKey=[Your Football Data API Key]
-   AllowedOrigins__0=[Your Vercel frontend URL - you'll update this after deploying frontend]
+   AllowedOrigins__0=http://localhost:5173
    ```
 
+   **Note**: Set `AllowedOrigins__0` to `http://localhost:5173` for now. You'll update this with your Vercel URL after deploying the frontend.
+
 5. Click "Create Web Service"
-6. Copy your API URL (e.g., `https://premierleague-api.onrender.com`)
+6. Wait for the build to complete (~5-10 minutes for first deploy)
+7. Copy your API URL (e.g., `https://premierleague-api.onrender.com`)
 
 #### 3. Deploy the Frontend to Vercel
 
@@ -107,7 +117,7 @@ The API should automatically run migrations on startup. Check the API logs to ve
 ## Monitoring
 
 - **API Logs**: Render Dashboard → premierleague-api → Logs
-- **Database**: Render Dashboard → premierleague-db → Connect
+- **Database**: Supabase Dashboard → Your project → Database → Query Editor
 - **Frontend**: Vercel Dashboard → Your project → Deployments
 
 ## Troubleshooting
@@ -127,15 +137,33 @@ The API should automatically run migrations on startup. Check the API logs to ve
 - Check that `VITE_GOOGLE_CLIENT_ID` matches the backend `Google__ClientId`
 
 ### Database connection fails
-- Use the "Internal Database URL" from Render (not External)
-- Ensure the API and database are in the same region for best performance
+- Verify the Supabase connection string is correct
+- Make sure you replaced `[YOUR-PASSWORD]` with your actual password
+- Check that the password doesn't contain special characters that need URL encoding
+- Try connecting to your Supabase database using a PostgreSQL client to verify credentials
+
+### Supabase connection pooling issues
+- If you get connection errors, try using Supabase's connection pooling URL
+- In Supabase Dashboard → Settings → Database, use the "Connection pooling" URI instead
+- This uses port 6543 instead of 5432 and handles connections better
 
 ## Free Tier Limitations
 
-Render's free tier includes:
-- Web services sleep after 15 minutes of inactivity (first request after waking takes ~1 minute)
+**Render (API):**
+- Web services sleep after 15 minutes of inactivity (first request takes ~50 seconds to wake up)
 - 750 hours/month of runtime
-- PostgreSQL database limited to 1GB storage
+- Build time limit: 15 minutes
+
+**Supabase (Database):**
+- 500MB database storage
+- No time limit - free forever!
+- Automatic backups (7 days retention)
+- Connection pooling included
+
+**Vercel (Frontend):**
+- 100GB bandwidth/month
+- Unlimited deployments
+- Automatic HTTPS
 
 ## Upgrading
 
@@ -169,5 +197,7 @@ To upgrade from free tier:
 
 - The first deployment may take 5-10 minutes
 - **Free tier API services automatically sleep after 15 minutes of inactivity** - first request takes ~50 seconds to wake up
-- Database backups are available on paid plans only
+- Supabase provides automatic backups (7 days) even on free tier
 - Vercel provides instant deploys and automatic preview deployments for pull requests
+- All three services (Render, Supabase, Vercel) are completely free with no credit card required
+- No database expiration with Supabase - free forever!
