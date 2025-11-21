@@ -37,6 +37,15 @@ export function Picks() {
     enabled: !!user?.id,
   });
 
+  const { data: allGameweeks = [] } = useQuery({
+    queryKey: ['gameweeks'],
+    queryFn: async () => {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/gameweeks`);
+      if (!response.ok) throw new Error('Failed to fetch gameweeks');
+      return response.json();
+    },
+  });
+
   // Create/update pick mutation
   const createPickMutation = useMutation({
     mutationFn: ({ gameweekId, teamId }: { gameweekId: string; teamId: string }) =>
@@ -71,13 +80,20 @@ export function Picks() {
     );
   }
 
-  const currentGameweek = dashboard?.currentGameweek || 15;
+  const currentGameweek = dashboard?.upcomingGameweeks?.[0]?.weekNumber || 1;
+
+  // Create a map of week numbers to gameweek IDs
+  const gameweekIdsByNumber = new Map<number, string>();
+  allGameweeks.forEach((gw: any) => {
+    gameweekIdsByNumber.set(gw.weekNumber, gw.id);
+  });
 
   // Create a map of picks by gameweek number
   const picksByGameweek = new Map<number, typeof picks[0]>();
   picks.forEach((pick) => {
-    const gameweekNumber = parseInt(pick.gameweekId.split('-')[1]);
-    picksByGameweek.set(gameweekNumber, pick);
+    if (pick.gameweekNumber) {
+      picksByGameweek.set(pick.gameweekNumber, pick);
+    }
   });
 
   // Determine which teams have been used in each half
@@ -104,7 +120,12 @@ export function Picks() {
   };
 
   const handleTeamSelect = (gameweekNumber: number, teamId: string) => {
-    const gameweekId = `gw-${gameweekNumber}`;
+    const gameweekId = gameweekIdsByNumber.get(gameweekNumber);
+    if (!gameweekId) {
+      console.error(`No gameweek ID found for week ${gameweekNumber}`);
+      return;
+    }
+    setSelectedGameweek(null); // Close dropdown immediately
     createPickMutation.mutate({ gameweekId, teamId });
   };
 

@@ -1,9 +1,12 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { GoogleLogin } from '@react-oauth/google';
 import type { CredentialResponse } from '@react-oauth/google';
 import { useAuth } from '@/contexts/AuthContext';
 import { authService } from '@/services/auth';
+import { apiClient } from '@/services/api';
 import { useState } from 'react';
+import type { AuthResponse } from '@/types';
 
 export function LoginPage() {
   const { login } = useAuth();
@@ -34,6 +37,21 @@ export function LoginPage() {
     setError('Google login failed. Please try again.');
   };
 
+  const handleDevLogin = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await apiClient.post<AuthResponse>('/dev/login-as-admin');
+      login(response.data);
+    } catch (err) {
+      console.error('Dev login failed:', err);
+      setError('Failed to login as admin. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 p-4">
       <Card className="w-full max-w-md">
@@ -50,7 +68,6 @@ export function LoginPage() {
             <GoogleLogin
               onSuccess={handleGoogleSuccess}
               onError={handleGoogleError}
-              useOneTap
               size="large"
               text="continue_with"
               shape="rectangular"
@@ -67,6 +84,29 @@ export function LoginPage() {
           {error && (
             <div className="p-3 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-md">
               {error}
+            </div>
+          )}
+
+          {import.meta.env.DEV && (
+            <div className="space-y-2">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">
+                    Development Only
+                  </span>
+                </div>
+              </div>
+              <Button
+                onClick={handleDevLogin}
+                disabled={isLoading}
+                variant="outline"
+                className="w-full"
+              >
+                Login as Admin (Dev)
+              </Button>
             </div>
           )}
 

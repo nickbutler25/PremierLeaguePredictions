@@ -23,13 +23,12 @@ export function Layout({ children }: LayoutProps) {
       <header className="border-b">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center space-x-8">
-            <Link to="/" className="flex items-center space-x-3">
+            <Link to="/" className="flex items-center">
               <img
                 src="/pl-logo-alt.png"
-                alt="Premier League"
+                alt="Premier League Predictions"
                 className="h-10 w-auto"
               />
-              <span className="text-xl font-bold">Predictions</span>
             </Link>
             {isAdmin && (
               <nav className="hidden md:flex space-x-6">

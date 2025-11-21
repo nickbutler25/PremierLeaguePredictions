@@ -10,4 +10,9 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    headers: {
+      'Referrer-Policy': 'no-referrer-when-downgrade',
+    },
+  },
 })

@@ -5,12 +5,9 @@ export interface User {
   lastName: string;
   phoneNumber?: string;
   photoUrl?: string;
-  googleId?: string;
   isActive: boolean;
   isAdmin: boolean;
   isPaid: boolean;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface Season {
@@ -48,17 +45,16 @@ export interface Gameweek {
 export interface Fixture {
   id: string;
   gameweekId: string;
+  gameweekNumber: number;
   homeTeamId: string;
   awayTeamId: string;
-  homeTeam: Team;
-  awayTeam: Team;
+  homeTeam?: Team;
+  awayTeam?: Team;
   kickoffTime: string;
   homeScore?: number;
   awayScore?: number;
-  status: 'SCHEDULED' | 'IN_PLAY' | 'FINISHED' | 'POSTPONED' | 'CANCELLED';
+  status: 'SCHEDULED' | 'TIMED' | 'IN_PLAY' | 'FINISHED' | 'POSTPONED' | 'CANCELLED';
   externalApiId?: number;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface Pick {
@@ -66,13 +62,15 @@ export interface Pick {
   userId: string;
   gameweekId: string;
   teamId: string;
-  team: Team;
+  team?: Team;
   points: number;
   goalsFor: number;
   goalsAgainst: number;
   isAutoAssigned: boolean;
   createdAt: string;
   updatedAt: string;
+  gameweekName?: string;
+  gameweekNumber?: number;
 }
 
 export interface TeamSelection {
@@ -101,15 +99,43 @@ export interface PlayerStats {
 }
 
 export interface DashboardData {
-  currentGameweek: number;
-  deadline: string;
-  userStats: PlayerStats;
-  recentPicks: (Pick & { gameweekNumber: number })[];
+  user: UserStats;
+  currentGameweekId?: string;
+  recentPicks: Pick[];
+  upcomingGameweeks: Gameweek[];
+}
+
+export interface UserStats {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  totalPoints: number;
+  totalPicks: number;
+  totalWins: number;
+  totalDraws: number;
+  totalLosses: number;
 }
 
 export interface LeagueStandings {
-  players: PlayerStats[];
-  currentUserId: string;
+  standings: StandingEntry[];
+  totalPlayers: number;
+  lastUpdated: string;
+}
+
+export interface StandingEntry {
+  position: number;
+  rank: number;
+  userId: string;
+  userName: string;
+  totalPoints: number;
+  picksMade: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalDifference: number;
 }
 
 export interface PickSelection {

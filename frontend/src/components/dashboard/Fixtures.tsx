@@ -29,20 +29,21 @@ export function Fixtures() {
     enabled: !!user?.id,
   });
 
-  const currentGameweek = dashboard?.currentGameweek || 15;
+  const currentGameweek = dashboard?.upcomingGameweeks?.[0]?.weekNumber || 1;
   const displayGameweek = selectedGameweek || currentGameweek;
 
   // Create a map of picks by gameweek number
   const picksByGameweek = new Map<number, typeof picks[0]>();
   picks.forEach((pick) => {
-    const gameweekNumber = parseInt(pick.gameweekId.split('-')[1]);
-    picksByGameweek.set(gameweekNumber, pick);
+    if (pick.gameweekNumber) {
+      picksByGameweek.set(pick.gameweekNumber, pick);
+    }
   });
 
   // Group fixtures by gameweek
   const fixturesByGameweek = new Map<number, Fixture[]>();
   fixtures.forEach((fixture) => {
-    const gameweekNumber = parseInt(fixture.gameweekId.split('-')[1]);
+    const gameweekNumber = fixture.gameweekNumber || 1;
     if (!fixturesByGameweek.has(gameweekNumber)) {
       fixturesByGameweek.set(gameweekNumber, []);
     }

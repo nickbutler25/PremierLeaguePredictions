@@ -15,9 +15,8 @@ export function LeagueStandings() {
   const { user } = useAuth();
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['league-standings', user?.id],
-    queryFn: () => leagueService.getStandings(user?.id || ''),
-    enabled: !!user?.id,
+    queryKey: ['league-standings'],
+    queryFn: () => leagueService.getStandings(),
   });
 
   if (isLoading) {
@@ -76,48 +75,45 @@ export function LeagueStandings() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.players.map((player) => {
-                const isCurrentUser = player.userId === data.currentUserId;
+              {data.standings.map((entry) => {
+                const isCurrentUser = entry.userId === user?.id;
                 return (
                   <TableRow
-                    key={player.userId}
+                    key={entry.userId}
                     className={isCurrentUser ? 'bg-blue-50 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-950/40' : ''}
                   >
                     <TableCell className="text-center font-medium">
-                      {player.rank}
+                      {entry.position}
                     </TableCell>
                     <TableCell className={isCurrentUser ? 'font-bold' : ''}>
-                      {player.name}
+                      {entry.userName}
                       {isCurrentUser && (
                         <span className="ml-2 text-xs text-blue-600 dark:text-blue-400">(You)</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-center">{player.played}</TableCell>
+                    <TableCell className="text-center">{entry.picksMade}</TableCell>
                     <TableCell className="text-center text-green-600 dark:text-green-400">
-                      {player.won}
+                      {entry.wins}
                     </TableCell>
                     <TableCell className="text-center text-yellow-600 dark:text-yellow-400">
-                      {player.drawn}
+                      {entry.draws}
                     </TableCell>
                     <TableCell className="text-center text-red-600 dark:text-red-400">
-                      {player.lost}
+                      {entry.losses}
                     </TableCell>
                     <TableCell className="text-center font-bold">
-                      {player.points}
+                      {entry.totalPoints}
                     </TableCell>
-                    <TableCell className="text-center">{player.goalsFor}</TableCell>
-                    <TableCell className="text-center">{player.goalsAgainst}</TableCell>
-                    <TableCell
-                      className={`text-center font-medium ${
-                        player.goalDifference > 0
-                          ? 'text-green-600 dark:text-green-400'
-                          : player.goalDifference < 0
-                          ? 'text-red-600 dark:text-red-400'
-                          : ''
-                      }`}
-                    >
-                      {player.goalDifference > 0 ? '+' : ''}
-                      {player.goalDifference}
+                    <TableCell className="text-center">{entry.goalsFor}</TableCell>
+                    <TableCell className="text-center">{entry.goalsAgainst}</TableCell>
+                    <TableCell className={`text-center ${
+                      entry.goalDifference > 0
+                        ? 'text-green-600 dark:text-green-400'
+                        : entry.goalDifference < 0
+                        ? 'text-red-600 dark:text-red-400'
+                        : ''
+                    }`}>
+                      {entry.goalDifference > 0 ? '+' : ''}{entry.goalDifference}
                     </TableCell>
                   </TableRow>
                 );

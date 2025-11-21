@@ -1,0 +1,25 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Information",
+      "Microsoft.EntityFrameworkCore.Database.Command": "Information"
+    }
+  },
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=localhost;Database=premier_league_predictions;Username=postgres;Password=your-password-here"
+  },
+  "JwtSettings": {
+    "Secret": "your-development-secret-key-minimum-32-characters-long-for-security",
+    "Issuer": "PremierLeaguePredictionsAPI",
+    "Audience": "PremierLeaguePredictionsClient",
+    "ExpiryMinutes": "1440"
+  },
+  "AllowedOrigins": [
+    "http://localhost:5173",
+    "http://localhost:3000"
+  ],
+  "GoogleAuth": {
+    "ClientId": "your-google-oauth-client-id.apps.googleusercontent.com"
+  }
+}

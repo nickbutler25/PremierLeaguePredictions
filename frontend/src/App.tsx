@@ -9,10 +9,27 @@ import { Layout } from '@/components/layout/Layout';
 import { LoginPage } from '@/pages/LoginPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { LeagueStandings } from '@/components/league/LeagueStandings';
+import { SeasonManagementPage } from '@/pages/admin/SeasonManagementPage';
+import { Toaster } from '@/components/ui/toaster';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
+}
+
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, user } = useAuth();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!user?.isAdmin) {
+    console.log('User is not admin, redirecting to dashboard');
+    return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
 }
 
 function AppRoutes() {
@@ -49,14 +66,11 @@ function AppRoutes() {
       <Route
         path="/admin"
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <Layout>
-              <div className="container mx-auto p-6">
-                <h1 className="text-3xl font-bold">Admin Panel</h1>
-                <p className="text-muted-foreground mt-4">Coming soon...</p>
-              </div>
+              <SeasonManagementPage />
             </Layout>
-          </ProtectedRoute>
+          </AdminRoute>
         }
       />
       <Route path="*" element={<Navigate to="/" replace />} />
@@ -78,6 +92,7 @@ function App() {
           <BrowserRouter>
             <AuthProvider>
               <AppRoutes />
+              <Toaster />
             </AuthProvider>
           </BrowserRouter>
           <ReactQueryDevtools initialIsOpen={false} />
