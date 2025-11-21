@@ -191,6 +191,23 @@ app.UseAuthorization();
 // Map controllers
 app.MapControllers();
 
+// Apply migrations on startup (for production deployment)
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    try
+    {
+        Log.Information("Applying database migrations...");
+        dbContext.Database.Migrate();
+        Log.Information("Database migrations applied successfully");
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "An error occurred while applying database migrations");
+        throw;
+    }
+}
+
 try
 {
     Log.Information("Starting Premier League Predictions API");

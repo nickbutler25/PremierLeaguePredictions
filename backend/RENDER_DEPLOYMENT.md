@@ -30,9 +30,27 @@ This guide explains how to deploy the Premier League Predictions API using Rende
    - **Plan**: Free
 4. Click "Create new project" (takes ~2 minutes to provision)
 5. Once ready, go to **Settings** → **Database**
-6. Scroll down to **Connection String** → **URI**
-7. Copy the connection string (it looks like: `postgresql://postgres:[YOUR-PASSWORD]@db.xxx.supabase.co:5432/postgres`)
-8. Replace `[YOUR-PASSWORD]` with the password you created in step 3
+6. Find your connection details:
+   - **Host**: `db.xxx.supabase.co`
+   - **Database name**: `postgres`
+   - **Port**: `5432` (or `6543` for connection pooling)
+   - **User**: `postgres`
+   - **Password**: The password you created in step 3
+7. Format the connection string for .NET (Npgsql format):
+
+   **For Render deployment (recommended - uses connection pooling):**
+   - Go to **Settings** → **Database** → **Connection Pooling**
+   - Copy the connection string and convert to Npgsql format:
+   ```
+   Host=aws-1-us-east-1.pooler.supabase.com;Database=postgres;Username=postgres.PROJECT_REF;Port=5432;Pool_Mode=session;Password=YOUR_PASSWORD
+   ```
+
+   **For local development (direct connection):**
+   ```
+   Host=db.xxx.supabase.co;Database=postgres;Username=postgres;Password=YOUR_PASSWORD
+   ```
+
+   **Note**: Use the Npgsql format (not the URI `postgresql://` format). The pooler connection is required for Render due to IPv6 connectivity issues.
 
 #### 2. Deploy the API to Render
 
@@ -48,7 +66,7 @@ This guide explains how to deploy the Premier League Predictions API using Rende
 4. Add Environment Variables (click "Advanced" to add them):
    ```
    ASPNETCORE_ENVIRONMENT=Production
-   ConnectionStrings__DefaultConnection=[Paste your Supabase connection string]
+   ConnectionStrings__DefaultConnection=Host=aws-1-us-east-1.pooler.supabase.com;Database=postgres;Username=postgres.PROJECT_REF;Port=5432;Pool_Mode=session;Password=YOUR_PASSWORD
    JWT__Secret=[Generate a random 32+ character string - use a password generator]
    JWT__Issuer=PremierLeaguePredictions
    JWT__Audience=PremierLeaguePredictions
@@ -58,7 +76,13 @@ This guide explains how to deploy the Premier League Predictions API using Rende
    AllowedOrigins__0=http://localhost:5173
    ```
 
-   **Note**: Set `AllowedOrigins__0` to `http://localhost:5173` for now. You'll update this with your Vercel URL after deploying the frontend.
+   **Important Notes**:
+   - Use the Supabase connection pooling string (from Settings → Database → Connection Pooling)
+   - Replace `PROJECT_REF` with your actual Supabase project reference (e.g., `postgres.ktnpraboebotzcxvnzlt`)
+   - Use the Npgsql connection string format (Host=;Database=;Username=;Password=)
+   - Do NOT use the URI format (postgresql://)
+   - The pooler connection is required for Render due to IPv6 connectivity issues
+   - Set `AllowedOrigins__0` to `http://localhost:5173` for now. You'll update this with your Vercel URL after deploying the frontend.
 
 5. Click "Create Web Service"
 6. Wait for the build to complete (~5-10 minutes for first deploy)
@@ -105,7 +129,11 @@ In the [Google Cloud Console](https://console.cloud.google.com/):
 
 ### 2. Run Database Migrations
 
-The API should automatically run migrations on startup. Check the API logs to verify.
+The API automatically runs migrations on startup (configured in Program.cs). Check the Render logs to verify:
+- Look for "Applying database migrations..."
+- Followed by "Database migrations applied successfully"
+
+If migrations fail, check the connection string and database credentials.
 
 ### 3. Initialize Data
 
@@ -143,9 +171,13 @@ The API should automatically run migrations on startup. Check the API logs to ve
 - Try connecting to your Supabase database using a PostgreSQL client to verify credentials
 
 ### Supabase connection pooling issues
-- If you get connection errors, try using Supabase's connection pooling URL
-- In Supabase Dashboard → Settings → Database, use the "Connection pooling" URI instead
-- This uses port 6543 instead of 5432 and handles connections better
+- If you get connection errors, make sure you're using Supabase's connection pooling connection string
+- In Supabase Dashboard → Settings → Database → Connection Pooling
+- Use the Session mode pooler connection string in Npgsql format:
+  ```
+  Host=aws-1-us-east-1.pooler.supabase.com;Database=postgres;Username=postgres.PROJECT_REF;Port=5432;Pool_Mode=session;Password=YOUR_PASSWORD
+  ```
+- The direct connection (`db.xxx.supabase.co`) won't work on Render's free tier due to IPv6 connectivity issues
 
 ## Free Tier Limitations
 
