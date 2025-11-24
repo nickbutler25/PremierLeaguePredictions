@@ -14,6 +14,7 @@ import { LeagueStandings } from '@/components/league/LeagueStandings';
 import { SeasonManagementPage } from '@/pages/admin/SeasonManagementPage';
 import { SeasonApprovalsPage } from '@/pages/admin/SeasonApprovalsPage';
 import EliminationManagementPage from '@/pages/admin/EliminationManagementPage';
+import { BackfillPicksPage } from '@/pages/admin/BackfillPicksPage';
 import { Toaster } from '@/components/ui/toaster';
 import { useSeasonApproval } from '@/hooks/useSeasonApproval';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -131,6 +132,16 @@ function AppRoutes() {
           <AdminRoute>
             <Layout>
               <EliminationManagementPage />
+            </Layout>
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/backfill"
+        element={
+          <AdminRoute>
+            <Layout>
+              <BackfillPicksPage />
             </Layout>
           </AdminRoute>
         }

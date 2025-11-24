@@ -39,7 +39,10 @@ export function Layout({ children }: LayoutProps) {
             {isAdmin && (
               <nav className="hidden md:flex space-x-6">
                 <Link to="/admin" className="text-sm hover:text-primary">
-                  Admin
+                  Season Management
+                </Link>
+                <Link to="/admin/backfill" className="text-sm hover:text-primary">
+                  Backfill Picks
                 </Link>
                 <Link to="/admin/approvals" className="text-sm hover:text-primary">
                   Season Approvals

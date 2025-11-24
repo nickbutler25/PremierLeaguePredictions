@@ -1,21 +1,14 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminService, type TeamStatus } from '@/services/admin';
-import { teamsService } from '@/services/teams';
-import { usersService } from '@/services/users';
-import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 
-type TabType = 'seasons' | 'backfill';
-
 export function SeasonManagementPage() {
-  const [activeTab, setActiveTab] = useState<TabType>('seasons');
   const [isCreatingseason, setIsCreatingSeason] = useState(false);
   const [selectedSeasonName, setSelectedSeasonName] = useState('');
-  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -27,24 +20,6 @@ export function SeasonManagementPage() {
   const { data: teams, isLoading: loadingTeams } = useQuery({
     queryKey: ['admin', 'teams'],
     queryFn: () => adminService.getTeamStatuses(),
-  });
-
-  // Backfill picks state and queries
-  const [selectedUserId, setSelectedUserId] = useState<string>('');
-  const [picks, setPicks] = useState<Array<{ gameweekNumber: number; teamId: string }>>(
-    Array.from({ length: 11 }, (_, i) => ({ gameweekNumber: i + 1, teamId: '' }))
-  );
-
-  const { data: allTeams = [] } = useQuery({
-    queryKey: ['teams'],
-    queryFn: () => teamsService.getTeams(),
-    enabled: activeTab === 'backfill',
-  });
-
-  const { data: users = [] } = useQuery({
-    queryKey: ['users'],
-    queryFn: () => usersService.getUsers(),
-    enabled: activeTab === 'backfill',
   });
 
   // Generate available season options (only past and current seasons)
@@ -190,121 +165,13 @@ export function SeasonManagementPage() {
     });
   };
 
-  // Backfill picks mutation and handlers
-  const backfillMutation = useMutation({
-    mutationFn: () => {
-      const userId = selectedUserId || user?.id;
-      if (!userId) throw new Error('No user selected');
-      const validPicks = picks.filter(p => p.teamId !== '');
-      return adminService.backfillPicks(userId, validPicks);
-    },
-    onSuccess: (response) => {
-      console.log('Backfill response:', response);
-
-      const message = response.picksSkipped > 0
-        ? `Created: ${response.picksCreated}, Updated: ${response.picksUpdated}, Skipped: ${response.picksSkipped} (gameweeks may not exist yet)`
-        : `Created: ${response.picksCreated}, Updated: ${response.picksUpdated}`;
-
-      toast({
-        title: 'Picks Backfilled Successfully',
-        description: message,
-        duration: 7000,
-      });
-      queryClient.invalidateQueries({ queryKey: ['picks'] });
-      // Reset form
-      setSelectedUserId('');
-      setPicks(Array.from({ length: 11 }, (_, i) => ({ gameweekNumber: i + 1, teamId: '' })));
-    },
-    onError: (error: any) => {
-      const errorMessage = error.response?.data?.message
-        || error.response?.data?.title
-        || error.message
-        || 'Failed to backfill picks';
-
-      toast({
-        title: 'Error Backfilling Picks',
-        description: errorMessage,
-        variant: 'destructive',
-        duration: 7000,
-      });
-    },
-  });
-
-  const handlePickChange = (index: number, teamId: string) => {
-    const newPicks = [...picks];
-    newPicks[index] = { ...newPicks[index], teamId };
-    setPicks(newPicks);
-  };
-
-  const handleBackfillSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const userId = selectedUserId || user?.id;
-    if (!userId) {
-      toast({
-        title: 'Validation Error',
-        description: 'Please select a user',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const validPicks = picks.filter(p => p.teamId !== '');
-    if (validPicks.length === 0) {
-      toast({
-        title: 'Validation Error',
-        description: 'Please select at least one team',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    backfillMutation.mutate();
-  };
-
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Admin Panel</h1>
+        <h1 className="text-3xl font-bold">Season Management</h1>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="flex gap-2 border-b">
-        <button
-          onClick={() => setActiveTab('seasons')}
-          className={`px-4 py-2 font-medium transition-colors ${
-            activeTab === 'seasons'
-              ? 'text-primary border-b-2 border-primary'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          Season Management
-        </button>
-        <button
-          onClick={() => setActiveTab('backfill')}
-          className={`px-4 py-2 font-medium transition-colors ${
-            activeTab === 'backfill'
-              ? 'text-primary border-b-2 border-primary'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          Backfill Picks
-        </button>
-      </div>
-
-      {activeTab === 'seasons' && (
-        <div className="space-y-6">{renderSeasonManagement()}</div>
-      )}
-
-      {activeTab === 'backfill' && (
-        <div className="space-y-6">{renderBackfillPicks()}</div>
-      )}
-    </div>
-  );
-
-  function renderSeasonManagement() {
-    return (
-      <>
+      <div className="space-y-6">
 
       {/* Create New Season Section */}
       <Card>
@@ -536,85 +403,7 @@ export function SeasonManagementPage() {
           )}
         </CardContent>
       </Card>
-      </>
-    );
-  }
-
-  function renderBackfillPicks() {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Backfill Gameweeks 1-11</CardTitle>
-          <CardDescription>
-            Select team picks for the first 11 gameweeks. Points will be automatically calculated based on results.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleBackfillSubmit} className="space-y-4">
-            {/* User Selection */}
-            <div className="space-y-2">
-              <Label htmlFor="user-select">Select User</Label>
-              <select
-                id="user-select"
-                value={selectedUserId}
-                onChange={(e) => setSelectedUserId(e.target.value)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <option value="">-- Select a user --</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.firstName} {u.lastName} ({u.email})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {picks.map((pick, index) => (
-                <div key={pick.gameweekNumber} className="space-y-2">
-                  <Label htmlFor={`gw-${pick.gameweekNumber}`}>
-                    Gameweek {pick.gameweekNumber}
-                  </Label>
-                  <select
-                    id={`gw-${pick.gameweekNumber}`}
-                    value={pick.teamId}
-                    onChange={(e) => handlePickChange(index, e.target.value)}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <option value="">-- Select a team --</option>
-                    {allTeams.map((team) => (
-                      <option key={team.id} value={team.id}>
-                        {team.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex gap-2 pt-4">
-              <Button
-                type="submit"
-                disabled={backfillMutation.isPending}
-              >
-                {backfillMutation.isPending ? 'Backfilling...' : 'Backfill Picks'}
-              </Button>
-            </div>
-
-            <div className="rounded-lg bg-blue-50 dark:bg-blue-950 p-4 border border-blue-200 dark:border-blue-800">
-              <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
-                Important Notes:
-              </p>
-              <ul className="text-sm text-blue-800 dark:text-blue-200 list-disc list-inside space-y-1">
-                <li>You can leave gameweeks blank if you don't want to backfill them</li>
-                <li>Points will be automatically calculated based on match results</li>
-                <li>If a pick already exists for a gameweek, it will be updated</li>
-                <li>Make sure fixtures have been synced for accurate point calculation</li>
-              </ul>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-    );
-  }
+      </div>
+    </div>
+  );
 }
