@@ -19,6 +19,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<TeamSelection> TeamSelections { get; set; }
     public DbSet<EmailNotification> EmailNotifications { get; set; }
     public DbSet<AdminAction> AdminActions { get; set; }
+    public DbSet<SeasonParticipation> SeasonParticipations { get; set; }
+    public DbSet<UserElimination> UserEliminations { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -88,6 +90,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.WeekNumber).HasColumnName("week_number").IsRequired();
             entity.Property(e => e.Deadline).HasColumnName("deadline").IsRequired();
             entity.Property(e => e.IsLocked).HasColumnName("is_locked").HasDefaultValue(false);
+            entity.Property(e => e.EliminationCount).HasColumnName("elimination_count").HasDefaultValue(0);
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
 
@@ -250,6 +253,76 @@ public class ApplicationDbContext : DbContext
                 .WithMany(g => g.AdminActions)
                 .HasForeignKey(e => e.TargetGameweekId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // SeasonParticipation configuration
+        modelBuilder.Entity<SeasonParticipation>(entity =>
+        {
+            entity.ToTable("season_participations");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id").HasDefaultValueSql("uuid_generate_v4()");
+            entity.Property(e => e.UserId).HasColumnName("user_id").IsRequired();
+            entity.Property(e => e.SeasonId).HasColumnName("season_id").IsRequired();
+            entity.Property(e => e.IsApproved).HasColumnName("is_approved").HasDefaultValue(false);
+            entity.Property(e => e.RequestedAt).HasColumnName("requested_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.ApprovedAt).HasColumnName("approved_at");
+            entity.Property(e => e.ApprovedByUserId).HasColumnName("approved_by_user_id");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.SeasonParticipations)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Season)
+                .WithMany(s => s.Participations)
+                .HasForeignKey(e => e.SeasonId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.ApprovedByUser)
+                .WithMany(u => u.ApprovedParticipations)
+                .HasForeignKey(e => e.ApprovedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.UserId, e.SeasonId }).IsUnique();
+        });
+
+        // UserElimination configuration
+        modelBuilder.Entity<UserElimination>(entity =>
+        {
+            entity.ToTable("user_eliminations");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id").HasDefaultValueSql("uuid_generate_v4()");
+            entity.Property(e => e.UserId).HasColumnName("user_id").IsRequired();
+            entity.Property(e => e.SeasonId).HasColumnName("season_id").IsRequired();
+            entity.Property(e => e.GameweekId).HasColumnName("gameweek_id").IsRequired();
+            entity.Property(e => e.Position).HasColumnName("position").IsRequired();
+            entity.Property(e => e.TotalPoints).HasColumnName("total_points").IsRequired();
+            entity.Property(e => e.EliminatedAt).HasColumnName("eliminated_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.EliminatedBy).HasColumnName("eliminated_by");
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.Eliminations)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Season)
+                .WithMany(s => s.Eliminations)
+                .HasForeignKey(e => e.SeasonId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Gameweek)
+                .WithMany(g => g.Eliminations)
+                .HasForeignKey(e => e.GameweekId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.EliminatedByUser)
+                .WithMany(u => u.EliminationsTriggered)
+                .HasForeignKey(e => e.EliminatedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.UserId, e.SeasonId }).IsUnique();
         });
     }
 }

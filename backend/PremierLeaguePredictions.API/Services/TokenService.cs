@@ -2,7 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
-using PremierLeaguePredictions.API.Models;
+using PremierLeaguePredictions.Core.Entities;
 
 namespace PremierLeaguePredictions.API.Services;
 

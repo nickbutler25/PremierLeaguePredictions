@@ -21,4 +21,8 @@ public class User
     public ICollection<EmailNotification> EmailNotifications { get; set; } = new List<EmailNotification>();
     public ICollection<AdminAction> AdminActionsPerformed { get; set; } = new List<AdminAction>();
     public ICollection<AdminAction> AdminActionsReceived { get; set; } = new List<AdminAction>();
+    public ICollection<SeasonParticipation> SeasonParticipations { get; set; } = new List<SeasonParticipation>();
+    public ICollection<SeasonParticipation> ApprovedParticipations { get; set; } = new List<SeasonParticipation>();
+    public ICollection<UserElimination> Eliminations { get; set; } = new List<UserElimination>();
+    public ICollection<UserElimination> EliminationsTriggered { get; set; } = new List<UserElimination>();
 }

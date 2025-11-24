@@ -48,24 +48,104 @@ public class DashboardService : IDashboardService
         var totalPoints = picksList.Sum(p => p.Points);
         var totalPicks = completedPicks.Count; // Only count completed picks
 
-        // Get upcoming gameweeks
-        var upcomingGameweeks = await _unitOfWork.Gameweeks.FindAsync(
-            g => !g.IsLocked && g.Deadline > DateTime.UtcNow,
-            cancellationToken);
-        var upcomingGameweeksList = upcomingGameweeks
-            .OrderBy(g => g.Deadline)
-            .Take(3)
-            .Select(g => new GameweekDto
-            {
-                Id = g.Id,
-                SeasonId = g.SeasonId,
-                WeekNumber = g.WeekNumber,
-                Deadline = g.Deadline,
-                IsLocked = g.IsLocked
-            })
-            .ToList();
+        // Get current/upcoming gameweeks
+        // Current gameweek could be:
+        // 1. In Progress: Deadline passed but not all fixtures finished
+        // 2. Upcoming: Deadline not yet passed
 
-        var currentGameweek = upcomingGameweeksList.FirstOrDefault();
+        var now = DateTime.UtcNow;
+        var allGameweeksOrdered = allGameweeks.OrderBy(g => g.WeekNumber).ToList();
+
+        _logger.LogInformation("Current UTC time: {Now}, checking {GameweekCount} gameweeks for user {UserId}",
+            now, allGameweeksOrdered.Count, userId);
+
+        // Get all fixtures to check gameweek status
+        var allFixtures = await _unitOfWork.Fixtures.GetAllAsync(cancellationToken);
+        var fixturesByGameweek = allFixtures.GroupBy(f => f.GameweekId).ToDictionary(g => g.Key, g => g.ToList());
+
+        GameweekDto? currentGameweek = null;
+        var upcomingGameweeksList = new List<GameweekDto>();
+
+        // First, check if there's a gameweek in progress (deadline passed but fixtures not all finished)
+        // Strategy: Find the most recent gameweek whose deadline has passed and still has future or in-progress fixtures
+        var inProgressGameweek = allGameweeksOrdered
+            .Where(g => g.Deadline < now)
+            .OrderByDescending(g => g.WeekNumber)
+            .FirstOrDefault(g =>
+            {
+                // Check if this gameweek has any fixtures that are not finished
+                if (fixturesByGameweek.TryGetValue(g.Id, out var fixtures))
+                {
+                    var hasUnfinishedFixtures = fixtures.Any(f => f.Status != "FINISHED" && f.Status != "CANCELLED" && f.Status != "POSTPONED");
+
+                    // Also check if there are any fixtures with future kickoff times (not yet played)
+                    var hasFutureFixtures = fixtures.Any(f => f.KickoffTime > now);
+
+                    _logger.LogInformation("GW {WeekNumber} (deadline: {Deadline}, locked: {IsLocked}): {FixtureCount} fixtures, unfinished: {HasUnfinished}, future: {HasFuture}, statuses: {Statuses}",
+                        g.WeekNumber, g.Deadline, g.IsLocked, fixtures.Count, hasUnfinishedFixtures, hasFutureFixtures, string.Join(", ", fixtures.Select(f => f.Status)));
+
+                    return hasUnfinishedFixtures || hasFutureFixtures;
+                }
+                _logger.LogInformation("GW {WeekNumber} (deadline: {Deadline}, locked: {IsLocked}): No fixtures found", g.WeekNumber, g.Deadline, g.IsLocked);
+                return false;
+            });
+
+        if (inProgressGameweek != null)
+        {
+            _logger.LogInformation("Found in-progress gameweek: GW {WeekNumber}", inProgressGameweek.WeekNumber);
+            currentGameweek = new GameweekDto
+            {
+                Id = inProgressGameweek.Id,
+                SeasonId = inProgressGameweek.SeasonId,
+                WeekNumber = inProgressGameweek.WeekNumber,
+                Deadline = inProgressGameweek.Deadline,
+                IsLocked = inProgressGameweek.IsLocked,
+                Status = "InProgress"
+            };
+
+            // Add the in-progress gameweek as the first item in upcomingGameweeks
+            upcomingGameweeksList.Add(currentGameweek);
+
+            // Then add the next upcoming gameweeks
+            var upcoming = await _unitOfWork.Gameweeks.FindAsync(
+                g => !g.IsLocked && g.Deadline > now,
+                cancellationToken);
+            upcomingGameweeksList.AddRange(upcoming
+                .OrderBy(g => g.Deadline)
+                .Take(2) // Take 2 more since we already have the in-progress one
+                .Select(g => new GameweekDto
+                {
+                    Id = g.Id,
+                    SeasonId = g.SeasonId,
+                    WeekNumber = g.WeekNumber,
+                    Deadline = g.Deadline,
+                    IsLocked = g.IsLocked,
+                    Status = "Upcoming"
+                }));
+        }
+        else
+        {
+            _logger.LogInformation("No in-progress gameweek found, looking for upcoming");
+            // No gameweek in progress, so get the next upcoming one
+            var upcoming = await _unitOfWork.Gameweeks.FindAsync(
+                g => !g.IsLocked && g.Deadline > now,
+                cancellationToken);
+            upcomingGameweeksList = upcoming
+                .OrderBy(g => g.Deadline)
+                .Take(3)
+                .Select(g => new GameweekDto
+                {
+                    Id = g.Id,
+                    SeasonId = g.SeasonId,
+                    WeekNumber = g.WeekNumber,
+                    Deadline = g.Deadline,
+                    IsLocked = g.IsLocked,
+                    Status = "Upcoming"
+                })
+                .ToList();
+
+            currentGameweek = upcomingGameweeksList.FirstOrDefault();
+        }
 
         // Get recent picks
         var recentPicks = picksList

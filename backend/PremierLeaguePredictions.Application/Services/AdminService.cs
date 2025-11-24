@@ -167,6 +167,12 @@ public class AdminService : IAdminService
             });
     }
 
+    public async Task<SeasonDto?> GetActiveSeasonAsync(CancellationToken cancellationToken = default)
+    {
+        var seasons = await GetAllSeasonsAsync(cancellationToken);
+        return seasons.FirstOrDefault(s => s.IsActive);
+    }
+
     public async Task<IEnumerable<TeamStatusDto>> GetTeamStatusesAsync(CancellationToken cancellationToken = default)
     {
         var teams = await _unitOfWork.Teams.GetAllAsync(cancellationToken);
@@ -303,5 +309,52 @@ public class AdminService : IAdminService
         pick.Points = points;
         pick.GoalsFor = goalsFor;
         pick.GoalsAgainst = goalsAgainst;
+    }
+
+    public async Task<object> GetGameweeksDebugInfoAsync(CancellationToken cancellationToken = default)
+    {
+        var now = DateTime.UtcNow;
+        var allGameweeks = await _unitOfWork.Gameweeks.GetAllAsync(cancellationToken);
+        var allFixtures = await _unitOfWork.Fixtures.GetAllAsync(cancellationToken);
+
+        var gameweeksInfo = allGameweeks.OrderBy(g => g.WeekNumber).Select(g =>
+        {
+            var fixtures = allFixtures.Where(f => f.GameweekId == g.Id).ToList();
+            var fixtureStatuses = fixtures.GroupBy(f => f.Status)
+                .ToDictionary(grp => grp.Key, grp => grp.Count());
+
+            var hasUnfinishedFixtures = fixtures.Any(f =>
+                f.Status != "FINISHED" &&
+                f.Status != "CANCELLED" &&
+                f.Status != "POSTPONED");
+
+            var deadlinePassed = g.Deadline < now;
+            var isInProgress = deadlinePassed && hasUnfinishedFixtures;
+
+            return new
+            {
+                WeekNumber = g.WeekNumber,
+                Deadline = g.Deadline,
+                DeadlinePassed = deadlinePassed,
+                IsLocked = g.IsLocked,
+                TotalFixtures = fixtures.Count,
+                FixtureStatuses = fixtureStatuses,
+                HasUnfinishedFixtures = hasUnfinishedFixtures,
+                IsInProgress = isInProgress,
+                FixtureDetails = fixtures.Select(f => new
+                {
+                    KickoffTime = f.KickoffTime,
+                    Status = f.Status,
+                    HomeScore = f.HomeScore,
+                    AwayScore = f.AwayScore
+                }).ToList()
+            };
+        }).ToList();
+
+        return new
+        {
+            CurrentTime = now,
+            Gameweeks = gameweeksInfo
+        };
     }
 }

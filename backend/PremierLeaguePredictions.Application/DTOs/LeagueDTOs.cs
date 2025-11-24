@@ -21,4 +21,7 @@ public class StandingEntryDto
     public int GoalsFor { get; set; }
     public int GoalsAgainst { get; set; }
     public int GoalDifference { get; set; }
+    public bool IsEliminated { get; set; }
+    public int? EliminatedInGameweek { get; set; }
+    public int? EliminationPosition { get; set; }
 }

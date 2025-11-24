@@ -40,6 +40,7 @@ export interface Gameweek {
   isLocked: boolean;
   createdAt: string;
   updatedAt: string;
+  status?: 'Upcoming' | 'InProgress';
 }
 
 export interface Fixture {
@@ -136,6 +137,9 @@ export interface StandingEntry {
   goalsFor: number;
   goalsAgainst: number;
   goalDifference: number;
+  isEliminated: boolean;
+  eliminatedInGameweek?: number;
+  eliminationPosition?: number;
 }
 
 export interface PickSelection {
@@ -159,4 +163,32 @@ export interface CreateUserRequest {
   phoneNumber?: string;
   photoUrl?: string;
   googleId?: string;
+}
+
+export interface SeasonParticipation {
+  id: string;
+  userId: string;
+  seasonId: string;
+  isApproved: boolean;
+  requestedAt: string;
+  approvedAt?: string;
+  approvedByUserId?: string;
+  userFirstName?: string;
+  userLastName?: string;
+  userEmail?: string;
+  seasonName?: string;
+  approvedByUserName?: string;
+}
+
+export interface PendingApproval {
+  participationId: string;
+  userId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  photoUrl?: string;
+  seasonId: string;
+  seasonName: string;
+  requestedAt: string;
+  isPaid: boolean;
 }

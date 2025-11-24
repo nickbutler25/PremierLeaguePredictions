@@ -13,6 +13,8 @@ public interface IUnitOfWork : IDisposable
     IRepository<TeamSelection> TeamSelections { get; }
     IRepository<EmailNotification> EmailNotifications { get; }
     IRepository<AdminAction> AdminActions { get; }
+    IRepository<SeasonParticipation> SeasonParticipations { get; }
+    IRepository<UserElimination> UserEliminations { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task BeginTransactionAsync(CancellationToken cancellationToken = default);

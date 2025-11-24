@@ -14,4 +14,6 @@ public class Season
     // Navigation properties
     public ICollection<Gameweek> Gameweeks { get; set; } = new List<Gameweek>();
     public ICollection<TeamSelection> TeamSelections { get; set; } = new List<TeamSelection>();
+    public ICollection<SeasonParticipation> Participations { get; set; } = new List<SeasonParticipation>();
+    public ICollection<UserElimination> Eliminations { get; set; } = new List<UserElimination>();
 }

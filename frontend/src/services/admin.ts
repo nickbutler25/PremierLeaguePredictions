@@ -40,6 +40,11 @@ export const adminService = {
     return response.data;
   },
 
+  async getActiveSeason() {
+    const response = await apiClient.get<Season>('/api/admin/seasons/active');
+    return response.data;
+  },
+
   async createSeason(request: CreateSeasonRequest) {
     const response = await apiClient.post<CreateSeasonResponse>('/api/admin/seasons', request);
     return response.data;
@@ -78,7 +83,12 @@ export const adminService = {
   },
 
   async syncResults() {
-    const response = await apiClient.post<{ message: string }>('/api/admin/sync/results');
+    const response = await apiClient.post<{
+      fixturesUpdated: number;
+      gameweeksProcessed: number;
+      picksRecalculated: number;
+      message: string;
+    }>('/api/admin/sync/results');
     return response.data;
   },
 

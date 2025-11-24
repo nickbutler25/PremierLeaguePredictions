@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -72,6 +73,24 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret)),
         ClockSkew = TimeSpan.Zero
     };
+
+    // Configure SignalR to accept JWT tokens from query string
+    options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+
+            // If the request is for our hub and has a token in the query string
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+            {
+                context.Token = accessToken;
+            }
+
+            return Task.CompletedTask;
+        }
+    };
 });
 
 builder.Services.AddAuthorization();
@@ -112,10 +131,42 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<ILeagueService, LeagueService>();
+builder.Services.AddScoped<ISeasonParticipationService, SeasonParticipationService>();
+builder.Services.AddScoped<IEliminationService, EliminationService>();
+builder.Services.AddScoped<IAutoPickService, AutoPickService>();
+builder.Services.AddScoped<IPickReminderService, PickReminderService>();
+builder.Services.AddScoped<IEmailService, SmtpEmailService>();
+builder.Services.AddScoped<INotificationService>(sp =>
+{
+    var hubContext = sp.GetRequiredService<IHubContext<PremierLeaguePredictions.API.Hubs.NotificationHub>>();
+    var emailService = sp.GetRequiredService<IEmailService>();
+    var logger = sp.GetRequiredService<ILogger<SignalRNotificationService>>();
+    // Cast to IHubContext<Hub> since that's what SignalRNotificationService expects
+    return new SignalRNotificationService((IHubContext<Hub>)(object)hubContext, emailService, logger);
+});
 
 // Register Football Data API services
 builder.Services.AddHttpClient<IFootballDataService, FootballDataService>();
 builder.Services.AddScoped<IFixtureSyncService, FixtureSyncService>();
+builder.Services.AddScoped<IResultsService>(sp =>
+{
+    var unitOfWork = sp.GetRequiredService<IUnitOfWork>();
+    var footballDataService = sp.GetRequiredService<IFootballDataService>();
+    var adminService = sp.GetRequiredService<IAdminService>();
+    var eliminationService = sp.GetRequiredService<IEliminationService>();
+    var hubContext = sp.GetRequiredService<IHubContext<PremierLeaguePredictions.API.Hubs.NotificationHub>>();
+    var logger = sp.GetRequiredService<ILogger<ResultsService>>();
+    // Cast to IHubContext<Hub> for ResultsService
+    return new ResultsService(unitOfWork, footballDataService, adminService, eliminationService, (IHubContext<Hub>)(object)hubContext, logger);
+});
+
+// Register background services
+builder.Services.AddHostedService<ResultsSyncBackgroundService>();
+builder.Services.AddHostedService<AutoPickAssignmentBackgroundService>();
+builder.Services.AddHostedService<PickReminderBackgroundService>();
+
+// Add SignalR
+builder.Services.AddSignalR();
 
 // Add Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
@@ -190,6 +241,9 @@ app.UseAuthorization();
 
 // Map controllers
 app.MapControllers();
+
+// Map SignalR hub
+app.MapHub<PremierLeaguePredictions.API.Hubs.NotificationHub>("/hubs/notifications");
 
 // Apply migrations on startup (for production deployment)
 using (var scope = app.Services.CreateScope())

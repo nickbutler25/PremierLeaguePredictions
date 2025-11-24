@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using PremierLeaguePredictions.Application.DTOs;
 using PremierLeaguePredictions.Application.Interfaces;
+using PremierLeaguePredictions.Core.Entities;
 using PremierLeaguePredictions.Core.Interfaces;
 
 namespace PremierLeaguePredictions.Application.Services;
@@ -21,6 +22,27 @@ public class LeagueService : ILeagueService
         var allUsers = await _unitOfWork.Users.GetAllAsync(cancellationToken);
         var allPicks = await _unitOfWork.Picks.GetAllAsync(cancellationToken);
         var allGameweeks = await _unitOfWork.Gameweeks.GetAllAsync(cancellationToken);
+
+        // Get active season if not specified
+        Season? activeSeason = null;
+        if (!seasonId.HasValue)
+        {
+            var seasons = await _unitOfWork.Seasons.FindAsync(s => s.IsActive, cancellationToken);
+            activeSeason = seasons.FirstOrDefault();
+            seasonId = activeSeason?.Id;
+        }
+        else
+        {
+            activeSeason = await _unitOfWork.Seasons.GetByIdAsync(seasonId.Value, cancellationToken);
+        }
+
+        // Get eliminations for the season
+        var eliminations = seasonId.HasValue
+            ? await _unitOfWork.UserEliminations.FindAsync(e => e.SeasonId == seasonId.Value, cancellationToken)
+            : new List<Core.Entities.UserElimination>().AsEnumerable();
+
+        var eliminationsByUser = eliminations.ToDictionary(e => e.UserId, e => e);
+        var gameweeksDict = allGameweeks.ToDictionary(g => g.Id, g => g);
 
         // Create a set of gameweek IDs that have passed their deadline
         var completedGameweekIds = allGameweeks
@@ -46,6 +68,20 @@ public class LeagueService : ILeagueService
             var goalsAgainst = completedPicks.Sum(p => p.GoalsAgainst);
             var goalDifference = goalsFor - goalsAgainst;
 
+            // Check elimination status
+            var isEliminated = eliminationsByUser.TryGetValue(user.Id, out var elimination);
+            int? eliminatedInGameweek = null;
+            int? eliminationPosition = null;
+
+            if (isEliminated && elimination != null)
+            {
+                if (gameweeksDict.TryGetValue(elimination.GameweekId, out var gameweek))
+                {
+                    eliminatedInGameweek = gameweek.WeekNumber;
+                }
+                eliminationPosition = elimination.Position;
+            }
+
             return new StandingEntryDto
             {
                 UserId = user.Id,
@@ -58,6 +94,9 @@ public class LeagueService : ILeagueService
                 GoalsFor = goalsFor,
                 GoalsAgainst = goalsAgainst,
                 GoalDifference = goalDifference,
+                IsEliminated = isEliminated,
+                EliminatedInGameweek = eliminatedInGameweek,
+                EliminationPosition = eliminationPosition,
                 Position = 0, // Will be calculated after sorting
                 Rank = 0 // Will be calculated after sorting
             };

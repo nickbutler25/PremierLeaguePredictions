@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { picksService } from '@/services/picks';
 import { teamsService } from '@/services/teams';
 import { dashboardService } from '@/services/dashboard';
+import { gameweeksService } from '@/services/gameweeks';
+import { leagueService } from '@/services/league';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -12,12 +14,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export function Picks() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [selectedGameweek, setSelectedGameweek] = useState<number | null>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   // Fetch data
   const { data: picks = [], isLoading: picksLoading } = useQuery({
@@ -39,12 +42,26 @@ export function Picks() {
 
   const { data: allGameweeks = [] } = useQuery({
     queryKey: ['gameweeks'],
-    queryFn: async () => {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/gameweeks`);
-      if (!response.ok) throw new Error('Failed to fetch gameweeks');
-      return response.json();
-    },
+    queryFn: () => gameweeksService.getAllGameweeks(),
   });
+
+  // Check if user is eliminated
+  const { data: leagueData } = useQuery({
+    queryKey: ['league-standings'],
+    queryFn: () => leagueService.getStandings(),
+  });
+
+  const currentUserStanding = leagueData?.standings.find(s => s.userId === user?.id);
+  const isEliminated = currentUserStanding?.isEliminated || false;
+
+  // Update current time every minute to check deadlines
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // Update every minute
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Create/update pick mutation
   const createPickMutation = useMutation({
@@ -82,10 +99,12 @@ export function Picks() {
 
   const currentGameweek = dashboard?.upcomingGameweeks?.[0]?.weekNumber || 1;
 
-  // Create a map of week numbers to gameweek IDs
+  // Create a map of week numbers to gameweek IDs and deadlines
   const gameweekIdsByNumber = new Map<number, string>();
+  const gameweekDeadlinesByNumber = new Map<number, string>();
   allGameweeks.forEach((gw: any) => {
     gameweekIdsByNumber.set(gw.weekNumber, gw.id);
+    gameweekDeadlinesByNumber.set(gw.weekNumber, gw.deadline);
   });
 
   // Create a map of picks by gameweek number
@@ -153,9 +172,10 @@ export function Picks() {
             <TableBody>
               {gameweeks.map((gw) => {
                 const pick = picksByGameweek.get(gw);
-                const isCurrentOrFuture = gw >= currentGameweek;
-                const isLocked = gw > 20 && currentGameweek <= 20; // Lock second half during first half
-                const canEdit = isCurrentOrFuture && !isLocked;
+                const deadline = gameweekDeadlinesByNumber.get(gw);
+                const deadlinePassed = deadline ? new Date(deadline) < currentTime : false;
+                const isSecondHalfLocked = gw > 20 && currentGameweek <= 20; // Lock second half during first half
+                const canEdit = !deadlinePassed && !isSecondHalfLocked && !isEliminated;
                 const canRemove = canEdit && pick; // Can remove if editable and has a pick
                 const canSelect = canEdit && !pick; // Can select if editable and no pick
                 const availableTeams = canEdit ? getAvailableTeams(gw) : [];
@@ -180,7 +200,7 @@ export function Picks() {
                               ? 'text-green-600 dark:text-green-400'
                               : pick.points === 1
                               ? 'text-yellow-600 dark:text-yellow-400'
-                              : pick.points === 0 && gw < currentGameweek
+                              : pick.points === 0 && deadlinePassed
                               ? 'text-red-600 dark:text-red-400'
                               : ''
                           }`}>
@@ -231,10 +251,16 @@ export function Picks() {
                               : 'No teams available'}
                           </button>
                         )
-                      ) : isLocked ? (
-                        <span className="text-gray-400 dark:text-gray-500 text-sm italic">Locked</span>
+                      ) : deadlinePassed ? (
+                        <span className="text-gray-400 dark:text-gray-500 text-sm italic flex items-center gap-1">
+                          🔒 Deadline Passed
+                        </span>
+                      ) : isEliminated ? (
+                        <span className="text-gray-400 dark:text-gray-500 text-sm italic">🚫 Eliminated</span>
+                      ) : isSecondHalfLocked ? (
+                        <span className="text-gray-400 dark:text-gray-500 text-sm italic">Locked (2nd Half)</span>
                       ) : (
-                        <span className="text-gray-400 dark:text-gray-500 text-sm italic">No Pick Yet</span>
+                        <span className="text-gray-400 dark:text-gray-500 text-sm italic">-</span>
                       )}
                     </TableCell>
                     <TableCell className="text-center font-medium">
@@ -245,7 +271,7 @@ export function Picks() {
                               ? 'text-green-600 dark:text-green-400'
                               : pick.points === 1
                               ? 'text-yellow-600 dark:text-yellow-400'
-                              : pick.points === 0 && gw < currentGameweek
+                              : pick.points === 0 && deadlinePassed
                               ? 'text-red-600 dark:text-red-400'
                               : ''
                           }
@@ -264,8 +290,10 @@ export function Picks() {
         </div>
         <div className="mt-4 text-xs text-muted-foreground space-y-1">
           <p>• Current gameweek highlighted in blue</p>
+          <p>• Picks cannot be changed after the gameweek deadline passes 🔒</p>
           <p>• Teams reset at gameweek 21 (start of second half)</p>
           <p>• Second half picks locked until gameweek 21</p>
+          {isEliminated && <p className="text-red-600 dark:text-red-400">• You have been eliminated and cannot make new picks 🚫</p>}
         </div>
       </CardContent>
     </Card>

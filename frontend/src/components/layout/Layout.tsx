@@ -1,6 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useResultsUpdates } from "@/hooks/useResultsUpdates";
+import { useAutoPickNotifications } from "@/hooks/useAutoPickNotifications";
 import type { ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -12,6 +14,10 @@ export function Layout({ children }: LayoutProps) {
   const { user, logout, isAdmin } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+
+  // Subscribe to real-time updates
+  useResultsUpdates();
+  useAutoPickNotifications();
 
   const handleLogout = () => {
     logout();
@@ -34,6 +40,12 @@ export function Layout({ children }: LayoutProps) {
               <nav className="hidden md:flex space-x-6">
                 <Link to="/admin" className="text-sm hover:text-primary">
                   Admin
+                </Link>
+                <Link to="/admin/approvals" className="text-sm hover:text-primary">
+                  Season Approvals
+                </Link>
+                <Link to="/admin/eliminations" className="text-sm hover:text-primary">
+                  Eliminations
                 </Link>
               </nav>
             )}

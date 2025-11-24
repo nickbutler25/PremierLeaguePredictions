@@ -136,6 +136,27 @@ export function SeasonManagementPage() {
     },
   });
 
+  const syncResultsMutation = useMutation({
+    mutationFn: adminService.syncResults,
+    onSuccess: (response) => {
+      toast({
+        title: 'Results Synced Successfully',
+        description: `Fixtures Updated: ${response.fixturesUpdated}, Gameweeks Processed: ${response.gameweeksProcessed}, Picks Recalculated: ${response.picksRecalculated}`,
+        duration: 7000,
+      });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['fixtures'] });
+      queryClient.invalidateQueries({ queryKey: ['picks'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'Failed to sync results',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const handleCreateSeason = () => {
     if (!selectedSeasonName) {
       toast({
@@ -405,16 +426,20 @@ export function SeasonManagementPage() {
         <CardHeader>
           <CardTitle>Data Synchronization</CardTitle>
           <CardDescription>
-            Sync teams and fixtures from the Football Data API
+            Sync teams, fixtures, and results from the Football Data API
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {(syncTeamsMutation.isPending || syncFixturesMutation.isPending) ? (
+          {(syncTeamsMutation.isPending || syncFixturesMutation.isPending || syncResultsMutation.isPending) ? (
             <div className="flex flex-col items-center justify-center p-8 space-y-4">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
               <div className="text-center">
                 <p className="font-medium">
-                  {syncTeamsMutation.isPending ? 'Syncing Teams...' : 'Syncing Fixtures...'}
+                  {syncTeamsMutation.isPending
+                    ? 'Syncing Teams...'
+                    : syncFixturesMutation.isPending
+                    ? 'Syncing Fixtures...'
+                    : 'Syncing Results...'}
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
                   This may take a few moments. Please wait...
@@ -447,8 +472,22 @@ export function SeasonManagementPage() {
                   Sync Specific Season
                 </Button>
               </div>
+              <div className="border-t pt-4">
+                <h4 className="text-sm font-medium mb-2">Match Results</h4>
+                <Button
+                  onClick={() => syncResultsMutation.mutate()}
+                  disabled={syncResultsMutation.isPending}
+                  variant="default"
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  🔄 Sync Results & Update Points
+                </Button>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Updates fixture scores and recalculates all user points for recent gameweeks.
+                </p>
+              </div>
               <p className="text-sm text-muted-foreground">
-                Sync teams first, then sync fixtures. Gameweeks will be created automatically.
+                Sync teams first, then sync fixtures. Gameweeks will be created automatically. Use "Sync Results" after games finish to update scores.
               </p>
             </>
           )}

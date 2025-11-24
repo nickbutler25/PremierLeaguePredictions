@@ -13,15 +13,27 @@ public class AdminController : ControllerBase
 {
     private readonly IAdminService _adminService;
     private readonly IFixtureSyncService _fixtureSyncService;
+    private readonly IResultsService _resultsService;
+    private readonly IEliminationService _eliminationService;
+    private readonly IAutoPickService _autoPickService;
+    private readonly IPickReminderService _pickReminderService;
     private readonly ILogger<AdminController> _logger;
 
     public AdminController(
         IAdminService adminService,
         IFixtureSyncService fixtureSyncService,
+        IResultsService resultsService,
+        IEliminationService eliminationService,
+        IAutoPickService autoPickService,
+        IPickReminderService pickReminderService,
         ILogger<AdminController> logger)
     {
         _adminService = adminService;
         _fixtureSyncService = fixtureSyncService;
+        _resultsService = resultsService;
+        _eliminationService = eliminationService;
+        _autoPickService = autoPickService;
+        _pickReminderService = pickReminderService;
         _logger = logger;
     }
 
@@ -87,10 +99,17 @@ public class AdminController : ControllerBase
     }
 
     [HttpPost("sync/results")]
-    public async Task<IActionResult> SyncResults()
+    public async Task<ActionResult<ResultsSyncResponse>> SyncResults()
     {
-        await _fixtureSyncService.SyncFixtureResultsAsync();
-        return Ok(new { message = "Results sync completed" });
+        var response = await _resultsService.SyncRecentResultsAsync();
+        return Ok(response);
+    }
+
+    [HttpPost("sync/results/gameweek/{gameweekId}")]
+    public async Task<ActionResult<ResultsSyncResponse>> SyncGameweekResults(Guid gameweekId)
+    {
+        var response = await _resultsService.SyncGameweekResultsAsync(gameweekId);
+        return Ok(response);
     }
 
     [HttpGet("seasons")]
@@ -98,6 +117,20 @@ public class AdminController : ControllerBase
     {
         var seasons = await _adminService.GetAllSeasonsAsync();
         return Ok(seasons);
+    }
+
+    [HttpGet("seasons/active")]
+    [AllowAnonymous]
+    public async Task<ActionResult<SeasonDto>> GetActiveSeason()
+    {
+        var activeSeason = await _adminService.GetActiveSeasonAsync();
+
+        if (activeSeason == null)
+        {
+            return NotFound(new { message = "No active season found" });
+        }
+
+        return Ok(activeSeason);
     }
 
     [HttpPost("seasons")]
@@ -151,6 +184,120 @@ public class AdminController : ControllerBase
         var response = await _adminService.BackfillPicksAsync(request.UserId, request.Picks);
         return Ok(response);
     }
+
+    [HttpGet("gameweeks/debug")]
+    public async Task<ActionResult> GetGameweeksDebugInfo()
+    {
+        var gameweeksDebug = await _adminService.GetGameweeksDebugInfoAsync();
+        return Ok(gameweeksDebug);
+    }
+
+    // Elimination management endpoints
+    [HttpGet("eliminations/season/{seasonId}")]
+    public async Task<ActionResult<List<UserEliminationDto>>> GetSeasonEliminations(Guid seasonId)
+    {
+        var eliminations = await _eliminationService.GetSeasonEliminationsAsync(seasonId);
+        return Ok(eliminations);
+    }
+
+    [HttpGet("eliminations/gameweek/{gameweekId}")]
+    public async Task<ActionResult<List<UserEliminationDto>>> GetGameweekEliminations(Guid gameweekId)
+    {
+        var eliminations = await _eliminationService.GetGameweekEliminationsAsync(gameweekId);
+        return Ok(eliminations);
+    }
+
+    [HttpGet("eliminations/configs/{seasonId}")]
+    public async Task<ActionResult<List<EliminationConfigDto>>> GetEliminationConfigs(Guid seasonId)
+    {
+        var configs = await _eliminationService.GetEliminationConfigsAsync(seasonId);
+        return Ok(configs);
+    }
+
+    [HttpPut("eliminations/gameweek/{gameweekId}/count")]
+    public async Task<IActionResult> UpdateGameweekEliminationCount(Guid gameweekId, [FromBody] UpdateEliminationCountRequest request)
+    {
+        try
+        {
+            await _eliminationService.UpdateGameweekEliminationCountAsync(gameweekId, request.EliminationCount);
+            return NoContent();
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("eliminations/bulk-update")]
+    public async Task<IActionResult> BulkUpdateEliminationCounts([FromBody] BulkUpdateEliminationCountsRequest request)
+    {
+        await _eliminationService.BulkUpdateEliminationCountsAsync(request.GameweekEliminationCounts);
+        return NoContent();
+    }
+
+    [HttpPost("eliminations/process/{gameweekId}")]
+    public async Task<ActionResult<ProcessEliminationsResponse>> ProcessEliminations(Guid gameweekId)
+    {
+        var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var adminUserId))
+        {
+            return Unauthorized(new { message = "User ID not found in token" });
+        }
+
+        var response = await _eliminationService.ProcessGameweekEliminationsAsync(gameweekId, adminUserId);
+        return Ok(response);
+    }
+
+    // Auto-pick assignment endpoints
+    [HttpPost("picks/auto-assign/{gameweekId}")]
+    public async Task<IActionResult> AutoAssignPicksForGameweek(Guid gameweekId)
+    {
+        try
+        {
+            await _autoPickService.AssignMissedPicksForGameweekAsync(gameweekId);
+            return Ok(new { message = "Auto-pick assignment completed successfully" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to auto-assign picks for gameweek {GameweekId}", gameweekId);
+            return StatusCode(500, new { message = "Failed to auto-assign picks", error = ex.Message });
+        }
+    }
+
+    [HttpPost("picks/auto-assign-all")]
+    public async Task<IActionResult> AutoAssignAllMissedPicks()
+    {
+        try
+        {
+            await _autoPickService.AssignAllMissedPicksAsync();
+            return Ok(new { message = "Auto-pick assignment completed for all gameweeks" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to auto-assign all missed picks");
+            return StatusCode(500, new { message = "Failed to auto-assign picks", error = ex.Message });
+        }
+    }
+
+    // Pick reminder endpoints
+    [HttpPost("picks/send-reminders")]
+    public async Task<IActionResult> SendPickReminders()
+    {
+        try
+        {
+            await _pickReminderService.SendPickRemindersAsync();
+            return Ok(new { message = "Pick reminders sent successfully" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send pick reminders");
+            return StatusCode(500, new { message = "Failed to send pick reminders", error = ex.Message });
+        }
+    }
 }
 
 public class OverridePickRequest
@@ -168,4 +315,14 @@ public class BackfillPicksRequest
 {
     public Guid UserId { get; set; }
     public List<BackfillPickRequest> Picks { get; set; } = new();
+}
+
+public class UpdateEliminationCountRequest
+{
+    public int EliminationCount { get; set; }
+}
+
+public class BulkUpdateEliminationCountsRequest
+{
+    public Dictionary<Guid, int> GameweekEliminationCounts { get; set; } = new();
 }

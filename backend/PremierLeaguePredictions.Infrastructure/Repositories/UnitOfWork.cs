@@ -22,6 +22,8 @@ public class UnitOfWork : IUnitOfWork
         TeamSelections = new Repository<TeamSelection>(_context);
         EmailNotifications = new Repository<EmailNotification>(_context);
         AdminActions = new Repository<AdminAction>(_context);
+        SeasonParticipations = new Repository<SeasonParticipation>(_context);
+        UserEliminations = new Repository<UserElimination>(_context);
     }
 
     public IRepository<User> Users { get; }
@@ -33,6 +35,8 @@ public class UnitOfWork : IUnitOfWork
     public IRepository<TeamSelection> TeamSelections { get; }
     public IRepository<EmailNotification> EmailNotifications { get; }
     public IRepository<AdminAction> AdminActions { get; }
+    public IRepository<SeasonParticipation> SeasonParticipations { get; }
+    public IRepository<UserElimination> UserEliminations { get; }
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {

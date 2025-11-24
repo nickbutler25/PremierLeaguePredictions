@@ -17,7 +17,7 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.1")
+                .HasAnnotation("ProductVersion", "10.0.0-rc.2.25502.107")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -206,6 +206,12 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("deadline");
 
+                    b.Property<int>("EliminationCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("elimination_count");
+
                     b.Property<bool>("IsLocked")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -351,6 +357,66 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("seasons", (string)null);
+                });
+
+            modelBuilder.Entity("PremierLeaguePredictions.Core.Entities.SeasonParticipation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuid_generate_v4()");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at");
+
+                    b.Property<Guid?>("ApprovedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("approved_by_user_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<bool>("IsApproved")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_approved");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("requested_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<Guid>("SeasonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("season_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApprovedByUserId");
+
+                    b.HasIndex("SeasonId");
+
+                    b.HasIndex("UserId", "SeasonId")
+                        .IsUnique();
+
+                    b.ToTable("season_participations", (string)null);
                 });
 
             modelBuilder.Entity("PremierLeaguePredictions.Core.Entities.Team", b =>
@@ -537,6 +603,58 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
                     b.ToTable("users", (string)null);
                 });
 
+            modelBuilder.Entity("PremierLeaguePredictions.Core.Entities.UserElimination", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuid_generate_v4()");
+
+                    b.Property<DateTime>("EliminatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("eliminated_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<Guid?>("EliminatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("eliminated_by");
+
+                    b.Property<Guid>("GameweekId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("gameweek_id");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer")
+                        .HasColumnName("position");
+
+                    b.Property<Guid>("SeasonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("season_id");
+
+                    b.Property<int>("TotalPoints")
+                        .HasColumnType("integer")
+                        .HasColumnName("total_points");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EliminatedBy");
+
+                    b.HasIndex("GameweekId");
+
+                    b.HasIndex("SeasonId");
+
+                    b.HasIndex("UserId", "SeasonId")
+                        .IsUnique();
+
+                    b.ToTable("user_eliminations", (string)null);
+                });
+
             modelBuilder.Entity("PremierLeaguePredictions.Core.Entities.AdminAction", b =>
                 {
                     b.HasOne("PremierLeaguePredictions.Core.Entities.User", "AdminUser")
@@ -646,6 +764,32 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("PremierLeaguePredictions.Core.Entities.SeasonParticipation", b =>
+                {
+                    b.HasOne("PremierLeaguePredictions.Core.Entities.User", "ApprovedByUser")
+                        .WithMany("ApprovedParticipations")
+                        .HasForeignKey("ApprovedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("PremierLeaguePredictions.Core.Entities.Season", "Season")
+                        .WithMany("Participations")
+                        .HasForeignKey("SeasonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PremierLeaguePredictions.Core.Entities.User", "User")
+                        .WithMany("SeasonParticipations")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ApprovedByUser");
+
+                    b.Navigation("Season");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("PremierLeaguePredictions.Core.Entities.TeamSelection", b =>
                 {
                     b.HasOne("PremierLeaguePredictions.Core.Entities.Season", "Season")
@@ -673,9 +817,45 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("PremierLeaguePredictions.Core.Entities.UserElimination", b =>
+                {
+                    b.HasOne("PremierLeaguePredictions.Core.Entities.User", "EliminatedByUser")
+                        .WithMany("EliminationsTriggered")
+                        .HasForeignKey("EliminatedBy")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("PremierLeaguePredictions.Core.Entities.Gameweek", "Gameweek")
+                        .WithMany("Eliminations")
+                        .HasForeignKey("GameweekId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PremierLeaguePredictions.Core.Entities.Season", "Season")
+                        .WithMany("Eliminations")
+                        .HasForeignKey("SeasonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PremierLeaguePredictions.Core.Entities.User", "User")
+                        .WithMany("Eliminations")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("EliminatedByUser");
+
+                    b.Navigation("Gameweek");
+
+                    b.Navigation("Season");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("PremierLeaguePredictions.Core.Entities.Gameweek", b =>
                 {
                     b.Navigation("AdminActions");
+
+                    b.Navigation("Eliminations");
 
                     b.Navigation("EmailNotifications");
 
@@ -686,7 +866,11 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
 
             modelBuilder.Entity("PremierLeaguePredictions.Core.Entities.Season", b =>
                 {
+                    b.Navigation("Eliminations");
+
                     b.Navigation("Gameweeks");
+
+                    b.Navigation("Participations");
 
                     b.Navigation("TeamSelections");
                 });
@@ -708,9 +892,17 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
 
                     b.Navigation("AdminActionsReceived");
 
+                    b.Navigation("ApprovedParticipations");
+
+                    b.Navigation("Eliminations");
+
+                    b.Navigation("EliminationsTriggered");
+
                     b.Navigation("EmailNotifications");
 
                     b.Navigation("Picks");
+
+                    b.Navigation("SeasonParticipations");
 
                     b.Navigation("TeamSelections");
                 });

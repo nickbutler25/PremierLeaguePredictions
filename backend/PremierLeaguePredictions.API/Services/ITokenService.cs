@@ -1,4 +1,4 @@
-using PremierLeaguePredictions.API.Models;
+using PremierLeaguePredictions.Core.Entities;
 
 namespace PremierLeaguePredictions.API.Services;
 

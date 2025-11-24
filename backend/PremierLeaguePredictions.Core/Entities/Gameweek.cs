@@ -7,6 +7,7 @@ public class Gameweek
     public int WeekNumber { get; set; }
     public DateTime Deadline { get; set; }
     public bool IsLocked { get; set; } = false;
+    public int EliminationCount { get; set; } = 0; // Number of players to eliminate after this gameweek
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 
@@ -16,4 +17,5 @@ public class Gameweek
     public ICollection<Pick> Picks { get; set; } = new List<Pick>();
     public ICollection<EmailNotification> EmailNotifications { get; set; } = new List<EmailNotification>();
     public ICollection<AdminAction> AdminActions { get; set; } = new List<AdminAction>();
+    public ICollection<UserElimination> Eliminations { get; set; } = new List<UserElimination>();
 }

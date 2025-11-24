@@ -42,7 +42,7 @@ export function LoginPage() {
     setError(null);
 
     try {
-      const response = await apiClient.post<AuthResponse>('/dev/login-as-admin');
+      const response = await apiClient.post<AuthResponse>('/api/dev/login-as-admin');
       login(response.data);
     } catch (err) {
       console.error('Dev login failed:', err);
