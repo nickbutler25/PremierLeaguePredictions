@@ -54,16 +54,22 @@ export function ErrorDisplay({
         <CardDescription>{errorMessage}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {showDetails && error && (
+        {showDetails && error ? (
           <details className="bg-muted rounded-lg p-3">
             <summary className="cursor-pointer text-sm font-medium mb-2">
               Technical Details
             </summary>
             <pre className="text-xs overflow-auto bg-background p-2 rounded">
-              {JSON.stringify(error, null, 2)}
+              {(() => {
+                try {
+                  return JSON.stringify(error, null, 2);
+                } catch {
+                  return String(error);
+                }
+              })()}
             </pre>
           </details>
-        )}
+        ) : null}
 
         {onRetry && (
           <Button onClick={onRetry} variant="default" size="sm">

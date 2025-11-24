@@ -11,7 +11,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 export default function EliminationManagementPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [editingGameweekId, setEditingGameweekId] = useState<string | null>(null);
   const [eliminationCounts, setEliminationCounts] = useState<Record<string, number>>({});
 
   // Fetch active season
@@ -44,7 +43,6 @@ export default function EliminationManagementPage() {
         description: 'Elimination count updated successfully',
       });
       queryClient.invalidateQueries({ queryKey: ['eliminationConfigs'] });
-      setEditingGameweekId(null);
       setEliminationCounts({});
     },
     onError: (error: any) => {
@@ -84,13 +82,6 @@ export default function EliminationManagementPage() {
       ...prev,
       [gameweekId]: count,
     }));
-  };
-
-  const handleSaveCount = (gameweekId: string) => {
-    const count = eliminationCounts[gameweekId];
-    if (count !== undefined) {
-      updateCountMutation.mutate({ gameweekId, count });
-    }
   };
 
   const handleBulkSave = () => {
@@ -185,7 +176,6 @@ export default function EliminationManagementPage() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {firstHalf.map((config) => {
-              const isEditing = editingGameweekId === config.gameweekId;
               const currentValue = eliminationCounts[config.gameweekId] ?? config.eliminationCount;
               const hasEliminations = eliminationsByGameweek[config.weekNumber] > 0;
 
@@ -243,7 +233,6 @@ export default function EliminationManagementPage() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {secondHalf.map((config) => {
-              const isEditing = editingGameweekId === config.gameweekId;
               const currentValue = eliminationCounts[config.gameweekId] ?? config.eliminationCount;
               const hasEliminations = eliminationsByGameweek[config.weekNumber] > 0;
 

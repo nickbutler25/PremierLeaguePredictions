@@ -15,6 +15,7 @@ const mockPlayers: StandingEntry[] = [
     goalsFor: 28,
     goalsAgainst: 12,
     goalDifference: 16,
+    isEliminated: false,
   },
   {
     position: 2,
@@ -29,6 +30,7 @@ const mockPlayers: StandingEntry[] = [
     goalsFor: 25,
     goalsAgainst: 13,
     goalDifference: 12,
+    isEliminated: false,
   },
   {
     position: 3,
@@ -43,6 +45,7 @@ const mockPlayers: StandingEntry[] = [
     goalsFor: 24,
     goalsAgainst: 14,
     goalDifference: 10,
+    isEliminated: false,
   },
   {
     position: 4,
@@ -57,6 +60,7 @@ const mockPlayers: StandingEntry[] = [
     goalsFor: 22,
     goalsAgainst: 11,
     goalDifference: 11,
+    isEliminated: false,
   },
   {
     position: 5,
@@ -71,6 +75,7 @@ const mockPlayers: StandingEntry[] = [
     goalsFor: 21,
     goalsAgainst: 15,
     goalDifference: 6,
+    isEliminated: false,
   },
   {
     position: 6,
@@ -85,6 +90,7 @@ const mockPlayers: StandingEntry[] = [
     goalsFor: 19,
     goalsAgainst: 13,
     goalDifference: 6,
+    isEliminated: false,
   },
   {
     position: 7,
@@ -99,6 +105,7 @@ const mockPlayers: StandingEntry[] = [
     goalsFor: 20,
     goalsAgainst: 16,
     goalDifference: 4,
+    isEliminated: false,
   },
   {
     position: 8,
@@ -113,6 +120,7 @@ const mockPlayers: StandingEntry[] = [
     goalsFor: 18,
     goalsAgainst: 15,
     goalDifference: 3,
+    isEliminated: false,
   },
   {
     position: 9,
@@ -127,6 +135,7 @@ const mockPlayers: StandingEntry[] = [
     goalsFor: 17,
     goalsAgainst: 16,
     goalDifference: 1,
+    isEliminated: false,
   },
   {
     position: 10,
@@ -141,6 +150,7 @@ const mockPlayers: StandingEntry[] = [
     goalsFor: 16,
     goalsAgainst: 14,
     goalDifference: 2,
+    isEliminated: false,
   },
   {
     position: 11,
@@ -155,6 +165,7 @@ const mockPlayers: StandingEntry[] = [
     goalsFor: 15,
     goalsAgainst: 17,
     goalDifference: -2,
+    isEliminated: false,
   },
   {
     position: 12,
@@ -169,6 +180,7 @@ const mockPlayers: StandingEntry[] = [
     goalsFor: 14,
     goalsAgainst: 18,
     goalDifference: -4,
+    isEliminated: false,
   },
   {
     position: 13,
@@ -183,6 +195,7 @@ const mockPlayers: StandingEntry[] = [
     goalsFor: 13,
     goalsAgainst: 21,
     goalDifference: -8,
+    isEliminated: false,
   },
   {
     position: 14,
@@ -197,6 +210,7 @@ const mockPlayers: StandingEntry[] = [
     goalsFor: 11,
     goalsAgainst: 22,
     goalDifference: -11,
+    isEliminated: false,
   },
   {
     position: 15,
@@ -211,6 +225,7 @@ const mockPlayers: StandingEntry[] = [
     goalsFor: 10,
     goalsAgainst: 23,
     goalDifference: -13,
+    isEliminated: false,
   },
 ];
 
