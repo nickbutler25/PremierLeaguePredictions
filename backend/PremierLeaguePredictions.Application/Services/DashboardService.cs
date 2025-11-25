@@ -76,7 +76,23 @@ public class DashboardService : IDashboardService
                 // Check if this gameweek has any fixtures that are not finished
                 if (fixturesByGameweek.TryGetValue(g.Id, out var fixtures))
                 {
-                    var hasUnfinishedFixtures = fixtures.Any(f => f.Status != "FINISHED" && f.Status != "CANCELLED" && f.Status != "POSTPONED");
+                    // Consider a fixture "finished" if:
+                    // 1. Status is explicitly FINISHED, CANCELLED, or POSTPONED, OR
+                    // 2. Kickoff time + 3 hours has passed (safe buffer for any match)
+                    var gameLength = TimeSpan.FromHours(3);
+
+                    var hasUnfinishedFixtures = fixtures.Any(f =>
+                    {
+                        var isExplicitlyFinished = f.Status == "FINISHED" ||
+                                                   f.Status == "CANCELLED" ||
+                                                   f.Status == "POSTPONED";
+
+                        if (isExplicitlyFinished) return false; // This fixture is done
+
+                        // If kickoff time + game length hasn't passed, it's still in progress
+                        var expectedEndTime = f.KickoffTime.Add(gameLength);
+                        return expectedEndTime > now;
+                    });
 
                     // Also check if there are any fixtures with future kickoff times (not yet played)
                     var hasFutureFixtures = fixtures.Any(f => f.KickoffTime > now);
