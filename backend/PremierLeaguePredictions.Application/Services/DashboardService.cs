@@ -21,25 +21,22 @@ public class DashboardService : IDashboardService
         var user = await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken);
         if (user == null) throw new KeyNotFoundException("User not found");
 
-        // Check if user has approved participation for the active season (skip check for admins)
-        if (!user.IsAdmin)
+        // Check if user has approved participation for the active season (applies to all users including admins)
+        var activeSeason = await _unitOfWork.Seasons.FindAsync(s => s.IsActive, cancellationToken);
+        var activeSeasonId = activeSeason.FirstOrDefault()?.Id;
+
+        if (activeSeasonId.HasValue)
         {
-            var activeSeason = await _unitOfWork.Seasons.FindAsync(s => s.IsActive, cancellationToken);
-            var activeSeasonId = activeSeason.FirstOrDefault()?.Id;
+            var participation = await _unitOfWork.SeasonParticipations.FindAsync(
+                sp => sp.UserId == userId &&
+                      sp.SeasonId == activeSeasonId.Value &&
+                      sp.IsApproved,
+                cancellationToken);
 
-            if (activeSeasonId.HasValue)
+            if (!participation.Any())
             {
-                var participation = await _unitOfWork.SeasonParticipations.FindAsync(
-                    sp => sp.UserId == userId &&
-                          sp.SeasonId == activeSeasonId.Value &&
-                          sp.IsApproved,
-                    cancellationToken);
-
-                if (!participation.Any())
-                {
-                    _logger.LogWarning("User {UserId} attempted to access dashboard without approved participation", userId);
-                    throw new UnauthorizedAccessException("You must be approved to participate in the current season");
-                }
+                _logger.LogWarning("User {UserId} attempted to access dashboard without approved participation", userId);
+                throw new UnauthorizedAccessException("You must be approved to participate in the current season");
             }
         }
 

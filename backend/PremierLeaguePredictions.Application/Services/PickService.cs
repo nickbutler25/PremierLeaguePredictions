@@ -60,21 +60,17 @@ public class PickService : IPickService
             throw new KeyNotFoundException("Gameweek not found");
         }
 
-        // Check if user is approved for this season (skip for admins)
-        var user = await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken);
-        if (user != null && !user.IsAdmin)
-        {
-            var participation = await _unitOfWork.SeasonParticipations.FindAsync(
-                sp => sp.UserId == userId &&
-                      sp.SeasonId == gameweek.SeasonId &&
-                      sp.IsApproved,
-                cancellationToken);
+        // Check if user is approved for this season (applies to all users including admins)
+        var participation = await _unitOfWork.SeasonParticipations.FindAsync(
+            sp => sp.UserId == userId &&
+                  sp.SeasonId == gameweek.SeasonId &&
+                  sp.IsApproved,
+            cancellationToken);
 
-            if (!participation.Any())
-            {
-                _logger.LogWarning("User {UserId} attempted to create pick without approved participation", userId);
-                throw new UnauthorizedAccessException("You must be approved to participate in this season");
-            }
+        if (!participation.Any())
+        {
+            _logger.LogWarning("User {UserId} attempted to create pick without approved participation", userId);
+            throw new UnauthorizedAccessException("You must be approved to participate in this season");
         }
 
         // Check if pick already exists for this gameweek
@@ -139,21 +135,17 @@ public class PickService : IPickService
             throw new InvalidOperationException("Cannot update pick after gameweek deadline");
         }
 
-        // Check if user is approved for this season (skip for admins)
-        var user = await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken);
-        if (user != null && !user.IsAdmin)
-        {
-            var participation = await _unitOfWork.SeasonParticipations.FindAsync(
-                sp => sp.UserId == userId &&
-                      sp.SeasonId == gameweek.SeasonId &&
-                      sp.IsApproved,
-                cancellationToken);
+        // Check if user is approved for this season (applies to all users including admins)
+        var participation = await _unitOfWork.SeasonParticipations.FindAsync(
+            sp => sp.UserId == userId &&
+                  sp.SeasonId == gameweek.SeasonId &&
+                  sp.IsApproved,
+            cancellationToken);
 
-            if (!participation.Any())
-            {
-                _logger.LogWarning("User {UserId} attempted to update pick without approved participation", userId);
-                throw new UnauthorizedAccessException("You must be approved to participate in this season");
-            }
+        if (!participation.Any())
+        {
+            _logger.LogWarning("User {UserId} attempted to update pick without approved participation", userId);
+            throw new UnauthorizedAccessException("You must be approved to participate in this season");
         }
 
         // Verify new team exists
