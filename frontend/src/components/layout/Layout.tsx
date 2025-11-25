@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useResultsUpdates } from "@/hooks/useResultsUpdates";
 import { useAutoPickNotifications } from "@/hooks/useAutoPickNotifications";
+import { useSeasonCreatedNotification } from "@/hooks/useSeasonCreatedNotification";
 import type { ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -18,6 +19,7 @@ export function Layout({ children }: LayoutProps) {
   // Subscribe to real-time updates
   useResultsUpdates();
   useAutoPickNotifications();
+  useSeasonCreatedNotification();
 
   const handleLogout = () => {
     logout();

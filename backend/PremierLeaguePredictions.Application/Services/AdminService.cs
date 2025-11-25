@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using PremierLeaguePredictions.Application.DTOs;
 using PremierLeaguePredictions.Application.Interfaces;
@@ -9,13 +10,16 @@ namespace PremierLeaguePredictions.Application.Services;
 public class AdminService : IAdminService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IHubContext<Hub> _hubContext;
     private readonly ILogger<AdminService> _logger;
 
     public AdminService(
         IUnitOfWork unitOfWork,
+        IHubContext<Hub> hubContext,
         ILogger<AdminService> logger)
     {
         _unitOfWork = unitOfWork;
+        _hubContext = hubContext;
         _logger = logger;
     }
 
@@ -146,6 +150,27 @@ public class AdminService : IAdminService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Season {SeasonName} created with ID {SeasonId}", request.Name, newSeason.Id);
+
+        // Send SignalR notification to all clients to refresh dashboard
+        try
+        {
+            await _hubContext.Clients.All.SendAsync(
+                "SeasonCreated",
+                new
+                {
+                    seasonId = newSeason.Id,
+                    seasonName = newSeason.Name,
+                    message = $"New season {newSeason.Name} has been created"
+                },
+                cancellationToken);
+
+            _logger.LogInformation("SignalR notification sent for season creation: {SeasonName}", request.Name);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send SignalR notification for season creation");
+            // Don't throw - season was created successfully, notification failure is not critical
+        }
 
         return newSeason.Id;
     }

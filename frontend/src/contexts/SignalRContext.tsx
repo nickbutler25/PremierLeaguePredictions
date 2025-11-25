@@ -13,6 +13,8 @@ interface SignalRContextType {
   offResultsUpdated: (callback: (data: ResultsUpdateData) => void) => void;
   onAutoPickAssigned: (callback: (data: AutoPickAssignedData) => void) => void;
   offAutoPickAssigned: (callback: (data: AutoPickAssignedData) => void) => void;
+  onSeasonCreated: (callback: (data: SeasonCreatedData) => void) => void;
+  offSeasonCreated: (callback: (data: SeasonCreatedData) => void) => void;
   subscribeToResults: () => void;
   unsubscribeFromResults: () => void;
 }
@@ -45,6 +47,12 @@ export interface AutoPickAssignedData {
   gameweekNumber: number;
   message: string;
   timestamp: string;
+}
+
+export interface SeasonCreatedData {
+  seasonId: string;
+  seasonName: string;
+  message: string;
 }
 
 const SignalRContext = createContext<SignalRContextType | undefined>(undefined);
@@ -180,6 +188,24 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
     [connection]
   );
 
+  const onSeasonCreated = useCallback(
+    (callback: (data: SeasonCreatedData) => void) => {
+      if (connection) {
+        connection.on('SeasonCreated', callback);
+      }
+    },
+    [connection]
+  );
+
+  const offSeasonCreated = useCallback(
+    (callback: (data: SeasonCreatedData) => void) => {
+      if (connection) {
+        connection.off('SeasonCreated', callback);
+      }
+    },
+    [connection]
+  );
+
   const value: SignalRContextType = {
     connection,
     isConnected,
@@ -189,6 +215,8 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
     offResultsUpdated,
     onAutoPickAssigned,
     offAutoPickAssigned,
+    onSeasonCreated,
+    offSeasonCreated,
     subscribeToResults,
     unsubscribeFromResults,
   };

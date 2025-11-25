@@ -36,6 +36,22 @@ public class LeagueService : ILeagueService
             activeSeason = await _unitOfWork.Seasons.GetByIdAsync(seasonId.Value, cancellationToken);
         }
 
+        // Get approved participants for this season
+        HashSet<Guid> approvedUserIds;
+        if (seasonId.HasValue)
+        {
+            var approvedParticipations = await _unitOfWork.SeasonParticipations.FindAsync(
+                sp => sp.SeasonId == seasonId.Value && sp.IsApproved,
+                cancellationToken);
+            approvedUserIds = approvedParticipations.Select(sp => sp.UserId).ToHashSet();
+            _logger.LogInformation("Found {Count} approved participants for season {SeasonId}", approvedUserIds.Count, seasonId);
+        }
+        else
+        {
+            // No season, no participants
+            approvedUserIds = new HashSet<Guid>();
+        }
+
         // Get eliminations for the season
         var eliminations = seasonId.HasValue
             ? await _unitOfWork.UserEliminations.FindAsync(e => e.SeasonId == seasonId.Value, cancellationToken)
@@ -50,7 +66,13 @@ public class LeagueService : ILeagueService
             .Select(g => g.Id)
             .ToHashSet();
 
-        var userStandings = allUsers.Select(user =>
+        // Filter users to only include approved participants (and exclude admins from standings)
+        var eligibleUsers = allUsers.Where(u =>
+            u.IsActive &&
+            !u.IsAdmin &&
+            approvedUserIds.Contains(u.Id));
+
+        var userStandings = eligibleUsers.Select(user =>
         {
             var userPicks = allPicks.Where(p => p.UserId == user.Id).ToList();
 

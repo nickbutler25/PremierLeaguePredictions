@@ -21,6 +21,28 @@ public class DashboardService : IDashboardService
         var user = await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken);
         if (user == null) throw new KeyNotFoundException("User not found");
 
+        // Check if user has approved participation for the active season (skip check for admins)
+        if (!user.IsAdmin)
+        {
+            var activeSeason = await _unitOfWork.Seasons.FindAsync(s => s.IsActive, cancellationToken);
+            var activeSeasonId = activeSeason.FirstOrDefault()?.Id;
+
+            if (activeSeasonId.HasValue)
+            {
+                var participation = await _unitOfWork.SeasonParticipations.FindAsync(
+                    sp => sp.UserId == userId &&
+                          sp.SeasonId == activeSeasonId.Value &&
+                          sp.IsApproved,
+                    cancellationToken);
+
+                if (!participation.Any())
+                {
+                    _logger.LogWarning("User {UserId} attempted to access dashboard without approved participation", userId);
+                    throw new UnauthorizedAccessException("You must be approved to participate in the current season");
+                }
+            }
+        }
+
         var picks = await _unitOfWork.Picks.FindAsync(p => p.UserId == userId, cancellationToken);
         var picksList = picks.ToList();
 

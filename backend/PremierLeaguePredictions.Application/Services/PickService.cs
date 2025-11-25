@@ -53,6 +53,30 @@ public class PickService : IPickService
 
     public async Task<PickDto> CreatePickAsync(Guid userId, CreatePickRequest request, CancellationToken cancellationToken = default)
     {
+        // Verify gameweek exists first (to get season)
+        var gameweek = await _unitOfWork.Gameweeks.GetByIdAsync(request.GameweekId, cancellationToken);
+        if (gameweek == null)
+        {
+            throw new KeyNotFoundException("Gameweek not found");
+        }
+
+        // Check if user is approved for this season (skip for admins)
+        var user = await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken);
+        if (user != null && !user.IsAdmin)
+        {
+            var participation = await _unitOfWork.SeasonParticipations.FindAsync(
+                sp => sp.UserId == userId &&
+                      sp.SeasonId == gameweek.SeasonId &&
+                      sp.IsApproved,
+                cancellationToken);
+
+            if (!participation.Any())
+            {
+                _logger.LogWarning("User {UserId} attempted to create pick without approved participation", userId);
+                throw new UnauthorizedAccessException("You must be approved to participate in this season");
+            }
+        }
+
         // Check if pick already exists for this gameweek
         var existingPick = (await _unitOfWork.Picks.FindAsync(
             p => p.UserId == userId && p.GameweekId == request.GameweekId, cancellationToken)).FirstOrDefault();
@@ -60,13 +84,6 @@ public class PickService : IPickService
         if (existingPick != null)
         {
             throw new InvalidOperationException("Pick already exists for this gameweek");
-        }
-
-        // Verify gameweek exists and hasn't started
-        var gameweek = await _unitOfWork.Gameweeks.GetByIdAsync(request.GameweekId, cancellationToken);
-        if (gameweek == null)
-        {
-            throw new KeyNotFoundException("Gameweek not found");
         }
 
         if (gameweek.Deadline < DateTime.UtcNow)
@@ -120,6 +137,23 @@ public class PickService : IPickService
         if (gameweek == null || gameweek.Deadline < DateTime.UtcNow)
         {
             throw new InvalidOperationException("Cannot update pick after gameweek deadline");
+        }
+
+        // Check if user is approved for this season (skip for admins)
+        var user = await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken);
+        if (user != null && !user.IsAdmin)
+        {
+            var participation = await _unitOfWork.SeasonParticipations.FindAsync(
+                sp => sp.UserId == userId &&
+                      sp.SeasonId == gameweek.SeasonId &&
+                      sp.IsApproved,
+                cancellationToken);
+
+            if (!participation.Any())
+            {
+                _logger.LogWarning("User {UserId} attempted to update pick without approved participation", userId);
+                throw new UnauthorizedAccessException("You must be approved to participate in this season");
+            }
         }
 
         // Verify new team exists
