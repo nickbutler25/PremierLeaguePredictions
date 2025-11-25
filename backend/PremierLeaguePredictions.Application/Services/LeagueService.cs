@@ -66,10 +66,9 @@ public class LeagueService : ILeagueService
             .Select(g => g.Id)
             .ToHashSet();
 
-        // Filter users to only include approved participants (and exclude admins from standings)
+        // Filter users to only include approved participants (admins can participate if approved)
         var eligibleUsers = allUsers.Where(u =>
             u.IsActive &&
-            !u.IsAdmin &&
             approvedUserIds.Contains(u.Id));
 
         var userStandings = eligibleUsers.Select(user =>
