@@ -53,3 +53,12 @@ Audit trail of all administrative actions (overrides, user management, etc).
 ```
 Host=localhost;Database=premier_league_predictions;Username=your_username;Password=your_password
 ```
+
+## Production Hosting
+
+For production, the database is hosted on [Supabase](https://supabase.com).
+
+To connect to the production database (or a development Supabase instance), use the connection string provided in your Supabase dashboard.
+
+**Note for Render Deployment:**
+When deploying to Render, you MUST use the **Transaction Pooler** connection string (port 6543) to avoid connection limit issues and IPv6 compatibility problems.

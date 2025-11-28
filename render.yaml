@@ -1,9 +1,3 @@
-databases:
-  - name: premierleague-db
-    databaseName: premierleague
-    user: premierleague_user
-    plan: free
-    region: oregon
 
 services:
   # Backend API
@@ -17,9 +11,7 @@ services:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
       - key: ConnectionStrings__DefaultConnection
-        fromDatabase:
-          name: premierleague-db
-          property: connectionString
+        sync: false
       - key: JWT__Secret
         generateValue: true
       - key: JWT__Issuer

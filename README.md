@@ -27,7 +27,8 @@ Premier League Predictions is a competitive prediction game where users select o
 - **Google OAuth** - Single sign-on integration
 - **Repository Pattern** - Unit of Work for clean data access
 - **football-data.org API** - Live Premier League fixture and result data
-- **Render** - API and database hosting (Docker)
+- **Render** - API hosting (Docker)
+- **Supabase** - Database hosting (PostgreSQL)
 
 ## Game Rules
 
@@ -182,7 +183,7 @@ The app will be available at `http://localhost:5173`
 
 ## Deployment
 
-The application is configured for deployment on [Render.com](https://render.com) using Docker containers and managed PostgreSQL.
+The application is configured for deployment on [Render.com](https://render.com) using Docker containers and [Supabase](https://supabase.com) for the database.
 
 See [backend/RENDER_DEPLOYMENT.md](backend/RENDER_DEPLOYMENT.md) for detailed deployment instructions.
 
@@ -200,7 +201,7 @@ See [backend/RENDER_DEPLOYMENT.md](backend/RENDER_DEPLOYMENT.md) for detailed de
 5. Deploy all services (database, API, frontend) with one click
 
 The blueprint automatically:
-- Creates a PostgreSQL database
+- Requires a Supabase connection string
 - Builds and deploys the .NET 9 API using Docker
 - Builds and deploys the React frontend as a static site
 

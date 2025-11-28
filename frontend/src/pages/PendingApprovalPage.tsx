@@ -24,7 +24,7 @@ export function PendingApprovalPage() {
   });
 
   // Get user's participation status for active season
-  const { data: participation, refetch: refetchParticipation } = useQuery({
+  const { data: participation, refetch: refetchParticipation, isLoading: isLoadingParticipation } = useQuery({
     queryKey: ['participation', activeSeason?.id],
     queryFn: () => seasonParticipationService.getParticipation(activeSeason!.id),
     enabled: !!activeSeason,
@@ -47,10 +47,10 @@ export function PendingApprovalPage() {
 
   // Auto-request participation if not already requested
   useEffect(() => {
-    if (activeSeason && !participation && !requestParticipationMutation.isPending && !requestParticipationMutation.isError) {
+    if (activeSeason && !isLoadingParticipation && !participation && !requestParticipationMutation.isPending && !requestParticipationMutation.isError) {
       requestParticipationMutation.mutate(activeSeason.id);
     }
-  }, [activeSeason, participation]);
+  }, [activeSeason, participation, isLoadingParticipation]);
 
   // Listen for SignalR approval updates
   useEffect(() => {
@@ -83,6 +83,18 @@ export function PendingApprovalPage() {
       offSeasonApprovalUpdate(handleApprovalUpdate);
     };
   }, [onSeasonApprovalUpdate, offSeasonApprovalUpdate, toast, navigate]);
+
+  // Redirect admins to approvals page for self-authorization
+  useEffect(() => {
+    if (participation && user?.isAdmin && !participation.isApproved) {
+      toast({
+        title: 'Admin Access',
+        description: 'Redirecting to approvals page for self-authorization...',
+        duration: 3000,
+      });
+      navigate('/admin/approvals');
+    }
+  }, [participation, user, navigate, toast]);
 
   const handleLogout = () => {
     logout();

@@ -25,16 +25,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function ApprovalCheckRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
   const { needsApproval, isLoading } = useSeasonApproval();
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
-  }
-
-  // Admins bypass approval check
-  if (user?.isAdmin) {
-    return <>{children}</>;
   }
 
   if (isLoading) {
