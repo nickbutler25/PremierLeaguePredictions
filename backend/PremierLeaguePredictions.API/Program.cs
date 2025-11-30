@@ -1,11 +1,13 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using FluentValidation;
+using PremierLeaguePredictions.API.Authorization;
 using PremierLeaguePredictions.API.Middleware;
 using PremierLeaguePredictions.Infrastructure.Data;
 using PremierLeaguePredictions.Infrastructure.Services;
@@ -95,6 +97,14 @@ builder.Services.AddAuthentication(options =>
         }
     };
 });
+
+// Disable authorization in development mode if configured
+var disableAuth = builder.Configuration.GetValue<bool>("DisableAuthorizationInDevelopment");
+if (builder.Environment.IsDevelopment() && disableAuth)
+{
+    Log.Warning("AUTHORIZATION IS DISABLED - Development mode only!");
+    builder.Services.AddSingleton<IAuthorizationHandler, AlwaysAllowAuthorizationHandler>();
+}
 
 builder.Services.AddAuthorization();
 

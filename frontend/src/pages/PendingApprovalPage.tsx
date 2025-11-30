@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { AxiosError } from 'axios';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSignalR } from '@/contexts/SignalRContext';
 import { seasonParticipationService } from '@/services/seasonParticipation';
@@ -18,7 +19,7 @@ export function PendingApprovalPage() {
   const queryClient = useQueryClient();
 
   // Get active season
-  const { data: activeSeason } = useQuery({
+  const { data: activeSeason, error: seasonError } = useQuery({
     queryKey: ['active-season'],
     queryFn: () => adminService.getActiveSeason(),
     retry: false,
@@ -108,6 +109,41 @@ export function PendingApprovalPage() {
     logout();
     window.location.href = '/login';
   };
+
+  // Check for API errors
+  if (seasonError) {
+    const axiosError = seasonError as AxiosError;
+    const isNetworkError = !axiosError.response;
+    const isServerError = axiosError.response?.status && axiosError.response.status >= 500;
+
+    if (isNetworkError || isServerError) {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center p-4">
+          <Card className="max-w-md w-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-destructive">
+                <AlertCircle className="w-6 h-6" />
+                Unable to Connect to Server
+              </CardTitle>
+              <CardDescription>
+                {isNetworkError
+                  ? "We're having trouble connecting to the server. Please check your internet connection."
+                  : "The server is experiencing issues. Please try again in a few moments."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Button onClick={() => window.location.reload()} variant="default" className="w-full">
+                Refresh Page
+              </Button>
+              <Button onClick={handleLogout} variant="outline" className="w-full">
+                Logout
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+  }
 
   if (!activeSeason) {
     return (

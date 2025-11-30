@@ -26,7 +26,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function ApprovalCheckRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
-  const { needsApproval, isLoading } = useSeasonApproval();
+  const { needsApproval, isLoading, isApiDown } = useSeasonApproval();
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
@@ -38,6 +38,11 @@ function ApprovalCheckRoute({ children }: { children: React.ReactNode }) {
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
+  }
+
+  // If API is down, let the child component handle it (don't redirect)
+  if (isApiDown) {
+    return <>{children}</>;
   }
 
   if (needsApproval) {

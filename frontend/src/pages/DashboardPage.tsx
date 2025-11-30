@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
+import { AxiosError } from 'axios';
 import { dashboardService } from '@/services/dashboard';
 import { useAuth } from '@/contexts/AuthContext';
 import { Summary } from "@/components/dashboard/Summary";
@@ -11,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 export function DashboardPage() {
   const { user } = useAuth();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['dashboard', user?.id],
     queryFn: () => dashboardService.getDashboard(user?.id || ''),
     enabled: !!user?.id,
@@ -30,6 +31,47 @@ export function DashboardPage() {
         </Card>
       </div>
     );
+  }
+
+  // Check for API errors
+  if (error) {
+    const axiosError = error as AxiosError;
+    const isNetworkError = !axiosError.response;
+    const isServerError = axiosError.response?.status && axiosError.response.status >= 500;
+
+    if (isNetworkError || isServerError) {
+      return (
+        <div className="container mx-auto p-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-destructive">Unable to Connect to Server</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-muted-foreground">
+                {isNetworkError
+                  ? "We're having trouble connecting to the server. Please check your internet connection and try again."
+                  : "The server is experiencing issues. Please try again in a few moments."}
+              </p>
+              <div className="bg-muted p-4 rounded-lg">
+                <h3 className="font-semibold mb-2">Troubleshooting Steps:</h3>
+                <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                  <li>Check your internet connection</li>
+                  <li>Refresh the page</li>
+                  <li>Clear your browser cache</li>
+                  {user?.isAdmin && <li>Check the server status in the admin panel</li>}
+                </ul>
+              </div>
+              <button
+                onClick={() => window.location.reload()}
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
+              >
+                Refresh Page
+              </button>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
   }
 
   // Check if there is an active season

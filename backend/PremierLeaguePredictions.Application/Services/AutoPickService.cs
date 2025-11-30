@@ -27,14 +27,15 @@ public class AutoPickService : IAutoPickService
         if (gameweek == null)
         {
             _logger.LogWarning("Gameweek {SeasonId}-{GameweekNumber} not found", seasonId, gameweekNumber);
-            return;
+            throw new KeyNotFoundException($"Gameweek {seasonId}-{gameweekNumber} not found");
         }
 
         // Only process if deadline has passed
         if (gameweek.Deadline >= DateTime.UtcNow)
         {
-            _logger.LogDebug("Gameweek {WeekNumber} deadline has not passed yet", gameweek.WeekNumber);
-            return;
+            _logger.LogInformation("Gameweek {SeasonId}-{GameweekNumber} deadline has not passed yet (Deadline: {Deadline}, Now: {Now})",
+                seasonId, gameweekNumber, gameweek.Deadline, DateTime.UtcNow);
+            throw new InvalidOperationException($"Gameweek {seasonId}-{gameweekNumber} deadline has not passed yet. Deadline is {gameweek.Deadline:u}");
         }
 
         _logger.LogInformation("Processing auto-pick assignments for Gameweek {WeekNumber}", gameweek.WeekNumber);
@@ -76,6 +77,9 @@ public class AutoPickService : IAutoPickService
 
         // Get team standings (calculate based on fixture results up to this gameweek)
         var teamStandings = await CalculateTeamStandingsAsync(gameweek.SeasonId, gameweek.WeekNumber, cancellationToken);
+
+        _logger.LogDebug("Calculated standings for Gameweek {WeekNumber}: {@Standings}",
+            gameweek.WeekNumber, teamStandings.Select(s => new { s.Position, s.TeamId, s.Points }));
 
         // Assign picks for each user
         int assignedCount = 0;
@@ -135,19 +139,29 @@ public class AutoPickService : IAutoPickService
     {
         var now = DateTime.UtcNow;
 
-        // Get all gameweeks with passed deadlines
-        var gameweeksWithPassedDeadlines = await _unitOfWork.Gameweeks.FindAsync(
-            g => g.Deadline < now,
+        // Only process gameweeks where the deadline passed within the last check interval (e.g., 10 minutes)
+        // This prevents backfilling historical gameweeks and only handles recently passed deadlines
+        var recentDeadlineThreshold = now.AddMinutes(-10);
+
+        var gameweeksWithRecentlyPassedDeadlines = await _unitOfWork.Gameweeks.FindAsync(
+            g => g.Deadline < now && g.Deadline >= recentDeadlineThreshold,
             cancellationToken);
 
-        var gameweeksList = gameweeksWithPassedDeadlines.OrderBy(g => g.Deadline).ToList();
+        var gameweeksList = gameweeksWithRecentlyPassedDeadlines.OrderBy(g => g.Deadline).ToList();
 
-        _logger.LogInformation("Processing auto-picks for {Count} gameweeks with passed deadlines",
-            gameweeksList.Count);
-
-        foreach (var gameweek in gameweeksList)
+        if (gameweeksList.Any())
         {
-            await AssignMissedPicksForGameweekAsync(gameweek.SeasonId, gameweek.WeekNumber, cancellationToken);
+            _logger.LogInformation("Processing auto-picks for {Count} gameweeks with recently passed deadlines",
+                gameweeksList.Count);
+
+            foreach (var gameweek in gameweeksList)
+            {
+                await AssignMissedPicksForGameweekAsync(gameweek.SeasonId, gameweek.WeekNumber, cancellationToken);
+            }
+        }
+        else
+        {
+            _logger.LogDebug("No gameweeks with recently passed deadlines found");
         }
     }
 
@@ -225,19 +239,28 @@ public class AutoPickService : IAutoPickService
             t => t.IsActive,
             cancellationToken);
 
-        foreach (var team in activeTeams)
+        var activeTeamsList = activeTeams.ToList();
+
+        foreach (var team in activeTeamsList)
         {
             if (!teamStats.ContainsKey(team.Id))
             {
-                teamStats[team.Id] = new TeamStanding { TeamId = team.Id };
+                teamStats[team.Id] = new TeamStanding { TeamId = team.Id, TeamName = team.Name };
+            }
+            else
+            {
+                teamStats[team.Id].TeamName = team.Name;
             }
         }
 
-        // Sort by points, then goal difference, then goals for
+        // Sort by points DESC, then goal difference DESC, then goals for DESC, then team name ASC
+        // When all teams have 0 points (start of season), teams are sorted A-Z
+        // Arsenal (A) = Position 1, Wolverhampton (W) = Position 20 (worst)
         var standings = teamStats.Values
             .OrderByDescending(s => s.Points)
             .ThenByDescending(s => s.GoalDifference)
             .ThenByDescending(s => s.GoalsFor)
+            .ThenBy(s => s.TeamName) // A comes before Z, so Arsenal ranks better than Wolves
             .ToList();
 
         // Assign positions
@@ -286,7 +309,7 @@ public class AutoPickService : IAutoPickService
             .ToHashSet();
 
         // Find the lowest ranked team not yet picked
-        // Start from the bottom (highest position number)
+        // Start from the bottom (highest position number = worst team)
         for (int i = teamStandings.Count - 1; i >= 0; i--)
         {
             var standing = teamStandings[i];
@@ -295,17 +318,21 @@ public class AutoPickService : IAutoPickService
                 var team = await _unitOfWork.Teams.FirstOrDefaultAsync(t => t.Id == standing.TeamId, cancellationToken);
                 if (team != null && team.IsActive)
                 {
+                    _logger.LogDebug("Selected team {TeamName} (Position {Position}, Points {Points}) for auto-pick",
+                        team.Name, standing.Position, standing.Points);
                     return team;
                 }
             }
         }
 
+        _logger.LogWarning("No available team found for user {UserId} - all teams may be picked", userId);
         return null;
     }
 
     private class TeamStanding
     {
         public int TeamId { get; set; }
+        public string TeamName { get; set; } = string.Empty;
         public int Position { get; set; }
         public int Played { get; set; }
         public int Won { get; set; }
