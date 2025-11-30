@@ -13,7 +13,8 @@ const createPick = (
   return {
     id: `pick-${gameweekNumber}`,
     userId: 'mock-user-123',
-    gameweekId: `gw-${gameweekNumber}`,
+    seasonId: '2023/2024',
+    gameweekNumber,
     teamId: team.id,
     team: team,
     points,
@@ -66,7 +67,8 @@ export const mockPicksService = {
     const newPick: Pick = {
       id: `pick-${Date.now()}`,
       userId,
-      gameweekId: pickData.gameweekId,
+      seasonId: pickData.seasonId,
+      gameweekNumber: pickData.gameweekNumber,
       teamId: pickData.teamId,
       team: team,
       points: 0,

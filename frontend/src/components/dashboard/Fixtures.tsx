@@ -56,7 +56,8 @@ export function Fixtures() {
   });
 
   // Get color for a team based on pick status
-  const getTeamColor = (teamId: string, fixtureGameweek: number): string => {
+  // Get color for a team based on pick status
+  const getTeamColor = (teamId: number, fixtureGameweek: number): string => {
     const pick = picksByGameweek.get(fixtureGameweek);
 
     // Green: Selected in this gameweek

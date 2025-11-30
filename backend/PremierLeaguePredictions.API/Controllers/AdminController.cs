@@ -44,10 +44,11 @@ public class AdminController : ControllerBase
         return NoContent();
     }
 
-    [HttpPost("gameweeks/{gameweekId}/recalculate")]
-    public async Task<IActionResult> RecalculateGameweekPoints(Guid gameweekId)
+    [HttpPost("gameweeks/{seasonId}/{gameweekNumber}/recalculate")]
+    public async Task<IActionResult> RecalculateGameweekPoints(string seasonId, int gameweekNumber)
     {
-        await _adminService.RecalculatePointsForGameweekAsync(gameweekId);
+        var decodedSeasonId = Uri.UnescapeDataString(seasonId);
+        await _adminService.RecalculatePointsForGameweekAsync(decodedSeasonId, gameweekNumber);
         return NoContent();
     }
 
@@ -105,10 +106,11 @@ public class AdminController : ControllerBase
         return Ok(response);
     }
 
-    [HttpPost("sync/results/gameweek/{gameweekId}")]
-    public async Task<ActionResult<ResultsSyncResponse>> SyncGameweekResults(Guid gameweekId)
+    [HttpPost("sync/results/gameweek/{seasonId}/{gameweekNumber}")]
+    public async Task<ActionResult<ResultsSyncResponse>> SyncGameweekResults(string seasonId, int gameweekNumber)
     {
-        var response = await _resultsService.SyncGameweekResultsAsync(gameweekId);
+        var decodedSeasonId = Uri.UnescapeDataString(seasonId);
+        var response = await _resultsService.SyncGameweekResultsAsync(decodedSeasonId, gameweekNumber);
         return Ok(response);
     }
 
@@ -134,34 +136,42 @@ public class AdminController : ControllerBase
     }
 
     [HttpPost("seasons")]
+    [ServiceFilter(typeof(Filters.ValidationFilter<CreateSeasonRequest>))]
     public async Task<ActionResult<CreateSeasonResponse>> CreateSeason([FromBody] CreateSeasonRequest request)
     {
-        // Step 1: Create the season
-        var seasonId = await _adminService.CreateSeasonAsync(request);
-
-        // Step 2: Sync teams from Football Data API
-        var (teamsCreated, teamsUpdated) = await _fixtureSyncService.SyncTeamsAsync();
-
-        // Step 3: Get team statuses to count active/inactive teams
-        var allTeams = await _adminService.GetTeamStatusesAsync();
-        var teamsActivated = allTeams.Count(t => t.IsActive);
-        var teamsDeactivated = allTeams.Count(t => !t.IsActive);
-
-        // Step 4: Sync fixtures for the specific season
-        var (fixturesCreated, fixturesUpdated, gameweeksCreated) = await _fixtureSyncService.SyncFixturesAsync(request.ExternalSeasonYear);
-
-        var response = new CreateSeasonResponse
+        try
         {
-            SeasonId = seasonId,
-            Message = $"Season '{request.Name}' created successfully with teams and fixtures synced.",
-            TeamsCreated = teamsCreated,
-            TeamsActivated = teamsActivated,
-            TeamsDeactivated = teamsDeactivated,
-            GameweeksCreated = gameweeksCreated,
-            FixturesCreated = fixturesCreated
-        };
+            // Step 1: Create the season
+            var seasonId = await _adminService.CreateSeasonAsync(request);
 
-        return Ok(response);
+            // Step 2: Sync teams from Football Data API
+            var (teamsCreated, teamsUpdated) = await _fixtureSyncService.SyncTeamsAsync();
+
+            // Step 3: Get team statuses to count active/inactive teams
+            var allTeams = await _adminService.GetTeamStatusesAsync();
+            var teamsActivated = allTeams.Count(t => t.IsActive);
+            var teamsDeactivated = allTeams.Count(t => !t.IsActive);
+
+            // Step 4: Sync fixtures for the specific season
+            var (fixturesCreated, fixturesUpdated, gameweeksCreated) = await _fixtureSyncService.SyncFixturesAsync(request.ExternalSeasonYear);
+
+            var response = new CreateSeasonResponse
+            {
+                SeasonId = seasonId,
+                Message = $"Season '{request.Name}' created successfully with teams and fixtures synced.",
+                TeamsCreated = teamsCreated,
+                TeamsActivated = teamsActivated,
+                TeamsDeactivated = teamsDeactivated,
+                GameweeksCreated = gameweeksCreated,
+                FixturesCreated = fixturesCreated
+            };
+
+            return Ok(response);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpGet("teams/status")]
@@ -172,7 +182,7 @@ public class AdminController : ControllerBase
     }
 
     [HttpPut("teams/{teamId}/status")]
-    public async Task<IActionResult> UpdateTeamStatus(Guid teamId, [FromBody] UpdateTeamStatusRequest request)
+    public async Task<IActionResult> UpdateTeamStatus(int teamId, [FromBody] UpdateTeamStatusRequest request)
     {
         await _adminService.UpdateTeamStatusAsync(teamId, request.IsActive);
         return NoContent();
@@ -194,32 +204,38 @@ public class AdminController : ControllerBase
 
     // Elimination management endpoints
     [HttpGet("eliminations/season/{seasonId}")]
-    public async Task<ActionResult<List<UserEliminationDto>>> GetSeasonEliminations(Guid seasonId)
+    public async Task<ActionResult<List<UserEliminationDto>>> GetSeasonEliminations(string seasonId)
     {
-        var eliminations = await _eliminationService.GetSeasonEliminationsAsync(seasonId);
+        var decodedSeasonId = Uri.UnescapeDataString(seasonId);
+        var eliminations = await _eliminationService.GetSeasonEliminationsAsync(decodedSeasonId);
         return Ok(eliminations);
     }
 
-    [HttpGet("eliminations/gameweek/{gameweekId}")]
-    public async Task<ActionResult<List<UserEliminationDto>>> GetGameweekEliminations(Guid gameweekId)
+    [HttpGet("eliminations/gameweek/{seasonId}/{gameweekNumber}")]
+    public async Task<ActionResult<List<UserEliminationDto>>> GetGameweekEliminations(string seasonId, int gameweekNumber)
     {
-        var eliminations = await _eliminationService.GetGameweekEliminationsAsync(gameweekId);
+        var decodedSeasonId = Uri.UnescapeDataString(seasonId);
+        var eliminations = await _eliminationService.GetGameweekEliminationsAsync(decodedSeasonId, gameweekNumber);
         return Ok(eliminations);
     }
 
     [HttpGet("eliminations/configs/{seasonId}")]
-    public async Task<ActionResult<List<EliminationConfigDto>>> GetEliminationConfigs(Guid seasonId)
+    public async Task<ActionResult<List<EliminationConfigDto>>> GetEliminationConfigs(string seasonId)
     {
-        var configs = await _eliminationService.GetEliminationConfigsAsync(seasonId);
+        var decodedSeasonId = Uri.UnescapeDataString(seasonId);
+        _logger.LogInformation("GetEliminationConfigs called for seasonId: {SeasonId}", decodedSeasonId);
+        var configs = await _eliminationService.GetEliminationConfigsAsync(decodedSeasonId);
+        _logger.LogInformation("Returned {Count} elimination configs for season {SeasonId}", configs.Count, decodedSeasonId);
         return Ok(configs);
     }
 
-    [HttpPut("eliminations/gameweek/{gameweekId}/count")]
-    public async Task<IActionResult> UpdateGameweekEliminationCount(Guid gameweekId, [FromBody] UpdateEliminationCountRequest request)
+    [HttpPut("eliminations/gameweek/{seasonId}/{gameweekNumber}/count")]
+    public async Task<IActionResult> UpdateGameweekEliminationCount(string seasonId, int gameweekNumber, [FromBody] UpdateEliminationCountRequest request)
     {
         try
         {
-            await _eliminationService.UpdateGameweekEliminationCountAsync(gameweekId, request.EliminationCount);
+            var decodedSeasonId = Uri.UnescapeDataString(seasonId);
+            await _eliminationService.UpdateGameweekEliminationCountAsync(decodedSeasonId, gameweekNumber, request.EliminationCount);
             return NoContent();
         }
         catch (ArgumentException ex)
@@ -239,8 +255,8 @@ public class AdminController : ControllerBase
         return NoContent();
     }
 
-    [HttpPost("eliminations/process/{gameweekId}")]
-    public async Task<ActionResult<ProcessEliminationsResponse>> ProcessEliminations(Guid gameweekId)
+    [HttpPost("eliminations/process/{seasonId}/{gameweekNumber}")]
+    public async Task<ActionResult<ProcessEliminationsResponse>> ProcessEliminations(string seasonId, int gameweekNumber)
     {
         var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var adminUserId))
@@ -248,22 +264,24 @@ public class AdminController : ControllerBase
             return Unauthorized(new { message = "User ID not found in token" });
         }
 
-        var response = await _eliminationService.ProcessGameweekEliminationsAsync(gameweekId, adminUserId);
+        var decodedSeasonId = Uri.UnescapeDataString(seasonId);
+        var response = await _eliminationService.ProcessGameweekEliminationsAsync(decodedSeasonId, gameweekNumber, adminUserId);
         return Ok(response);
     }
 
     // Auto-pick assignment endpoints
-    [HttpPost("picks/auto-assign/{gameweekId}")]
-    public async Task<IActionResult> AutoAssignPicksForGameweek(Guid gameweekId)
+    [HttpPost("picks/auto-assign/{seasonId}/{gameweekNumber}")]
+    public async Task<IActionResult> AutoAssignPicksForGameweek(string seasonId, int gameweekNumber)
     {
         try
         {
-            await _autoPickService.AssignMissedPicksForGameweekAsync(gameweekId);
+            var decodedSeasonId = Uri.UnescapeDataString(seasonId);
+            await _autoPickService.AssignMissedPicksForGameweekAsync(decodedSeasonId, gameweekNumber);
             return Ok(new { message = "Auto-pick assignment completed successfully" });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to auto-assign picks for gameweek {GameweekId}", gameweekId);
+            _logger.LogError(ex, "Failed to auto-assign picks for gameweek {SeasonId}-{GameweekNumber}", seasonId, gameweekNumber);
             return StatusCode(500, new { message = "Failed to auto-assign picks", error = ex.Message });
         }
     }
@@ -302,7 +320,7 @@ public class AdminController : ControllerBase
 
 public class OverridePickRequest
 {
-    public Guid NewTeamId { get; set; }
+    public int NewTeamId { get; set; }
     public string Reason { get; set; } = string.Empty;
 }
 
@@ -324,5 +342,5 @@ public class UpdateEliminationCountRequest
 
 public class BulkUpdateEliminationCountsRequest
 {
-    public Dictionary<Guid, int> GameweekEliminationCounts { get; set; } = new();
+    public Dictionary<string, int> GameweekEliminationCounts { get; set; } = new();
 }

@@ -2,8 +2,7 @@ namespace PremierLeaguePredictions.Application.DTOs;
 
 public class GameweekDto
 {
-    public Guid Id { get; set; }
-    public Guid SeasonId { get; set; }
+    public string SeasonId { get; set; } = string.Empty;
     public int WeekNumber { get; set; }
     public DateTime Deadline { get; set; }
     public bool IsLocked { get; set; }
@@ -14,7 +13,7 @@ public class GameweekDto
 
 public class CreateGameweekRequest
 {
-    public Guid SeasonId { get; set; }
+    public string SeasonId { get; set; } = string.Empty;
     public int WeekNumber { get; set; }
     public DateTime Deadline { get; set; }
 }

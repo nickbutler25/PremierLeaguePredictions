@@ -11,15 +11,17 @@ export function useSeasonApproval() {
   });
 
   // Get user's approval status for active season
-  const { data: isApproved, isLoading: loadingApproval, isError } = useQuery({
-    queryKey: ['season-approval', activeSeason?.id],
+  const { data: isApproved, isLoading: loadingApproval } = useQuery({
+    queryKey: ['season-approval', activeSeason?.name],
     queryFn: async () => {
-      if (!activeSeason?.id) return false;
+      if (!activeSeason?.name) return false;
       try {
-        const result = await seasonParticipationService.checkParticipation(activeSeason.id);
+        const result = await seasonParticipationService.checkParticipation(activeSeason.name);
+        console.log('useSeasonApproval: checkParticipation returned:', result, 'for season:', activeSeason.name);
         return result;
       } catch (error) {
         console.error('Error checking season approval:', error);
+        // Return false instead of throwing - let the component handle the no-approval state
         return false;
       }
     },
@@ -27,7 +29,8 @@ export function useSeasonApproval() {
     retry: false,
   });
 
-  const needsApproval = !!activeSeason && (isApproved === false || isError);
+  const needsApproval = !!activeSeason && isApproved === false;
+  console.log('useSeasonApproval: needsApproval=', needsApproval, 'isApproved=', isApproved, 'activeSeason=', activeSeason?.name);
 
   return {
     activeSeason,

@@ -4,7 +4,8 @@ public class EmailNotification
 {
     public Guid Id { get; set; }
     public Guid UserId { get; set; }
-    public Guid GameweekId { get; set; }
+    public string SeasonId { get; set; } = string.Empty;
+    public int GameweekNumber { get; set; }
     public string EmailType { get; set; } = string.Empty; // PICK_REMINDER, GAMEWEEK_STARTED, etc.
     public DateTime SentAt { get; set; }
     public string Status { get; set; } = "SENT"; // SENT, FAILED, PENDING

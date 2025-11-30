@@ -31,10 +31,10 @@ public class GameweeksController : ControllerBase
         return Ok(gameweek);
     }
 
-    [HttpGet("{id}")]
-    public async Task<ActionResult<GameweekWithFixturesDto>> GetGameweekById(Guid id)
+    [HttpGet("{seasonId}/{weekNumber}")]
+    public async Task<ActionResult<GameweekWithFixturesDto>> GetGameweekById(string seasonId, int weekNumber)
     {
-        var gameweek = await _gameweekService.GetGameweekWithFixturesAsync(id);
+        var gameweek = await _gameweekService.GetGameweekWithFixturesAsync(seasonId, weekNumber);
         if (gameweek == null)
             return NotFound();
         return Ok(gameweek);

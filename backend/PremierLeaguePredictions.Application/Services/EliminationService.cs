@@ -17,7 +17,7 @@ public class EliminationService : IEliminationService
         _logger = logger;
     }
 
-    public async Task<List<UserEliminationDto>> GetSeasonEliminationsAsync(Guid seasonId, CancellationToken cancellationToken = default)
+    public async Task<List<UserEliminationDto>> GetSeasonEliminationsAsync(string seasonId, CancellationToken cancellationToken = default)
     {
         var eliminations = await _unitOfWork.UserEliminations.FindAsync(
             e => e.SeasonId == seasonId,
@@ -30,7 +30,7 @@ public class EliminationService : IEliminationService
         foreach (var elimination in eliminationList)
         {
             var user = await _unitOfWork.Users.GetByIdAsync(elimination.UserId, cancellationToken);
-            var gameweek = await _unitOfWork.Gameweeks.GetByIdAsync(elimination.GameweekId, cancellationToken);
+            var gameweek = await _unitOfWork.Gameweeks.FirstOrDefaultAsync(g => g.SeasonId == elimination.SeasonId && g.WeekNumber == elimination.GameweekNumber, cancellationToken);
             var eliminatedBy = elimination.EliminatedBy.HasValue
                 ? await _unitOfWork.Users.GetByIdAsync(elimination.EliminatedBy.Value, cancellationToken)
                 : null;
@@ -41,8 +41,7 @@ public class EliminationService : IEliminationService
                 UserId = elimination.UserId,
                 UserName = user != null ? $"{user.FirstName} {user.LastName}" : "Unknown",
                 SeasonId = elimination.SeasonId,
-                GameweekId = elimination.GameweekId,
-                GameweekNumber = gameweek?.WeekNumber ?? 0,
+                GameweekNumber = elimination.GameweekNumber,
                 Position = elimination.Position,
                 TotalPoints = elimination.TotalPoints,
                 EliminatedAt = elimination.EliminatedAt,
@@ -54,10 +53,10 @@ public class EliminationService : IEliminationService
         return result.OrderBy(e => e.GameweekNumber).ThenBy(e => e.Position).ToList();
     }
 
-    public async Task<List<UserEliminationDto>> GetGameweekEliminationsAsync(Guid gameweekId, CancellationToken cancellationToken = default)
+    public async Task<List<UserEliminationDto>> GetGameweekEliminationsAsync(string seasonId, int gameweekNumber, CancellationToken cancellationToken = default)
     {
         var eliminations = await _unitOfWork.UserEliminations.FindAsync(
-            e => e.GameweekId == gameweekId,
+            e => e.SeasonId == seasonId && e.GameweekNumber == gameweekNumber,
             cancellationToken
         );
 
@@ -67,7 +66,7 @@ public class EliminationService : IEliminationService
         foreach (var elimination in eliminationList)
         {
             var user = await _unitOfWork.Users.GetByIdAsync(elimination.UserId, cancellationToken);
-            var gameweek = await _unitOfWork.Gameweeks.GetByIdAsync(elimination.GameweekId, cancellationToken);
+            var gameweek = await _unitOfWork.Gameweeks.FirstOrDefaultAsync(g => g.SeasonId == elimination.SeasonId && g.WeekNumber == elimination.GameweekNumber, cancellationToken);
             var eliminatedBy = elimination.EliminatedBy.HasValue
                 ? await _unitOfWork.Users.GetByIdAsync(elimination.EliminatedBy.Value, cancellationToken)
                 : null;
@@ -78,8 +77,8 @@ public class EliminationService : IEliminationService
                 UserId = elimination.UserId,
                 UserName = user != null ? $"{user.FirstName} {user.LastName}" : "Unknown",
                 SeasonId = elimination.SeasonId,
-                GameweekId = elimination.GameweekId,
-                GameweekNumber = gameweek?.WeekNumber ?? 0,
+
+                GameweekNumber = elimination.GameweekNumber,
                 Position = elimination.Position,
                 TotalPoints = elimination.TotalPoints,
                 EliminatedAt = elimination.EliminatedAt,
@@ -91,7 +90,7 @@ public class EliminationService : IEliminationService
         return result.OrderBy(e => e.Position).ToList();
     }
 
-    public async Task<bool> IsUserEliminatedAsync(Guid userId, Guid seasonId, CancellationToken cancellationToken = default)
+    public async Task<bool> IsUserEliminatedAsync(Guid userId, string seasonId, CancellationToken cancellationToken = default)
     {
         var elimination = await _unitOfWork.UserEliminations.FindAsync(
             e => e.UserId == userId && e.SeasonId == seasonId,
@@ -101,11 +100,11 @@ public class EliminationService : IEliminationService
         return elimination.Any();
     }
 
-    public async Task<ProcessEliminationsResponse> ProcessGameweekEliminationsAsync(Guid gameweekId, Guid adminUserId, CancellationToken cancellationToken = default)
+    public async Task<ProcessEliminationsResponse> ProcessGameweekEliminationsAsync(string seasonId, int gameweekNumber, Guid adminUserId, CancellationToken cancellationToken = default)
     {
         var response = new ProcessEliminationsResponse();
 
-        var gameweek = await _unitOfWork.Gameweeks.GetByIdAsync(gameweekId, cancellationToken);
+        var gameweek = await _unitOfWork.Gameweeks.FirstOrDefaultAsync(g => g.SeasonId == seasonId && g.WeekNumber == gameweekNumber, cancellationToken);
         if (gameweek == null)
         {
             response.Message = "Gameweek not found";
@@ -120,7 +119,7 @@ public class EliminationService : IEliminationService
 
         // Check if eliminations already processed for this gameweek
         var existingEliminations = await _unitOfWork.UserEliminations.FindAsync(
-            e => e.GameweekId == gameweekId,
+            e => e.SeasonId == seasonId && e.GameweekNumber == gameweekNumber,
             cancellationToken
         );
 
@@ -139,16 +138,16 @@ public class EliminationService : IEliminationService
             cancellationToken
         );
 
-        var gameweekIds = allGameweeks.Select(g => g.Id).ToHashSet();
+        var gameweekKeys = allGameweeks.Select(g => new { g.SeasonId, g.WeekNumber }).ToHashSet();
 
         var allPicks = await _unitOfWork.Picks.FindAsync(
-            p => gameweekIds.Contains(p.GameweekId),
+            p => p.SeasonId == seasonId && p.GameweekNumber <= gameweekNumber,
             cancellationToken
         );
 
         // Get already eliminated users
         var alreadyEliminated = await _unitOfWork.UserEliminations.FindAsync(
-            e => e.SeasonId == gameweek.SeasonId && e.GameweekId != gameweekId,
+            e => e.SeasonId == gameweek.SeasonId && e.GameweekNumber != gameweekNumber,
             cancellationToken
         );
 
@@ -182,7 +181,7 @@ public class EliminationService : IEliminationService
                 Id = Guid.NewGuid(),
                 UserId = userToEliminate.UserId,
                 SeasonId = gameweek.SeasonId,
-                GameweekId = gameweekId,
+                GameweekNumber = gameweekNumber,
                 Position = position,
                 TotalPoints = userToEliminate.TotalPoints,
                 EliminatedAt = DateTime.UtcNow,
@@ -199,7 +198,7 @@ public class EliminationService : IEliminationService
                 UserId = elimination.UserId,
                 UserName = user != null ? $"{user.FirstName} {user.LastName}" : "Unknown",
                 SeasonId = elimination.SeasonId,
-                GameweekId = elimination.GameweekId,
+
                 GameweekNumber = gameweek.WeekNumber,
                 Position = elimination.Position,
                 TotalPoints = elimination.TotalPoints,
@@ -220,26 +219,30 @@ public class EliminationService : IEliminationService
         return response;
     }
 
-    public async Task<List<EliminationConfigDto>> GetEliminationConfigsAsync(Guid seasonId, CancellationToken cancellationToken = default)
+    public async Task<List<EliminationConfigDto>> GetEliminationConfigsAsync(string seasonId, CancellationToken cancellationToken = default)
     {
+        _logger.LogInformation("Getting elimination configs for season: {SeasonId}", seasonId);
+
         var gameweeks = await _unitOfWork.Gameweeks.FindAsync(
             g => g.SeasonId == seasonId,
             cancellationToken
         );
 
         var gameweekList = gameweeks.OrderBy(g => g.WeekNumber).ToList();
+        _logger.LogInformation("Found {Count} gameweeks for season {SeasonId}", gameweekList.Count, seasonId);
         var result = new List<EliminationConfigDto>();
 
         foreach (var gameweek in gameweekList)
         {
             var eliminations = await _unitOfWork.UserEliminations.FindAsync(
-                e => e.GameweekId == gameweek.Id,
+                e => e.SeasonId == gameweek.SeasonId && e.GameweekNumber == gameweek.WeekNumber,
                 cancellationToken
             );
 
             result.Add(new EliminationConfigDto
             {
-                GameweekId = gameweek.Id,
+                GameweekId = $"{gameweek.SeasonId}-{gameweek.WeekNumber}",
+                SeasonId = gameweek.SeasonId,
                 WeekNumber = gameweek.WeekNumber,
                 EliminationCount = gameweek.EliminationCount,
                 HasBeenProcessed = eliminations.Any(),
@@ -250,17 +253,17 @@ public class EliminationService : IEliminationService
         return result;
     }
 
-    public async Task UpdateGameweekEliminationCountAsync(Guid gameweekId, int eliminationCount, CancellationToken cancellationToken = default)
+    public async Task UpdateGameweekEliminationCountAsync(string seasonId, int gameweekNumber, int eliminationCount, CancellationToken cancellationToken = default)
     {
-        var gameweek = await _unitOfWork.Gameweeks.GetByIdAsync(gameweekId, cancellationToken);
+        var gameweek = await _unitOfWork.Gameweeks.FirstOrDefaultAsync(g => g.SeasonId == seasonId && g.WeekNumber == gameweekNumber, cancellationToken);
         if (gameweek == null)
         {
-            throw new ArgumentException("Gameweek not found", nameof(gameweekId));
+            throw new ArgumentException("Gameweek not found", nameof(gameweekNumber));
         }
 
         // Check if eliminations have already been processed
         var existingEliminations = await _unitOfWork.UserEliminations.FindAsync(
-            e => e.GameweekId == gameweekId,
+            e => e.SeasonId == seasonId && e.GameweekNumber == gameweekNumber,
             cancellationToken
         );
 
@@ -279,11 +282,25 @@ public class EliminationService : IEliminationService
             gameweek.WeekNumber, eliminationCount);
     }
 
-    public async Task BulkUpdateEliminationCountsAsync(Dictionary<Guid, int> gameweekEliminationCounts, CancellationToken cancellationToken = default)
+    public async Task BulkUpdateEliminationCountsAsync(Dictionary<string, int> gameweekEliminationCounts, CancellationToken cancellationToken = default)
     {
         foreach (var kvp in gameweekEliminationCounts)
         {
-            var gameweek = await _unitOfWork.Gameweeks.GetByIdAsync(kvp.Key, cancellationToken);
+            // Parse the composite key format: "{SeasonId}-{WeekNumber}"
+            var parts = kvp.Key.Split('-');
+            if (parts.Length < 2 || !int.TryParse(parts[parts.Length - 1], out int weekNumber))
+            {
+                _logger.LogWarning("Invalid gameweek ID format: {GameweekId}, skipping", kvp.Key);
+                continue;
+            }
+
+            // Reconstruct seasonId (handles case where seasonId contains dashes like "2024/2025")
+            var seasonId = string.Join("-", parts.Take(parts.Length - 1));
+
+            var gameweek = await _unitOfWork.Gameweeks.FirstOrDefaultAsync(
+                g => g.SeasonId == seasonId && g.WeekNumber == weekNumber,
+                cancellationToken);
+
             if (gameweek == null)
             {
                 _logger.LogWarning("Gameweek {GameweekId} not found, skipping", kvp.Key);
@@ -292,7 +309,7 @@ public class EliminationService : IEliminationService
 
             // Check if eliminations have already been processed
             var existingEliminations = await _unitOfWork.UserEliminations.FindAsync(
-                e => e.GameweekId == kvp.Key,
+                e => e.SeasonId == gameweek.SeasonId && e.GameweekNumber == gameweek.WeekNumber,
                 cancellationToken
             );
 

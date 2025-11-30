@@ -23,13 +23,13 @@ public class DashboardService : IDashboardService
 
         // Check if user has approved participation for the active season (applies to all users including admins)
         var activeSeason = await _unitOfWork.Seasons.FindAsync(s => s.IsActive, cancellationToken);
-        var activeSeasonId = activeSeason.FirstOrDefault()?.Id;
+        var activeSeasonId = activeSeason.FirstOrDefault()?.Name;
 
-        if (activeSeasonId.HasValue)
+        if (!string.IsNullOrEmpty(activeSeasonId))
         {
             var participation = await _unitOfWork.SeasonParticipations.FindAsync(
                 sp => sp.UserId == userId &&
-                      sp.SeasonId == activeSeasonId.Value &&
+                      sp.SeasonId == activeSeasonId &&
                       sp.IsApproved,
                 cancellationToken);
 
@@ -45,13 +45,13 @@ public class DashboardService : IDashboardService
 
         // Get all gameweeks to determine which are completed
         var allGameweeks = await _unitOfWork.Gameweeks.GetAllAsync(cancellationToken);
-        var completedGameweekIds = allGameweeks
+        var completedGameweekKeys = allGameweeks
             .Where(g => g.Deadline < DateTime.UtcNow)
-            .Select(g => g.Id)
+            .Select(g => new { g.SeasonId, GameweekNumber = g.WeekNumber })
             .ToHashSet();
 
         // Only count W/D/L for picks in completed gameweeks
-        var completedPicks = picksList.Where(p => completedGameweekIds.Contains(p.GameweekId)).ToList();
+        var completedPicks = picksList.Where(p => completedGameweekKeys.Contains(new { p.SeasonId, p.GameweekNumber })).ToList();
 
         int totalWins = 0;
         int totalDraws = 0;
@@ -80,7 +80,7 @@ public class DashboardService : IDashboardService
 
         // Get all fixtures to check gameweek status
         var allFixtures = await _unitOfWork.Fixtures.GetAllAsync(cancellationToken);
-        var fixturesByGameweek = allFixtures.GroupBy(f => f.GameweekId).ToDictionary(g => g.Key, g => g.ToList());
+        var fixturesByGameweek = allFixtures.GroupBy(f => new { f.SeasonId, GameweekNumber = f.GameweekNumber }).ToDictionary(g => g.Key, g => g.ToList());
 
         GameweekDto? currentGameweek = null;
         var upcomingGameweeksList = new List<GameweekDto>();
@@ -93,7 +93,7 @@ public class DashboardService : IDashboardService
             .FirstOrDefault(g =>
             {
                 // Check if this gameweek has any fixtures that are not finished
-                if (fixturesByGameweek.TryGetValue(g.Id, out var fixtures))
+                if (fixturesByGameweek.TryGetValue(new { g.SeasonId, GameweekNumber = g.WeekNumber }, out var fixtures))
                 {
                     // Consider a fixture "finished" if:
                     // 1. Status is explicitly FINISHED, CANCELLED, or POSTPONED, OR
@@ -130,7 +130,6 @@ public class DashboardService : IDashboardService
             _logger.LogInformation("Found in-progress gameweek: GW {WeekNumber}", inProgressGameweek.WeekNumber);
             currentGameweek = new GameweekDto
             {
-                Id = inProgressGameweek.Id,
                 SeasonId = inProgressGameweek.SeasonId,
                 WeekNumber = inProgressGameweek.WeekNumber,
                 Deadline = inProgressGameweek.Deadline,
@@ -150,7 +149,6 @@ public class DashboardService : IDashboardService
                 .Take(2) // Take 2 more since we already have the in-progress one
                 .Select(g => new GameweekDto
                 {
-                    Id = g.Id,
                     SeasonId = g.SeasonId,
                     WeekNumber = g.WeekNumber,
                     Deadline = g.Deadline,
@@ -170,7 +168,6 @@ public class DashboardService : IDashboardService
                 .Take(3)
                 .Select(g => new GameweekDto
                 {
-                    Id = g.Id,
                     SeasonId = g.SeasonId,
                     WeekNumber = g.WeekNumber,
                     Deadline = g.Deadline,
@@ -190,7 +187,8 @@ public class DashboardService : IDashboardService
             {
                 Id = p.Id,
                 UserId = p.UserId,
-                GameweekId = p.GameweekId,
+                SeasonId = p.SeasonId,
+                GameweekNumber = p.GameweekNumber,
                 TeamId = p.TeamId,
                 Points = p.Points,
                 GoalsFor = p.GoalsFor,
@@ -213,7 +211,7 @@ public class DashboardService : IDashboardService
                 TotalDraws = totalDraws,
                 TotalLosses = totalLosses
             },
-            CurrentGameweekId = currentGameweek?.Id,
+            CurrentGameweek = currentGameweek,
             UpcomingGameweeks = upcomingGameweeksList,
             RecentPicks = recentPicks
         };

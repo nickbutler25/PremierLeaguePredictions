@@ -27,12 +27,12 @@ const realSeasonParticipationService = {
   },
 
   checkParticipation: async (seasonId: string): Promise<boolean> => {
-    const response = await apiClient.get<boolean>(`/api/seasonparticipation/check/${seasonId}`);
+    const response = await apiClient.get<boolean>('/api/seasonparticipation/check', { params: { seasonId } });
     return response.data;
   },
 
   getParticipation: async (seasonId: string): Promise<SeasonParticipation> => {
-    const response = await apiClient.get<SeasonParticipation>(`/api/seasonparticipation/${seasonId}`);
+    const response = await apiClient.get<SeasonParticipation>('/api/seasonparticipation/participation', { params: { seasonId } });
     return response.data;
   },
 };

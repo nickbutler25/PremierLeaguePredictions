@@ -22,7 +22,7 @@ public class SeasonParticipationService : ISeasonParticipationService
         _notificationService = notificationService;
     }
 
-    public async Task<SeasonParticipationDto> RequestParticipationAsync(Guid userId, Guid seasonId, CancellationToken cancellationToken = default)
+    public async Task<SeasonParticipationDto> RequestParticipationAsync(Guid userId, string seasonId, CancellationToken cancellationToken = default)
     {
         // Check if user exists
         var user = await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken);
@@ -32,7 +32,7 @@ public class SeasonParticipationService : ISeasonParticipationService
         }
 
         // Check if season exists
-        var season = await _unitOfWork.Seasons.GetByIdAsync(seasonId, cancellationToken);
+        var season = await _unitOfWork.Seasons.FirstOrDefaultAsync(s => s.Name == seasonId, cancellationToken);
         if (season == null)
         {
             throw new InvalidOperationException("Season not found");
@@ -97,7 +97,7 @@ public class SeasonParticipationService : ISeasonParticipationService
             participationId, isApproved ? "approved" : "rejected", adminUserId);
 
         // Send SignalR notification and email to user
-        var season = await _unitOfWork.Seasons.GetByIdAsync(participation.SeasonId, cancellationToken);
+        var season = await _unitOfWork.Seasons.FirstOrDefaultAsync(s => s.Name == participation.SeasonId, cancellationToken);
         var user = await _unitOfWork.Users.GetByIdAsync(participation.UserId, cancellationToken);
 
         if (season != null && user != null)
@@ -119,15 +119,15 @@ public class SeasonParticipationService : ISeasonParticipationService
         return await MapToDto(participation, cancellationToken);
     }
 
-    public async Task<IEnumerable<PendingApprovalDto>> GetPendingApprovalsAsync(Guid? seasonId = null, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<PendingApprovalDto>> GetPendingApprovalsAsync(string? seasonId = null, CancellationToken cancellationToken = default)
     {
         var query = await _unitOfWork.SeasonParticipations.FindAsync(
             sp => !sp.IsApproved && sp.ApprovedAt == null,
             cancellationToken);
 
-        if (seasonId.HasValue)
+        if (!string.IsNullOrEmpty(seasonId))
         {
-            query = query.Where(sp => sp.SeasonId == seasonId.Value);
+            query = query.Where(sp => sp.SeasonId == seasonId);
         }
 
         var pendingList = new List<PendingApprovalDto>();
@@ -135,7 +135,7 @@ public class SeasonParticipationService : ISeasonParticipationService
         foreach (var participation in query)
         {
             var user = await _unitOfWork.Users.GetByIdAsync(participation.UserId, cancellationToken);
-            var season = await _unitOfWork.Seasons.GetByIdAsync(participation.SeasonId, cancellationToken);
+            var season = await _unitOfWork.Seasons.FirstOrDefaultAsync(s => s.Name == participation.SeasonId, cancellationToken);
 
             if (user != null && season != null)
             {
@@ -147,7 +147,7 @@ public class SeasonParticipationService : ISeasonParticipationService
                     LastName = user.LastName,
                     Email = user.Email,
                     PhotoUrl = user.PhotoUrl,
-                    SeasonId = season.Id,
+                    SeasonId = season.Name,
                     SeasonName = season.Name,
                     RequestedAt = participation.RequestedAt,
                     IsPaid = user.IsPaid
@@ -173,7 +173,7 @@ public class SeasonParticipationService : ISeasonParticipationService
         return dtos;
     }
 
-    public async Task<SeasonParticipationDto?> GetParticipationAsync(Guid userId, Guid seasonId, CancellationToken cancellationToken = default)
+    public async Task<SeasonParticipationDto?> GetParticipationAsync(Guid userId, string seasonId, CancellationToken cancellationToken = default)
     {
         var participations = await _unitOfWork.SeasonParticipations.FindAsync(
             sp => sp.UserId == userId && sp.SeasonId == seasonId,
@@ -188,7 +188,7 @@ public class SeasonParticipationService : ISeasonParticipationService
         return await MapToDto(participation, cancellationToken);
     }
 
-    public async Task<bool> IsUserApprovedForSeasonAsync(Guid userId, Guid seasonId, CancellationToken cancellationToken = default)
+    public async Task<bool> IsUserApprovedForSeasonAsync(Guid userId, string seasonId, CancellationToken cancellationToken = default)
     {
         var participations = await _unitOfWork.SeasonParticipations.FindAsync(
             sp => sp.UserId == userId && sp.SeasonId == seasonId && sp.IsApproved,
@@ -200,7 +200,7 @@ public class SeasonParticipationService : ISeasonParticipationService
     private async Task<SeasonParticipationDto> MapToDto(SeasonParticipation participation, CancellationToken cancellationToken)
     {
         var user = await _unitOfWork.Users.GetByIdAsync(participation.UserId, cancellationToken);
-        var season = await _unitOfWork.Seasons.GetByIdAsync(participation.SeasonId, cancellationToken);
+        var season = await _unitOfWork.Seasons.FirstOrDefaultAsync(s => s.Name == participation.SeasonId, cancellationToken);
 
         string? approvedByUserName = null;
         if (participation.ApprovedByUserId.HasValue)

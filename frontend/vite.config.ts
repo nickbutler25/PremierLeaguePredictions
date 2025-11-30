@@ -14,5 +14,11 @@ export default defineConfig({
     headers: {
       'Referrer-Policy': 'no-referrer-when-downgrade',
     },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5154',
+        changeOrigin: true,
+      }
+    }
   },
 })

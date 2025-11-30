@@ -17,7 +17,7 @@ public class LeagueService : ILeagueService
         _logger = logger;
     }
 
-    public async Task<LeagueStandingsDto> GetLeagueStandingsAsync(Guid? seasonId = null, CancellationToken cancellationToken = default)
+    public async Task<LeagueStandingsDto> GetLeagueStandingsAsync(string? seasonId = null, CancellationToken cancellationToken = default)
     {
         var allUsers = await _unitOfWork.Users.GetAllAsync(cancellationToken);
         var allPicks = await _unitOfWork.Picks.GetAllAsync(cancellationToken);
@@ -25,23 +25,23 @@ public class LeagueService : ILeagueService
 
         // Get active season if not specified
         Season? activeSeason = null;
-        if (!seasonId.HasValue)
+        if (string.IsNullOrEmpty(seasonId))
         {
             var seasons = await _unitOfWork.Seasons.FindAsync(s => s.IsActive, cancellationToken);
             activeSeason = seasons.FirstOrDefault();
-            seasonId = activeSeason?.Id;
+            seasonId = activeSeason?.Name;
         }
         else
         {
-            activeSeason = await _unitOfWork.Seasons.GetByIdAsync(seasonId.Value, cancellationToken);
+            activeSeason = await _unitOfWork.Seasons.FirstOrDefaultAsync(s => s.Name == seasonId, cancellationToken);
         }
 
         // Get approved participants for this season
         HashSet<Guid> approvedUserIds;
-        if (seasonId.HasValue)
+        if (!string.IsNullOrEmpty(seasonId))
         {
             var approvedParticipations = await _unitOfWork.SeasonParticipations.FindAsync(
-                sp => sp.SeasonId == seasonId.Value && sp.IsApproved,
+                sp => sp.SeasonId == seasonId && sp.IsApproved,
                 cancellationToken);
             approvedUserIds = approvedParticipations.Select(sp => sp.UserId).ToHashSet();
             _logger.LogInformation("Found {Count} approved participants for season {SeasonId}", approvedUserIds.Count, seasonId);
@@ -53,17 +53,17 @@ public class LeagueService : ILeagueService
         }
 
         // Get eliminations for the season
-        var eliminations = seasonId.HasValue
-            ? await _unitOfWork.UserEliminations.FindAsync(e => e.SeasonId == seasonId.Value, cancellationToken)
+        var eliminations = !string.IsNullOrEmpty(seasonId)
+            ? await _unitOfWork.UserEliminations.FindAsync(e => e.SeasonId == seasonId, cancellationToken)
             : new List<Core.Entities.UserElimination>().AsEnumerable();
 
         var eliminationsByUser = eliminations.ToDictionary(e => e.UserId, e => e);
-        var gameweeksDict = allGameweeks.ToDictionary(g => g.Id, g => g);
+        var gameweeksDict = allGameweeks.ToDictionary(g => $"{g.SeasonId}-{g.WeekNumber}", g => g);
 
         // Create a set of gameweek IDs that have passed their deadline
         var completedGameweekIds = allGameweeks
             .Where(g => g.Deadline < DateTime.UtcNow)
-            .Select(g => g.Id)
+            .Select(g => $"{g.SeasonId}-{g.WeekNumber}")
             .ToHashSet();
 
         // Filter users to only include approved participants (admins can participate if approved)
@@ -76,7 +76,7 @@ public class LeagueService : ILeagueService
             var userPicks = allPicks.Where(p => p.UserId == user.Id).ToList();
 
             // Only count picks in completed gameweeks
-            var completedPicks = userPicks.Where(p => completedGameweekIds.Contains(p.GameweekId)).ToList();
+            var completedPicks = userPicks.Where(p => completedGameweekIds.Contains($"{p.SeasonId}-{p.GameweekNumber}")).ToList();
 
             var totalPoints = userPicks.Sum(p => p.Points);
             var picksMade = completedPicks.Count; // Only count completed picks as "played"
@@ -96,7 +96,7 @@ public class LeagueService : ILeagueService
 
             if (isEliminated && elimination != null)
             {
-                if (gameweeksDict.TryGetValue(elimination.GameweekId, out var gameweek))
+                if (gameweeksDict.TryGetValue($"{elimination.SeasonId}-{elimination.GameweekNumber}", out var gameweek))
                 {
                     eliminatedInGameweek = gameweek.WeekNumber;
                 }

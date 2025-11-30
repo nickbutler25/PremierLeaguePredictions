@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSignalR } from '@/contexts/SignalRContext';
@@ -15,6 +15,7 @@ export function PendingApprovalPage() {
   const { onSeasonApprovalUpdate, offSeasonApprovalUpdate, isConnected } = useSignalR();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   // Get active season
   const { data: activeSeason } = useQuery({
@@ -25,8 +26,8 @@ export function PendingApprovalPage() {
 
   // Get user's participation status for active season
   const { data: participation, refetch: refetchParticipation, isLoading: isLoadingParticipation } = useQuery({
-    queryKey: ['participation', activeSeason?.id],
-    queryFn: () => seasonParticipationService.getParticipation(activeSeason!.id),
+    queryKey: ['participation', activeSeason?.name],
+    queryFn: () => seasonParticipationService.getParticipation(activeSeason!.name),
     enabled: !!activeSeason,
     retry: false,
   });
@@ -36,11 +37,14 @@ export function PendingApprovalPage() {
     mutationFn: (seasonId: string) => seasonParticipationService.requestParticipation(seasonId),
     onSuccess: () => {
       refetchParticipation();
+      // Invalidate the season approval cache so the route guard rechecks
+      queryClient.invalidateQueries({ queryKey: ['season-approval'] });
     },
     onError: (error: any) => {
       // If it's a 409 Conflict (duplicate), just refetch to get the existing participation
       if (error?.response?.status === 409) {
         refetchParticipation();
+        queryClient.invalidateQueries({ queryKey: ['season-approval'] });
       }
     },
   });
@@ -48,7 +52,7 @@ export function PendingApprovalPage() {
   // Auto-request participation if not already requested
   useEffect(() => {
     if (activeSeason && !isLoadingParticipation && !participation && !requestParticipationMutation.isPending && !requestParticipationMutation.isError) {
-      requestParticipationMutation.mutate(activeSeason.id);
+      requestParticipationMutation.mutate(activeSeason.name);
     }
   }, [activeSeason, participation, isLoadingParticipation]);
 
@@ -56,6 +60,9 @@ export function PendingApprovalPage() {
   useEffect(() => {
     const handleApprovalUpdate = (data: { isApproved: boolean; seasonName: string; timestamp: string }) => {
       console.log('Received approval update:', data);
+
+      // Invalidate approval cache immediately
+      queryClient.invalidateQueries({ queryKey: ['season-approval'] });
 
       if (data.isApproved) {
         toast({
@@ -82,11 +89,12 @@ export function PendingApprovalPage() {
     return () => {
       offSeasonApprovalUpdate(handleApprovalUpdate);
     };
-  }, [onSeasonApprovalUpdate, offSeasonApprovalUpdate, toast, navigate]);
+  }, [onSeasonApprovalUpdate, offSeasonApprovalUpdate, toast, navigate, queryClient]);
 
   // Redirect admins to approvals page for self-authorization
   useEffect(() => {
     if (participation && user?.isAdmin && !participation.isApproved) {
+      console.log('PendingApprovalPage: Admin detected, redirecting to /admin/approvals');
       toast({
         title: 'Admin Access',
         description: 'Redirecting to approvals page for self-authorization...',

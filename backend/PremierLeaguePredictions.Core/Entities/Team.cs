@@ -2,7 +2,7 @@ namespace PremierLeaguePredictions.Core.Entities;
 
 public class Team
 {
-    public Guid Id { get; set; }
+    public int Id { get; set; } // Auto-increment integer
     public string Name { get; set; } = string.Empty;
     public string? ShortName { get; set; }
     public string? Code { get; set; }

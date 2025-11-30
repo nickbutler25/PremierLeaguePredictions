@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminService } from '@/services/admin';
 import { teamsService } from '@/services/teams';
 import { usersService } from '@/services/users';
+import { gameweeksService } from '@/services/gameweeks';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,19 +17,7 @@ export function BackfillPicksPage() {
   const queryClient = useQueryClient();
   const [selectedUserId, setSelectedUserId] = useState<string>('');
 
-  const [picks, setPicks] = useState<Array<{ gameweekNumber: number; teamId: string }>>([
-    { gameweekNumber: 1, teamId: '' },
-    { gameweekNumber: 2, teamId: '' },
-    { gameweekNumber: 3, teamId: '' },
-    { gameweekNumber: 4, teamId: '' },
-    { gameweekNumber: 5, teamId: '' },
-    { gameweekNumber: 6, teamId: '' },
-    { gameweekNumber: 7, teamId: '' },
-    { gameweekNumber: 8, teamId: '' },
-    { gameweekNumber: 9, teamId: '' },
-    { gameweekNumber: 10, teamId: '' },
-    { gameweekNumber: 11, teamId: '' },
-  ]);
+  const [picks, setPicks] = useState<Array<{ gameweekNumber: number; teamId: string }>>([]);
 
   const teamsQuery = useQuery({
     queryKey: ['teams'],
@@ -62,7 +51,12 @@ export function BackfillPicksPage() {
     },
   });
 
-  const teams = teamsQuery.data || [];
+  const gameweekQuery = useQuery({
+    queryKey: ['current-gameweek'],
+    queryFn: () => gameweeksService.getCurrentGameweek(),
+  });
+
+  const teams = (teamsQuery.data || []).sort((a, b) => a.name.localeCompare(b.name));
   const loadingTeams = teamsQuery.isLoading;
   const teamsError = teamsQuery.error;
 
@@ -70,17 +64,33 @@ export function BackfillPicksPage() {
   const loadingUsers = usersQuery.isLoading;
   const usersError = usersQuery.error;
 
+  const currentGameweek = gameweekQuery.data;
+  const loadingGameweek = gameweekQuery.isLoading;
+
   console.log('📊 Teams Query:', 'isLoading:', teamsQuery.isLoading, 'isFetching:', teamsQuery.isFetching, 'isSuccess:', teamsQuery.isSuccess, 'data:', teamsQuery.data);
   console.log('📊 Users Query:', 'isLoading:', usersQuery.isLoading, 'isFetching:', usersQuery.isFetching, 'isSuccess:', usersQuery.isSuccess, 'data:', usersQuery.data);
+
+  useEffect(() => {
+    if (currentGameweek) {
+      const currentGwNum = currentGameweek.weekNumber;
+      const newPicks = [];
+      // Generate picks for all previous gameweeks (1 to current - 1)
+      for (let i = 1; i < currentGwNum; i++) {
+        newPicks.push({ gameweekNumber: i, teamId: '' });
+      }
+      setPicks(newPicks);
+    }
+  }, [currentGameweek]);
 
   useEffect(() => {
     console.log('🔔 useEffect triggered - Query states changed:', {
       teamsLoading: loadingTeams,
       usersLoading: loadingUsers,
+      gameweekLoading: loadingGameweek,
       teamsDataLength: teams.length,
       usersDataLength: users.length
     });
-  }, [loadingTeams, loadingUsers, teams.length, users.length]);
+  }, [loadingTeams, loadingUsers, loadingGameweek, teams.length, users.length]);
 
   console.log('=== RENDER STATE ===');
   console.log('Loading states:', { loadingTeams, loadingUsers });
@@ -90,8 +100,8 @@ export function BackfillPicksPage() {
   console.log('Users array:', users);
 
   // Show what we're going to render
-  if (loadingTeams || loadingUsers) {
-    console.log('🔄 RENDERING: Loading spinner', { loadingTeams, loadingUsers });
+  if (loadingTeams || loadingUsers || loadingGameweek) {
+    console.log('🔄 RENDERING: Loading spinner', { loadingTeams, loadingUsers, loadingGameweek });
   } else if (teamsError) {
     console.log('❌ RENDERING: Teams error', teamsError);
   } else if (usersError) {
@@ -164,7 +174,7 @@ export function BackfillPicksPage() {
     backfillMutation.mutate();
   };
 
-  if (loadingTeams || loadingUsers) {
+  if (loadingTeams || loadingUsers || loadingGameweek) {
     return (
       <div className="container mx-auto p-6">
         <Card>
@@ -217,9 +227,9 @@ export function BackfillPicksPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Backfill Gameweeks 1-11</CardTitle>
+          <CardTitle>Backfill Gameweeks 1-{currentGameweek ? currentGameweek.weekNumber - 1 : '...'}</CardTitle>
           <CardDescription>
-            Select your team picks for the first 11 gameweeks. Points will be automatically calculated based on results.
+            Select your team picks for the first {currentGameweek ? currentGameweek.weekNumber - 1 : '...'} gameweeks. Points will be automatically calculated based on results.
           </CardDescription>
         </CardHeader>
         <CardContent>

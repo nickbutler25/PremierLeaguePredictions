@@ -50,9 +50,14 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("details");
 
-                    b.Property<Guid?>("TargetGameweekId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("target_gameweek_id");
+                    b.Property<int?>("TargetGameweekNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("target_gameweek_number");
+
+                    b.Property<string>("TargetSeasonId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("target_season_id");
 
                     b.Property<Guid?>("TargetUserId")
                         .HasColumnType("uuid")
@@ -62,9 +67,9 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
 
                     b.HasIndex("AdminUserId");
 
-                    b.HasIndex("TargetGameweekId");
-
                     b.HasIndex("TargetUserId");
+
+                    b.HasIndex("TargetSeasonId", "TargetGameweekNumber");
 
                     b.ToTable("admin_actions", (string)null);
                 });
@@ -87,9 +92,15 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("error_message");
 
-                    b.Property<Guid>("GameweekId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("gameweek_id");
+                    b.Property<int>("GameweekNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("gameweek_number");
+
+                    b.Property<string>("SeasonId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("season_id");
 
                     b.Property<DateTime>("SentAt")
                         .ValueGeneratedOnAdd()
@@ -111,9 +122,9 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("GameweekId");
-
                     b.HasIndex("UserId");
+
+                    b.HasIndex("SeasonId", "GameweekNumber");
 
                     b.ToTable("email_notifications", (string)null);
                 });
@@ -130,8 +141,8 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("away_score");
 
-                    b.Property<Guid>("AwayTeamId")
-                        .HasColumnType("uuid")
+                    b.Property<int>("AwayTeamId")
+                        .HasColumnType("integer")
                         .HasColumnName("away_team_id");
 
                     b.Property<DateTime>("CreatedAt")
@@ -144,21 +155,27 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("external_id");
 
-                    b.Property<Guid>("GameweekId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("gameweek_id");
+                    b.Property<int>("GameweekNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("gameweek_number");
 
                     b.Property<int?>("HomeScore")
                         .HasColumnType("integer")
                         .HasColumnName("home_score");
 
-                    b.Property<Guid>("HomeTeamId")
-                        .HasColumnType("uuid")
+                    b.Property<int>("HomeTeamId")
+                        .HasColumnType("integer")
                         .HasColumnName("home_team_id");
 
                     b.Property<DateTime>("KickoffTime")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("kickoff_time");
+
+                    b.Property<string>("SeasonId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("season_id");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -181,20 +198,23 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
                     b.HasIndex("ExternalId")
                         .IsUnique();
 
-                    b.HasIndex("GameweekId");
-
                     b.HasIndex("HomeTeamId");
+
+                    b.HasIndex("SeasonId", "GameweekNumber");
 
                     b.ToTable("fixtures", (string)null);
                 });
 
             modelBuilder.Entity("PremierLeaguePredictions.Core.Entities.Gameweek", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
+                    b.Property<string>("SeasonId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("season_id");
+
+                    b.Property<int>("WeekNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("week_number");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -218,21 +238,13 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
                         .HasDefaultValue(false)
                         .HasColumnName("is_locked");
 
-                    b.Property<Guid>("SeasonId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("season_id");
-
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-                    b.Property<int>("WeekNumber")
-                        .HasColumnType("integer")
-                        .HasColumnName("week_number");
-
-                    b.HasKey("Id");
+                    b.HasKey("SeasonId", "WeekNumber");
 
                     b.HasIndex("SeasonId", "WeekNumber")
                         .IsUnique();
@@ -254,9 +266,9 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-                    b.Property<Guid>("GameweekId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("gameweek_id");
+                    b.Property<int>("GameweekNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("gameweek_number");
 
                     b.Property<int>("GoalsAgainst")
                         .ValueGeneratedOnAdd()
@@ -282,8 +294,14 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
                         .HasDefaultValue(0)
                         .HasColumnName("points");
 
-                    b.Property<Guid>("TeamId")
-                        .HasColumnType("uuid")
+                    b.Property<string>("SeasonId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("season_id");
+
+                    b.Property<int>("TeamId")
+                        .HasColumnType("integer")
                         .HasColumnName("team_id");
 
                     b.Property<DateTime>("UpdatedAt")
@@ -298,11 +316,11 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("GameweekId");
-
                     b.HasIndex("TeamId");
 
-                    b.HasIndex("UserId", "GameweekId")
+                    b.HasIndex("SeasonId", "GameweekNumber");
+
+                    b.HasIndex("UserId", "SeasonId", "GameweekNumber")
                         .IsUnique();
 
                     b.ToTable("picks", (string)null);
@@ -310,11 +328,10 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
 
             modelBuilder.Entity("PremierLeaguePredictions.Core.Entities.Season", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
+                    b.Property<string>("Name")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -338,12 +355,6 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
                         .HasDefaultValue(false)
                         .HasColumnName("is_archived");
 
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("name");
-
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("start_date");
@@ -354,7 +365,7 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
                         .HasColumnName("updated_at")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-                    b.HasKey("Id");
+                    b.HasKey("Name");
 
                     b.ToTable("seasons", (string)null);
                 });
@@ -393,8 +404,9 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
                         .HasColumnName("requested_at")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-                    b.Property<Guid>("SeasonId")
-                        .HasColumnType("uuid")
+                    b.Property<string>("SeasonId")
+                        .IsRequired()
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("season_id");
 
                     b.Property<DateTime>("UpdatedAt")
@@ -421,11 +433,12 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
 
             modelBuilder.Entity("PremierLeaguePredictions.Core.Entities.Team", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Code")
                         .HasMaxLength(10)
@@ -497,12 +510,13 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("half");
 
-                    b.Property<Guid>("SeasonId")
-                        .HasColumnType("uuid")
+                    b.Property<string>("SeasonId")
+                        .IsRequired()
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("season_id");
 
-                    b.Property<Guid>("TeamId")
-                        .HasColumnType("uuid")
+                    b.Property<int>("TeamId")
+                        .HasColumnType("integer")
                         .HasColumnName("team_id");
 
                     b.Property<Guid>("UserId")
@@ -576,11 +590,6 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("last_name");
 
-                    b.Property<string>("PhoneNumber")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("phone_number");
-
                     b.Property<string>("PhotoUrl")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
@@ -621,16 +630,18 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("eliminated_by");
 
-                    b.Property<Guid>("GameweekId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("gameweek_id");
+                    b.Property<int>("GameweekNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("gameweek_number");
 
                     b.Property<int>("Position")
                         .HasColumnType("integer")
                         .HasColumnName("position");
 
-                    b.Property<Guid>("SeasonId")
-                        .HasColumnType("uuid")
+                    b.Property<string>("SeasonId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("season_id");
 
                     b.Property<int>("TotalPoints")
@@ -645,9 +656,7 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
 
                     b.HasIndex("EliminatedBy");
 
-                    b.HasIndex("GameweekId");
-
-                    b.HasIndex("SeasonId");
+                    b.HasIndex("SeasonId", "GameweekNumber");
 
                     b.HasIndex("UserId", "SeasonId")
                         .IsUnique();
@@ -663,14 +672,14 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("PremierLeaguePredictions.Core.Entities.Gameweek", "TargetGameweek")
-                        .WithMany("AdminActions")
-                        .HasForeignKey("TargetGameweekId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("PremierLeaguePredictions.Core.Entities.User", "TargetUser")
                         .WithMany("AdminActionsReceived")
                         .HasForeignKey("TargetUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("PremierLeaguePredictions.Core.Entities.Gameweek", "TargetGameweek")
+                        .WithMany("AdminActions")
+                        .HasForeignKey("TargetSeasonId", "TargetGameweekNumber")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("AdminUser");
@@ -682,15 +691,15 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
 
             modelBuilder.Entity("PremierLeaguePredictions.Core.Entities.EmailNotification", b =>
                 {
-                    b.HasOne("PremierLeaguePredictions.Core.Entities.Gameweek", "Gameweek")
-                        .WithMany("EmailNotifications")
-                        .HasForeignKey("GameweekId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("PremierLeaguePredictions.Core.Entities.User", "User")
                         .WithMany("EmailNotifications")
                         .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PremierLeaguePredictions.Core.Entities.Gameweek", "Gameweek")
+                        .WithMany("EmailNotifications")
+                        .HasForeignKey("SeasonId", "GameweekNumber")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -707,16 +716,16 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("PremierLeaguePredictions.Core.Entities.Gameweek", "Gameweek")
-                        .WithMany("Fixtures")
-                        .HasForeignKey("GameweekId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("PremierLeaguePredictions.Core.Entities.Team", "HomeTeam")
                         .WithMany("HomeFixtures")
                         .HasForeignKey("HomeTeamId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("PremierLeaguePredictions.Core.Entities.Gameweek", "Gameweek")
+                        .WithMany("Fixtures")
+                        .HasForeignKey("SeasonId", "GameweekNumber")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("AwayTeam");
@@ -739,12 +748,6 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
 
             modelBuilder.Entity("PremierLeaguePredictions.Core.Entities.Pick", b =>
                 {
-                    b.HasOne("PremierLeaguePredictions.Core.Entities.Gameweek", "Gameweek")
-                        .WithMany("Picks")
-                        .HasForeignKey("GameweekId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("PremierLeaguePredictions.Core.Entities.Team", "Team")
                         .WithMany("Picks")
                         .HasForeignKey("TeamId")
@@ -754,6 +757,12 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
                     b.HasOne("PremierLeaguePredictions.Core.Entities.User", "User")
                         .WithMany("Picks")
                         .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PremierLeaguePredictions.Core.Entities.Gameweek", "Gameweek")
+                        .WithMany("Picks")
+                        .HasForeignKey("SeasonId", "GameweekNumber")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -824,12 +833,6 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
                         .HasForeignKey("EliminatedBy")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("PremierLeaguePredictions.Core.Entities.Gameweek", "Gameweek")
-                        .WithMany("Eliminations")
-                        .HasForeignKey("GameweekId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("PremierLeaguePredictions.Core.Entities.Season", "Season")
                         .WithMany("Eliminations")
                         .HasForeignKey("SeasonId")
@@ -839,6 +842,12 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
                     b.HasOne("PremierLeaguePredictions.Core.Entities.User", "User")
                         .WithMany("Eliminations")
                         .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PremierLeaguePredictions.Core.Entities.Gameweek", "Gameweek")
+                        .WithMany("Eliminations")
+                        .HasForeignKey("SeasonId", "GameweekNumber")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 

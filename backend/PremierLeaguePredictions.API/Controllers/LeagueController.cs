@@ -20,7 +20,7 @@ public class LeagueController : ControllerBase
     }
 
     [HttpGet("standings")]
-    public async Task<ActionResult<LeagueStandingsDto>> GetStandings([FromQuery] Guid? seasonId = null)
+    public async Task<ActionResult<LeagueStandingsDto>> GetStandings([FromQuery] string? seasonId = null)
     {
         var standings = await _leagueService.GetLeagueStandingsAsync(seasonId);
         return Ok(standings);

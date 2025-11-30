@@ -5,8 +5,7 @@ public class UserEliminationDto
     public Guid Id { get; set; }
     public Guid UserId { get; set; }
     public string UserName { get; set; } = string.Empty;
-    public Guid SeasonId { get; set; }
-    public Guid GameweekId { get; set; }
+    public string SeasonId { get; set; } = string.Empty;
     public int GameweekNumber { get; set; }
     public int Position { get; set; }
     public int TotalPoints { get; set; }
@@ -17,7 +16,8 @@ public class UserEliminationDto
 
 public class ProcessEliminationsRequest
 {
-    public Guid GameweekId { get; set; }
+    public string SeasonId { get; set; } = string.Empty;
+    public int GameweekNumber { get; set; }
 }
 
 public class ProcessEliminationsResponse
@@ -29,13 +29,15 @@ public class ProcessEliminationsResponse
 
 public class UpdateGameweekEliminationRequest
 {
-    public Guid GameweekId { get; set; }
+    public string SeasonId { get; set; } = string.Empty;
+    public int GameweekNumber { get; set; }
     public int EliminationCount { get; set; }
 }
 
 public class EliminationConfigDto
 {
-    public Guid GameweekId { get; set; }
+    public string GameweekId { get; set; } = string.Empty; // Format: "{SeasonId}-{WeekNumber}"
+    public string SeasonId { get; set; } = string.Empty;
     public int WeekNumber { get; set; }
     public int EliminationCount { get; set; }
     public bool HasBeenProcessed { get; set; }

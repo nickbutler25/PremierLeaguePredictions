@@ -43,15 +43,15 @@ public class FixturesController : ControllerBase
         return Ok(fixture);
     }
 
-    [HttpGet("gameweek/{gameweekId}")]
-    public async Task<ActionResult<IEnumerable<FixtureDto>>> GetFixturesByGameweek(Guid gameweekId)
+    [HttpGet("gameweek/{seasonId}/{gameweekNumber}")]
+    public async Task<ActionResult<IEnumerable<FixtureDto>>> GetFixturesByGameweek(string seasonId, int gameweekNumber)
     {
-        var fixtures = await _fixtureService.GetFixturesByGameweekIdAsync(gameweekId);
+        var fixtures = await _fixtureService.GetFixturesByGameweekAsync(seasonId, gameweekNumber);
         return Ok(fixtures);
     }
 
     [HttpGet("team/{teamId}")]
-    public async Task<ActionResult<IEnumerable<FixtureDto>>> GetFixturesByTeam(Guid teamId)
+    public async Task<ActionResult<IEnumerable<FixtureDto>>> GetFixturesByTeam(int teamId)
     {
         var fixtures = await _fixtureService.GetFixturesByTeamIdAsync(teamId);
         return Ok(fixtures);

@@ -30,18 +30,18 @@ public class FixtureService : IFixtureService
         var gameweeks = await _unitOfWork.Gameweeks.GetAllAsync(cancellationToken);
 
         var teamDict = teams.ToDictionary(t => t.Id);
-        var gameweekDict = gameweeks.ToDictionary(g => g.Id);
+        var gameweekDict = gameweeks.ToDictionary(g => $"{g.SeasonId}-{g.WeekNumber}");
 
         return fixtures.Select(f => MapToDto(f, teamDict, gameweekDict));
     }
 
-    public async Task<IEnumerable<FixtureDto>> GetFixturesByGameweekIdAsync(Guid gameweekId, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<FixtureDto>> GetFixturesByGameweekAsync(string seasonId, int gameweekNumber, CancellationToken cancellationToken = default)
     {
-        var fixtures = await _unitOfWork.Fixtures.FindAsync(f => f.GameweekId == gameweekId, cancellationToken);
+        var fixtures = await _unitOfWork.Fixtures.FindAsync(f => f.SeasonId == seasonId && f.GameweekNumber == gameweekNumber, cancellationToken);
         return fixtures.Select(MapToDto);
     }
 
-    public async Task<IEnumerable<FixtureDto>> GetFixturesByTeamIdAsync(Guid teamId, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<FixtureDto>> GetFixturesByTeamIdAsync(int teamId, CancellationToken cancellationToken = default)
     {
         var fixtures = await _unitOfWork.Fixtures.FindAsync(
             f => f.HomeTeamId == teamId || f.AwayTeamId == teamId,
@@ -54,7 +54,8 @@ public class FixtureService : IFixtureService
         var fixture = new Fixture
         {
             Id = Guid.NewGuid(),
-            GameweekId = request.GameweekId,
+            SeasonId = request.SeasonId,
+            GameweekNumber = request.GameweekNumber,
             HomeTeamId = request.HomeTeamId,
             AwayTeamId = request.AwayTeamId,
             KickoffTime = request.KickoffTime,
@@ -119,7 +120,8 @@ public class FixtureService : IFixtureService
     private static FixtureDto MapToDto(Fixture fixture) => new()
     {
         Id = fixture.Id,
-        GameweekId = fixture.GameweekId,
+        SeasonId = fixture.SeasonId,
+        GameweekNumber = fixture.GameweekNumber,
         HomeTeamId = fixture.HomeTeamId,
         AwayTeamId = fixture.AwayTeamId,
         HomeScore = fixture.HomeScore,
@@ -128,12 +130,12 @@ public class FixtureService : IFixtureService
         Status = fixture.Status
     };
 
-    private static FixtureDto MapToDto(Fixture fixture, Dictionary<Guid, Team> teamDict, Dictionary<Guid, Gameweek> gameweekDict)
+    private static FixtureDto MapToDto(Fixture fixture, Dictionary<int, Team> teamDict, Dictionary<string, Gameweek> gameweekDict)
     {
         var dto = MapToDto(fixture);
 
         // Populate gameweek number
-        if (gameweekDict.TryGetValue(fixture.GameweekId, out var gameweek))
+        if (gameweekDict.TryGetValue($"{fixture.SeasonId}-{fixture.GameweekNumber}", out var gameweek))
         {
             dto.GameweekNumber = gameweek.WeekNumber;
         }

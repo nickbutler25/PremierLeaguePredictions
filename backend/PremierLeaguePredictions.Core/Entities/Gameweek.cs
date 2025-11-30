@@ -2,9 +2,8 @@ namespace PremierLeaguePredictions.Core.Entities;
 
 public class Gameweek
 {
-    public Guid Id { get; set; }
-    public Guid SeasonId { get; set; }
-    public int WeekNumber { get; set; }
+    public string SeasonId { get; set; } = string.Empty; // References Season.Name
+    public int WeekNumber { get; set; } // Composite Key with SeasonId
     public DateTime Deadline { get; set; }
     public bool IsLocked { get; set; } = false;
     public int EliminationCount { get; set; } = 0; // Number of players to eliminate after this gameweek

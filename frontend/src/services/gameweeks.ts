@@ -12,8 +12,8 @@ const realGameweeksService = {
     return response.data;
   },
 
-  getGameweekById: async (id: string): Promise<Gameweek> => {
-    const response = await apiClient.get<Gameweek>(`/api/gameweeks/${id}`);
+  getGameweekById: async (seasonId: string, weekNumber: number): Promise<Gameweek> => {
+    const response = await apiClient.get<Gameweek>(`/api/gameweeks/${encodeURIComponent(seasonId)}/${weekNumber}`);
     return response.data;
   },
 };

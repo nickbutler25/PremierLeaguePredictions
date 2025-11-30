@@ -16,7 +16,7 @@ const createFixture = (
 
   return {
     id: `fixture-${gameweekNumber}-${homeTeamIndex}-${awayTeamIndex}`,
-    gameweekId: `gw-${gameweekNumber}`,
+    seasonId: '2023/2024',
     gameweekNumber,
     homeTeamId: homeTeam.id,
     awayTeamId: awayTeam.id,
@@ -31,8 +31,7 @@ const createFixture = (
 
 // Create gameweeks
 const createGameweek = (weekNumber: number, deadline: string, isLocked: boolean): Gameweek => ({
-  id: `gw-${weekNumber}`,
-  seasonId: 'season-2024-25',
+  seasonId: '2023/2024',
   weekNumber,
   deadline,
   isLocked,
@@ -153,10 +152,10 @@ export const mockFixturesService = {
     return mockFixturesData;
   },
 
-  getFixturesByGameweek: async (gameweekId: string): Promise<Fixture[]> => {
-    console.log('[MOCK FIXTURES] Getting fixtures for gameweek:', gameweekId);
+  getFixturesByGameweek: async (seasonId: string, gameweekNumber: number): Promise<Fixture[]> => {
+    console.log('[MOCK FIXTURES] Getting fixtures for gameweek:', gameweekNumber);
     await delay(300);
-    return mockFixturesData.filter(f => f.gameweekId === gameweekId);
+    return mockFixturesData.filter(f => f.seasonId === seasonId && f.gameweekNumber === gameweekNumber);
   },
 
   getGameweeks: async (): Promise<Gameweek[]> => {

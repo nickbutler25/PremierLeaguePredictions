@@ -26,7 +26,7 @@ export interface CreateSeasonResponse {
 }
 
 export interface TeamStatus {
-  id: string;
+  id: number;
   name: string;
   shortName?: string;
   logoUrl?: string;
@@ -56,7 +56,7 @@ export const adminService = {
     return response.data;
   },
 
-  async updateTeamStatus(teamId: string, isActive: boolean) {
+  async updateTeamStatus(teamId: number, isActive: boolean) {
     await apiClient.put(`/api/admin/teams/${teamId}/status`, { isActive });
   },
 
@@ -93,7 +93,7 @@ export const adminService = {
   },
 
   // Backfill picks
-  async backfillPicks(userId: string, picks: Array<{ gameweekNumber: number; teamId: string }>) {
+  async backfillPicks(userId: string, picks: Array<{ gameweekNumber: number; teamId: number }>) {
     const response = await apiClient.post<{
       picksCreated: number;
       picksUpdated: number;

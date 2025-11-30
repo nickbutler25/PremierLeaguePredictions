@@ -2,8 +2,7 @@ namespace PremierLeaguePredictions.Core.Entities;
 
 public class Season
 {
-    public Guid Id { get; set; }
-    public string Name { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty; // Primary Key
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
     public bool IsActive { get; set; } = false;

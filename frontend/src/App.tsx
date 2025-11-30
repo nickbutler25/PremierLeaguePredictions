@@ -41,6 +41,7 @@ function ApprovalCheckRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (needsApproval) {
+    console.log('ApprovalCheckRoute: User needs approval, redirecting to /pending-approval');
     return <Navigate to="/pending-approval" replace />;
   }
 

@@ -3,9 +3,10 @@ namespace PremierLeaguePredictions.Core.Entities;
 public class Fixture
 {
     public Guid Id { get; set; }
-    public Guid GameweekId { get; set; }
-    public Guid HomeTeamId { get; set; }
-    public Guid AwayTeamId { get; set; }
+    public string SeasonId { get; set; } = string.Empty; // References Season.Name
+    public int GameweekNumber { get; set; } // References Gameweek.WeekNumber
+    public int HomeTeamId { get; set; }
+    public int AwayTeamId { get; set; }
     public DateTime KickoffTime { get; set; }
     public int? HomeScore { get; set; }
     public int? AwayScore { get; set; }

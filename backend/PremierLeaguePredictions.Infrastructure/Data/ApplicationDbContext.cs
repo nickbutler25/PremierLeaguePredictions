@@ -35,7 +35,6 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Email).HasColumnName("email").HasMaxLength(255).IsRequired();
             entity.Property(e => e.FirstName).HasColumnName("first_name").HasMaxLength(100).IsRequired();
             entity.Property(e => e.LastName).HasColumnName("last_name").HasMaxLength(100).IsRequired();
-            entity.Property(e => e.PhoneNumber).HasColumnName("phone_number").HasMaxLength(20);
             entity.Property(e => e.PhotoUrl).HasColumnName("photo_url").HasMaxLength(500);
             entity.Property(e => e.GoogleId).HasColumnName("google_id").HasMaxLength(255);
             entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
@@ -52,8 +51,7 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<Season>(entity =>
         {
             entity.ToTable("seasons");
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).HasColumnName("id").HasDefaultValueSql("uuid_generate_v4()");
+            entity.HasKey(e => e.Name); // Name is the primary key
             entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(100).IsRequired();
             entity.Property(e => e.StartDate).HasColumnName("start_date").IsRequired();
             entity.Property(e => e.EndDate).HasColumnName("end_date").IsRequired();
@@ -68,7 +66,7 @@ public class ApplicationDbContext : DbContext
         {
             entity.ToTable("teams");
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).HasColumnName("id").HasDefaultValueSql("uuid_generate_v4()");
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd(); // Auto-increment integer
             entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(100).IsRequired();
             entity.Property(e => e.ShortName).HasColumnName("short_name").HasMaxLength(50);
             entity.Property(e => e.Code).HasColumnName("code").HasMaxLength(10);
@@ -84,9 +82,8 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<Gameweek>(entity =>
         {
             entity.ToTable("gameweeks");
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).HasColumnName("id").HasDefaultValueSql("uuid_generate_v4()");
-            entity.Property(e => e.SeasonId).HasColumnName("season_id").IsRequired();
+            entity.HasKey(e => new { e.SeasonId, e.WeekNumber }); // Composite key
+            entity.Property(e => e.SeasonId).HasColumnName("season_id").HasMaxLength(100).IsRequired();
             entity.Property(e => e.WeekNumber).HasColumnName("week_number").IsRequired();
             entity.Property(e => e.Deadline).HasColumnName("deadline").IsRequired();
             entity.Property(e => e.IsLocked).HasColumnName("is_locked").HasDefaultValue(false);
@@ -108,7 +105,8 @@ public class ApplicationDbContext : DbContext
             entity.ToTable("fixtures");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("id").HasDefaultValueSql("uuid_generate_v4()");
-            entity.Property(e => e.GameweekId).HasColumnName("gameweek_id").IsRequired();
+            entity.Property(e => e.SeasonId).HasColumnName("season_id").HasMaxLength(100).IsRequired();
+            entity.Property(e => e.GameweekNumber).HasColumnName("gameweek_number").IsRequired();
             entity.Property(e => e.HomeTeamId).HasColumnName("home_team_id").IsRequired();
             entity.Property(e => e.AwayTeamId).HasColumnName("away_team_id").IsRequired();
             entity.Property(e => e.KickoffTime).HasColumnName("kickoff_time").IsRequired();
@@ -121,7 +119,7 @@ public class ApplicationDbContext : DbContext
 
             entity.HasOne(e => e.Gameweek)
                 .WithMany(g => g.Fixtures)
-                .HasForeignKey(e => e.GameweekId)
+                .HasForeignKey(e => new { e.SeasonId, e.GameweekNumber })
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasOne(e => e.HomeTeam)
@@ -144,7 +142,8 @@ public class ApplicationDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("id").HasDefaultValueSql("uuid_generate_v4()");
             entity.Property(e => e.UserId).HasColumnName("user_id").IsRequired();
-            entity.Property(e => e.GameweekId).HasColumnName("gameweek_id").IsRequired();
+            entity.Property(e => e.SeasonId).HasColumnName("season_id").HasMaxLength(100).IsRequired();
+            entity.Property(e => e.GameweekNumber).HasColumnName("gameweek_number").IsRequired();
             entity.Property(e => e.TeamId).HasColumnName("team_id").IsRequired();
             entity.Property(e => e.Points).HasColumnName("points").HasDefaultValue(0);
             entity.Property(e => e.GoalsFor).HasColumnName("goals_for").HasDefaultValue(0);
@@ -160,7 +159,7 @@ public class ApplicationDbContext : DbContext
 
             entity.HasOne(e => e.Gameweek)
                 .WithMany(g => g.Picks)
-                .HasForeignKey(e => e.GameweekId)
+                .HasForeignKey(e => new { e.SeasonId, e.GameweekNumber })
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasOne(e => e.Team)
@@ -168,7 +167,7 @@ public class ApplicationDbContext : DbContext
                 .HasForeignKey(e => e.TeamId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            entity.HasIndex(e => new { e.UserId, e.GameweekId }).IsUnique();
+            entity.HasIndex(e => new { e.UserId, e.SeasonId, e.GameweekNumber }).IsUnique();
         });
 
         // TeamSelection configuration
@@ -209,7 +208,8 @@ public class ApplicationDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("id").HasDefaultValueSql("uuid_generate_v4()");
             entity.Property(e => e.UserId).HasColumnName("user_id").IsRequired();
-            entity.Property(e => e.GameweekId).HasColumnName("gameweek_id").IsRequired();
+            entity.Property(e => e.SeasonId).HasColumnName("season_id").HasMaxLength(100).IsRequired();
+            entity.Property(e => e.GameweekNumber).HasColumnName("gameweek_number").IsRequired();
             entity.Property(e => e.EmailType).HasColumnName("email_type").HasMaxLength(50).IsRequired();
             entity.Property(e => e.SentAt).HasColumnName("sent_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(50).HasDefaultValue("SENT");
@@ -222,7 +222,7 @@ public class ApplicationDbContext : DbContext
 
             entity.HasOne(e => e.Gameweek)
                 .WithMany(g => g.EmailNotifications)
-                .HasForeignKey(e => e.GameweekId)
+                .HasForeignKey(e => new { e.SeasonId, e.GameweekNumber })
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -235,7 +235,8 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.AdminUserId).HasColumnName("admin_user_id").IsRequired();
             entity.Property(e => e.ActionType).HasColumnName("action_type").HasMaxLength(100).IsRequired();
             entity.Property(e => e.TargetUserId).HasColumnName("target_user_id");
-            entity.Property(e => e.TargetGameweekId).HasColumnName("target_gameweek_id");
+            entity.Property(e => e.TargetSeasonId).HasColumnName("target_season_id").HasMaxLength(100);
+            entity.Property(e => e.TargetGameweekNumber).HasColumnName("target_gameweek_number");
             entity.Property(e => e.Details).HasColumnName("details");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
 
@@ -251,7 +252,7 @@ public class ApplicationDbContext : DbContext
 
             entity.HasOne(e => e.TargetGameweek)
                 .WithMany(g => g.AdminActions)
-                .HasForeignKey(e => e.TargetGameweekId)
+                .HasForeignKey(e => new { e.TargetSeasonId, e.TargetGameweekNumber })
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
@@ -295,8 +296,8 @@ public class ApplicationDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("id").HasDefaultValueSql("uuid_generate_v4()");
             entity.Property(e => e.UserId).HasColumnName("user_id").IsRequired();
-            entity.Property(e => e.SeasonId).HasColumnName("season_id").IsRequired();
-            entity.Property(e => e.GameweekId).HasColumnName("gameweek_id").IsRequired();
+            entity.Property(e => e.SeasonId).HasColumnName("season_id").HasMaxLength(100).IsRequired();
+            entity.Property(e => e.GameweekNumber).HasColumnName("gameweek_number").IsRequired();
             entity.Property(e => e.Position).HasColumnName("position").IsRequired();
             entity.Property(e => e.TotalPoints).HasColumnName("total_points").IsRequired();
             entity.Property(e => e.EliminatedAt).HasColumnName("eliminated_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
@@ -314,7 +315,7 @@ public class ApplicationDbContext : DbContext
 
             entity.HasOne(e => e.Gameweek)
                 .WithMany(g => g.Eliminations)
-                .HasForeignKey(e => e.GameweekId)
+                .HasForeignKey(e => new { e.SeasonId, e.GameweekNumber })
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasOne(e => e.EliminatedByUser)

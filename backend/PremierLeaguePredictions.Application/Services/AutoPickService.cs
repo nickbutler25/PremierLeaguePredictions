@@ -21,12 +21,12 @@ public class AutoPickService : IAutoPickService
         _logger = logger;
     }
 
-    public async Task AssignMissedPicksForGameweekAsync(Guid gameweekId, CancellationToken cancellationToken = default)
+    public async Task AssignMissedPicksForGameweekAsync(string seasonId, int gameweekNumber, CancellationToken cancellationToken = default)
     {
-        var gameweek = await _unitOfWork.Gameweeks.GetByIdAsync(gameweekId, cancellationToken);
+        var gameweek = await _unitOfWork.Gameweeks.FirstOrDefaultAsync(g => g.SeasonId == seasonId && g.WeekNumber == gameweekNumber, cancellationToken);
         if (gameweek == null)
         {
-            _logger.LogWarning("Gameweek {GameweekId} not found", gameweekId);
+            _logger.LogWarning("Gameweek {SeasonId}-{GameweekNumber} not found", seasonId, gameweekNumber);
             return;
         }
 
@@ -55,7 +55,7 @@ public class AutoPickService : IAutoPickService
 
         // Get existing picks for this gameweek
         var existingPicks = await _unitOfWork.Picks.FindAsync(
-            p => p.GameweekId == gameweekId,
+            p => p.SeasonId == seasonId && p.GameweekNumber == gameweekNumber,
             cancellationToken);
 
         var usersWithPicks = existingPicks.Select(p => p.UserId).ToHashSet();
@@ -94,7 +94,8 @@ public class AutoPickService : IAutoPickService
                 {
                     Id = Guid.NewGuid(),
                     UserId = userId,
-                    GameweekId = gameweekId,
+                    SeasonId = seasonId,
+                    GameweekNumber = gameweekNumber,
                     TeamId = assignedTeam.Id,
                     Points = 0,
                     GoalsFor = 0,
@@ -146,12 +147,12 @@ public class AutoPickService : IAutoPickService
 
         foreach (var gameweek in gameweeksList)
         {
-            await AssignMissedPicksForGameweekAsync(gameweek.Id, cancellationToken);
+            await AssignMissedPicksForGameweekAsync(gameweek.SeasonId, gameweek.WeekNumber, cancellationToken);
         }
     }
 
     private async Task<List<TeamStanding>> CalculateTeamStandingsAsync(
-        Guid seasonId,
+        string seasonId,
         int upToWeekNumber,
         CancellationToken cancellationToken)
     {
@@ -160,17 +161,17 @@ public class AutoPickService : IAutoPickService
             g => g.SeasonId == seasonId && g.WeekNumber < upToWeekNumber,
             cancellationToken);
 
-        var gameweekIds = gameweeks.Select(g => g.Id).ToHashSet();
+        var gameweekKeys = gameweeks.Select(g => new { g.SeasonId, g.WeekNumber }).ToHashSet();
 
         // Get all finished fixtures from those gameweeks
-        var fixtures = await _unitOfWork.Fixtures.FindAsync(
-            f => gameweekIds.Contains(f.GameweekId) && f.Status == "FINISHED",
-            cancellationToken);
+        // Note: This is inefficient but necessary without a better query capability
+        var allFixtures = await _unitOfWork.Fixtures.FindAsync(f => f.SeasonId == seasonId && f.Status == "FINISHED", cancellationToken);
+        var fixtures = allFixtures.Where(f => gameweekKeys.Contains(new { f.SeasonId, WeekNumber = f.GameweekNumber }));
 
         var fixturesList = fixtures.ToList();
 
         // Calculate points for each team
-        var teamStats = new Dictionary<Guid, TeamStanding>();
+        var teamStats = new Dictionary<int, TeamStanding>();
 
         foreach (var fixture in fixturesList)
         {
@@ -250,7 +251,7 @@ public class AutoPickService : IAutoPickService
 
     private async Task<Team?> GetLowestAvailableTeamAsync(
         Guid userId,
-        Guid seasonId,
+        string seasonId,
         int currentWeekNumber,
         List<TeamStanding> teamStandings,
         CancellationToken cancellationToken)
@@ -275,12 +276,12 @@ public class AutoPickService : IAutoPickService
         // Get gameweeks for current half
         var currentHalfGameweeks = gameweeksList
             .Where(g => g.WeekNumber >= halfStartWeek && g.WeekNumber <= halfEndWeek)
-            .Select(g => g.Id)
+            .Select(g => new { g.SeasonId, GameweekNumber = g.WeekNumber })
             .ToHashSet();
 
         // Get teams already picked in this half
         var pickedTeamIds = userPicks
-            .Where(p => currentHalfGameweeks.Contains(p.GameweekId))
+            .Where(p => currentHalfGameweeks.Contains(new { p.SeasonId, p.GameweekNumber }))
             .Select(p => p.TeamId)
             .ToHashSet();
 
@@ -291,7 +292,7 @@ public class AutoPickService : IAutoPickService
             var standing = teamStandings[i];
             if (!pickedTeamIds.Contains(standing.TeamId))
             {
-                var team = await _unitOfWork.Teams.GetByIdAsync(standing.TeamId, cancellationToken);
+                var team = await _unitOfWork.Teams.FirstOrDefaultAsync(t => t.Id == standing.TeamId, cancellationToken);
                 if (team != null && team.IsActive)
                 {
                     return team;
@@ -304,7 +305,7 @@ public class AutoPickService : IAutoPickService
 
     private class TeamStanding
     {
-        public Guid TeamId { get; set; }
+        public int TeamId { get; set; }
         public int Position { get; set; }
         public int Played { get; set; }
         public int Won { get; set; }

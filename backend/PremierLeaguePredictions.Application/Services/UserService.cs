@@ -25,7 +25,6 @@ public class UserService : IUserService
             Email = user.Email,
             FirstName = user.FirstName,
             LastName = user.LastName,
-            PhoneNumber = user.PhoneNumber,
             PhotoUrl = user.PhotoUrl,
             IsActive = user.IsActive,
             IsAdmin = user.IsAdmin,
@@ -43,7 +42,6 @@ public class UserService : IUserService
             Email = user.Email,
             FirstName = user.FirstName,
             LastName = user.LastName,
-            PhoneNumber = user.PhoneNumber,
             PhotoUrl = user.PhotoUrl,
             IsActive = user.IsActive,
             IsAdmin = user.IsAdmin,
@@ -74,7 +72,6 @@ public class UserService : IUserService
 
         if (request.FirstName != null) user.FirstName = request.FirstName;
         if (request.LastName != null) user.LastName = request.LastName;
-        if (request.PhoneNumber != null) user.PhoneNumber = request.PhoneNumber;
         if (request.PhotoUrl != null) user.PhotoUrl = request.PhotoUrl;
         user.UpdatedAt = DateTime.UtcNow;
 
@@ -87,7 +84,6 @@ public class UserService : IUserService
             Email = user.Email,
             FirstName = user.FirstName,
             LastName = user.LastName,
-            PhoneNumber = user.PhoneNumber,
             PhotoUrl = user.PhotoUrl,
             IsActive = user.IsActive,
             IsAdmin = user.IsAdmin,
@@ -112,7 +108,6 @@ public class UserService : IUserService
             Email = user.Email,
             FirstName = user.FirstName,
             LastName = user.LastName,
-            PhoneNumber = user.PhoneNumber,
             PhotoUrl = user.PhotoUrl,
             IsActive = user.IsActive,
             IsAdmin = user.IsAdmin,
@@ -137,7 +132,6 @@ public class UserService : IUserService
             Email = user.Email,
             FirstName = user.FirstName,
             LastName = user.LastName,
-            PhoneNumber = user.PhoneNumber,
             PhotoUrl = user.PhotoUrl,
             IsActive = user.IsActive,
             IsAdmin = user.IsAdmin,

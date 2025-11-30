@@ -12,7 +12,7 @@ public class AdminActionDto
 public class BackfillPickRequest
 {
     public int GameweekNumber { get; set; }
-    public Guid TeamId { get; set; }
+    public int TeamId { get; set; }
 }
 
 public class BackfillPicksResponse

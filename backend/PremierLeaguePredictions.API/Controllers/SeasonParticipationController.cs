@@ -44,7 +44,7 @@ public class SeasonParticipationController : ControllerBase
 
     [HttpGet("pending")]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<IEnumerable<PendingApprovalDto>>> GetPendingApprovals([FromQuery] Guid? seasonId = null)
+    public async Task<ActionResult<IEnumerable<PendingApprovalDto>>> GetPendingApprovals([FromQuery] string? seasonId = null)
     {
         var pendingApprovals = await _seasonParticipationService.GetPendingApprovalsAsync(seasonId);
         return Ok(pendingApprovals);
@@ -58,16 +58,16 @@ public class SeasonParticipationController : ControllerBase
         return Ok(participations);
     }
 
-    [HttpGet("check/{seasonId}")]
-    public async Task<ActionResult<bool>> CheckParticipation(Guid seasonId)
+    [HttpGet("check")]
+    public async Task<ActionResult<bool>> CheckParticipation([FromQuery] string seasonId)
     {
         var userId = GetUserId();
         var isApproved = await _seasonParticipationService.IsUserApprovedForSeasonAsync(userId, seasonId);
         return Ok(isApproved);
     }
 
-    [HttpGet("{seasonId}")]
-    public async Task<ActionResult<SeasonParticipationDto>> GetParticipation(Guid seasonId)
+    [HttpGet("participation")]
+    public async Task<ActionResult<SeasonParticipationDto>> GetParticipation([FromQuery] string seasonId)
     {
         var userId = GetUserId();
         var participation = await _seasonParticipationService.GetParticipationAsync(userId, seasonId);

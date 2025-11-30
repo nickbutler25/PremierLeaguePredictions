@@ -5,25 +5,25 @@
 namespace PremierLeaguePredictions.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class AddIsActiveToTeam : Migration
+    public partial class RemovePhoneNumberFromUser : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<bool>(
-                name: "IsActive",
-                table: "teams",
-                type: "boolean",
-                nullable: false,
-                defaultValue: false);
+            migrationBuilder.DropColumn(
+                name: "phone_number",
+                table: "users");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "IsActive",
-                table: "teams");
+            migrationBuilder.AddColumn<string>(
+                name: "phone_number",
+                table: "users",
+                type: "character varying(20)",
+                maxLength: 20,
+                nullable: true);
         }
     }
 }

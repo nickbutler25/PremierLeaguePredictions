@@ -4,5 +4,5 @@ namespace PremierLeaguePredictions.Application.Interfaces;
 
 public interface ILeagueService
 {
-    Task<LeagueStandingsDto> GetLeagueStandingsAsync(Guid? seasonId = null, CancellationToken cancellationToken = default);
+    Task<LeagueStandingsDto> GetLeagueStandingsAsync(string? seasonId = null, CancellationToken cancellationToken = default);
 }

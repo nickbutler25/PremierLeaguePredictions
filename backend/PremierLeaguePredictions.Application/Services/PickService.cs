@@ -22,7 +22,7 @@ public class PickService : IPickService
         var pick = await _unitOfWork.Picks.GetByIdAsync(id, cancellationToken);
         if (pick == null) return null;
 
-        var team = await _unitOfWork.Teams.GetByIdAsync(pick.TeamId, cancellationToken);
+        var team = await _unitOfWork.Teams.FirstOrDefaultAsync(t => t.Id == pick.TeamId, cancellationToken);
 
         return MapToDto(pick, team);
     }
@@ -36,25 +36,25 @@ public class PickService : IPickService
         var teams = new List<Team>();
         foreach (var teamId in teamIds)
         {
-            var team = await _unitOfWork.Teams.GetByIdAsync(teamId, cancellationToken);
+            var team = await _unitOfWork.Teams.FirstOrDefaultAsync(t => t.Id == teamId, cancellationToken);
             if (team != null) teams.Add(team);
         }
 
-        var gameweekIds = picksList.Select(p => p.GameweekId).Distinct();
+        var gameweekKeys = picksList.Select(p => new { p.SeasonId, p.GameweekNumber }).Distinct();
         var gameweeks = new List<Gameweek>();
-        foreach (var gameweekId in gameweekIds)
+        foreach (var key in gameweekKeys)
         {
-            var gameweek = await _unitOfWork.Gameweeks.GetByIdAsync(gameweekId, cancellationToken);
+            var gameweek = await _unitOfWork.Gameweeks.FirstOrDefaultAsync(g => g.SeasonId == key.SeasonId && g.WeekNumber == key.GameweekNumber, cancellationToken);
             if (gameweek != null) gameweeks.Add(gameweek);
         }
 
-        return picksList.Select(p => MapToDto(p, teams.FirstOrDefault(t => t.Id == p.TeamId), gameweeks.FirstOrDefault(g => g.Id == p.GameweekId)));
+        return picksList.Select(p => MapToDto(p, teams.FirstOrDefault(t => t.Id == p.TeamId), gameweeks.FirstOrDefault(g => g.SeasonId == p.SeasonId && g.WeekNumber == p.GameweekNumber)));
     }
 
     public async Task<PickDto> CreatePickAsync(Guid userId, CreatePickRequest request, CancellationToken cancellationToken = default)
     {
         // Verify gameweek exists first (to get season)
-        var gameweek = await _unitOfWork.Gameweeks.GetByIdAsync(request.GameweekId, cancellationToken);
+        var gameweek = await _unitOfWork.Gameweeks.FirstOrDefaultAsync(g => g.SeasonId == request.SeasonId && g.WeekNumber == request.GameweekNumber, cancellationToken);
         if (gameweek == null)
         {
             throw new KeyNotFoundException("Gameweek not found");
@@ -75,7 +75,7 @@ public class PickService : IPickService
 
         // Check if pick already exists for this gameweek
         var existingPick = (await _unitOfWork.Picks.FindAsync(
-            p => p.UserId == userId && p.GameweekId == request.GameweekId, cancellationToken)).FirstOrDefault();
+            p => p.UserId == userId && p.SeasonId == request.SeasonId && p.GameweekNumber == request.GameweekNumber, cancellationToken)).FirstOrDefault();
 
         if (existingPick != null)
         {
@@ -88,7 +88,7 @@ public class PickService : IPickService
         }
 
         // Verify team exists
-        var team = await _unitOfWork.Teams.GetByIdAsync(request.TeamId, cancellationToken);
+        var team = await _unitOfWork.Teams.FirstOrDefaultAsync(t => t.Id == request.TeamId, cancellationToken);
         if (team == null)
         {
             throw new KeyNotFoundException("Team not found");
@@ -98,7 +98,8 @@ public class PickService : IPickService
         {
             Id = Guid.NewGuid(),
             UserId = userId,
-            GameweekId = request.GameweekId,
+            SeasonId = request.SeasonId,
+            GameweekNumber = request.GameweekNumber,
             TeamId = request.TeamId,
             Points = 0,
             GoalsFor = 0,
@@ -110,7 +111,7 @@ public class PickService : IPickService
         await _unitOfWork.Picks.AddAsync(pick, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Pick created for user {UserId} in gameweek {GameweekId}", userId, request.GameweekId);
+        _logger.LogInformation("Pick created for user {UserId} in gameweek {SeasonId}-{GameweekNumber}", userId, request.SeasonId, request.GameweekNumber);
 
         return MapToDto(pick, team);
     }
@@ -129,7 +130,7 @@ public class PickService : IPickService
         }
 
         // Verify gameweek hasn't started
-        var gameweek = await _unitOfWork.Gameweeks.GetByIdAsync(pick.GameweekId, cancellationToken);
+        var gameweek = await _unitOfWork.Gameweeks.FirstOrDefaultAsync(g => g.SeasonId == pick.SeasonId && g.WeekNumber == pick.GameweekNumber, cancellationToken);
         if (gameweek == null || gameweek.Deadline < DateTime.UtcNow)
         {
             throw new InvalidOperationException("Cannot update pick after gameweek deadline");
@@ -149,7 +150,7 @@ public class PickService : IPickService
         }
 
         // Verify new team exists
-        var team = await _unitOfWork.Teams.GetByIdAsync(request.TeamId, cancellationToken);
+        var team = await _unitOfWork.Teams.FirstOrDefaultAsync(t => t.Id == request.TeamId, cancellationToken);
         if (team == null)
         {
             throw new KeyNotFoundException("Team not found");
@@ -180,7 +181,7 @@ public class PickService : IPickService
         }
 
         // Verify gameweek hasn't started
-        var gameweek = await _unitOfWork.Gameweeks.GetByIdAsync(pick.GameweekId, cancellationToken);
+        var gameweek = await _unitOfWork.Gameweeks.FirstOrDefaultAsync(g => g.SeasonId == pick.SeasonId && g.WeekNumber == pick.GameweekNumber, cancellationToken);
         if (gameweek == null || gameweek.Deadline < DateTime.UtcNow)
         {
             throw new InvalidOperationException("Cannot delete pick after gameweek deadline");
@@ -192,16 +193,16 @@ public class PickService : IPickService
         _logger.LogInformation("Pick {PickId} deleted by user {UserId}", id, userId);
     }
 
-    public async Task<IEnumerable<PickDto>> GetPicksByGameweekAsync(Guid gameweekId, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<PickDto>> GetPicksByGameweekAsync(string seasonId, int gameweekNumber, CancellationToken cancellationToken = default)
     {
-        var picks = await _unitOfWork.Picks.FindAsync(p => p.GameweekId == gameweekId, cancellationToken);
+        var picks = await _unitOfWork.Picks.FindAsync(p => p.SeasonId == seasonId && p.GameweekNumber == gameweekNumber, cancellationToken);
         var picksList = picks.ToList();
 
         var teamIds = picksList.Select(p => p.TeamId).Distinct();
         var teams = new List<Team>();
         foreach (var teamId in teamIds)
         {
-            var team = await _unitOfWork.Teams.GetByIdAsync(teamId, cancellationToken);
+            var team = await _unitOfWork.Teams.FirstOrDefaultAsync(t => t.Id == teamId, cancellationToken);
             if (team != null) teams.Add(team);
         }
 
@@ -214,7 +215,8 @@ public class PickService : IPickService
         {
             Id = pick.Id,
             UserId = pick.UserId,
-            GameweekId = pick.GameweekId,
+            SeasonId = pick.SeasonId,
+            GameweekNumber = pick.GameweekNumber,
             TeamId = pick.TeamId,
             Points = pick.Points,
             GoalsFor = pick.GoalsFor,
@@ -229,8 +231,7 @@ public class PickService : IPickService
                 ShortName = team.ShortName,
                 LogoUrl = team.LogoUrl
             } : null,
-            GameweekName = gameweek != null ? $"Gameweek {gameweek.WeekNumber}" : null,
-            GameweekNumber = gameweek?.WeekNumber
+            GameweekName = gameweek != null ? $"Gameweek {gameweek.WeekNumber}" : null
         };
     }
 }

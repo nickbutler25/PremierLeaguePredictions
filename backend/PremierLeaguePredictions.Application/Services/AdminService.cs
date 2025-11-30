@@ -23,7 +23,7 @@ public class AdminService : IAdminService
         _logger = logger;
     }
 
-    public async Task OverridePickAsync(Guid pickId, Guid newTeamId, string reason, CancellationToken cancellationToken = default)
+    public async Task OverridePickAsync(Guid pickId, int newTeamId, string reason, CancellationToken cancellationToken = default)
     {
         var pick = await _unitOfWork.Picks.GetByIdAsync(pickId, cancellationToken);
         if (pick == null) throw new KeyNotFoundException("Pick not found");
@@ -39,12 +39,12 @@ public class AdminService : IAdminService
             pickId, oldTeamId, newTeamId, reason);
     }
 
-    public async Task RecalculatePointsForGameweekAsync(Guid gameweekId, CancellationToken cancellationToken = default)
+    public async Task RecalculatePointsForGameweekAsync(string seasonId, int gameweekNumber, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Recalculating points for gameweek {GameweekId}", gameweekId);
+        _logger.LogInformation("Recalculating points for gameweek {SeasonId}-{GameweekNumber}", seasonId, gameweekNumber);
         
-        var picks = await _unitOfWork.Picks.FindAsync(p => p.GameweekId == gameweekId, cancellationToken);
-        var fixtures = await _unitOfWork.Fixtures.FindAsync(f => f.GameweekId == gameweekId, cancellationToken);
+        var picks = await _unitOfWork.Picks.FindAsync(p => p.SeasonId == seasonId && p.GameweekNumber == gameweekNumber, cancellationToken);
+        var fixtures = await _unitOfWork.Fixtures.FindAsync(f => f.SeasonId == seasonId && f.GameweekNumber == gameweekNumber, cancellationToken);
         
         foreach (var pick in picks)
         {
@@ -78,7 +78,8 @@ public class AdminService : IAdminService
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
-        _logger.LogInformation("Points recalculated for gameweek {GameweekId}", gameweekId);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Points recalculated for gameweek {SeasonId}-{GameweekNumber}", seasonId, gameweekNumber);
     }
 
     public async Task RecalculateAllPointsAsync(CancellationToken cancellationToken = default)
@@ -89,7 +90,7 @@ public class AdminService : IAdminService
         
         foreach (var gameweek in gameweeks)
         {
-            await RecalculatePointsForGameweekAsync(gameweek.Id, cancellationToken);
+            await RecalculatePointsForGameweekAsync(gameweek.SeasonId, gameweek.WeekNumber, cancellationToken);
         }
         
         _logger.LogInformation("All points recalculated");
@@ -112,7 +113,7 @@ public class AdminService : IAdminService
             });
     }
 
-    public async Task<Guid> CreateSeasonAsync(CreateSeasonRequest request, CancellationToken cancellationToken = default)
+    public async Task<string> CreateSeasonAsync(CreateSeasonRequest request, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Creating new season: {SeasonName}", request.Name);
 
@@ -136,7 +137,7 @@ public class AdminService : IAdminService
         // Create the new season
         var newSeason = new Season
         {
-            Id = Guid.NewGuid(),
+            // Id removed, Name is PK
             Name = request.Name,
             StartDate = request.StartDate,
             EndDate = request.EndDate,
@@ -149,7 +150,7 @@ public class AdminService : IAdminService
         await _unitOfWork.Seasons.AddAsync(newSeason, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Season {SeasonName} created with ID {SeasonId}", request.Name, newSeason.Id);
+        _logger.LogInformation("Season {SeasonName} created", request.Name);
 
         // Send SignalR notification to all clients to refresh dashboard
         try
@@ -158,7 +159,7 @@ public class AdminService : IAdminService
                 "SeasonCreated",
                 new
                 {
-                    seasonId = newSeason.Id,
+                    seasonId = newSeason.Name,
                     seasonName = newSeason.Name,
                     message = $"New season {newSeason.Name} has been created"
                 },
@@ -172,7 +173,7 @@ public class AdminService : IAdminService
             // Don't throw - season was created successfully, notification failure is not critical
         }
 
-        return newSeason.Id;
+        return newSeason.Name;
     }
 
     public async Task<IEnumerable<SeasonDto>> GetAllSeasonsAsync(CancellationToken cancellationToken = default)
@@ -182,7 +183,6 @@ public class AdminService : IAdminService
             .OrderByDescending(s => s.StartDate)
             .Select(s => new SeasonDto
             {
-                Id = s.Id,
                 Name = s.Name,
                 StartDate = s.StartDate,
                 EndDate = s.EndDate,
@@ -213,9 +213,9 @@ public class AdminService : IAdminService
             });
     }
 
-    public async Task UpdateTeamStatusAsync(Guid teamId, bool isActive, CancellationToken cancellationToken = default)
+    public async Task UpdateTeamStatusAsync(int teamId, bool isActive, CancellationToken cancellationToken = default)
     {
-        var team = await _unitOfWork.Teams.GetByIdAsync(teamId, cancellationToken);
+        var team = await _unitOfWork.Teams.FirstOrDefaultAsync(t => t.Id == teamId, cancellationToken);
         if (team == null) throw new KeyNotFoundException("Team not found");
 
         team.IsActive = isActive;
@@ -240,11 +240,13 @@ public class AdminService : IAdminService
 
         // Get all fixtures to calculate points
         var allFixtures = await _unitOfWork.Fixtures.GetAllAsync(cancellationToken);
-        var fixturesByGameweek = allFixtures.GroupBy(f => f.GameweekId).ToDictionary(g => g.Key, g => g.ToList());
+        var fixturesByGameweek = allFixtures
+            .GroupBy(f => new { f.SeasonId, f.GameweekNumber })
+            .ToDictionary(g => g.Key, g => g.ToList());
 
         // Get existing picks for this user
         var existingPicks = await _unitOfWork.Picks.FindAsync(p => p.UserId == userId, cancellationToken);
-        var existingPicksByGameweek = existingPicks.ToDictionary(p => p.GameweekId);
+        var existingPicksByGameweek = existingPicks.ToDictionary(p => new { p.SeasonId, p.GameweekNumber });
 
         int picksCreated = 0;
         int picksUpdated = 0;
@@ -260,14 +262,15 @@ public class AdminService : IAdminService
             }
 
             // Check if pick already exists
-            if (existingPicksByGameweek.TryGetValue(gameweek.Id, out var existingPick))
+            var key = new { SeasonId = gameweek.SeasonId, GameweekNumber = gameweek.WeekNumber };
+            if (existingPicksByGameweek.TryGetValue(key, out var existingPick))
             {
                 // Update existing pick
                 existingPick.TeamId = pickRequest.TeamId;
                 existingPick.UpdatedAt = DateTime.UtcNow;
 
                 // Recalculate points
-                CalculatePickPoints(existingPick, fixturesByGameweek.GetValueOrDefault(gameweek.Id, new List<Fixture>()));
+                CalculatePickPoints(existingPick, fixturesByGameweek.GetValueOrDefault(key, new List<Fixture>()));
 
                 _unitOfWork.Picks.Update(existingPick);
                 picksUpdated++;
@@ -279,7 +282,8 @@ public class AdminService : IAdminService
                 {
                     Id = Guid.NewGuid(),
                     UserId = userId,
-                    GameweekId = gameweek.Id,
+                    SeasonId = gameweek.SeasonId,
+                    GameweekNumber = gameweek.WeekNumber,
                     TeamId = pickRequest.TeamId,
                     IsAutoAssigned = false,
                     CreatedAt = DateTime.UtcNow,
@@ -287,7 +291,7 @@ public class AdminService : IAdminService
                 };
 
                 // Calculate points
-                CalculatePickPoints(newPick, fixturesByGameweek.GetValueOrDefault(gameweek.Id, new List<Fixture>()));
+                CalculatePickPoints(newPick, fixturesByGameweek.GetValueOrDefault(key, new List<Fixture>()));
 
                 await _unitOfWork.Picks.AddAsync(newPick, cancellationToken);
                 picksCreated++;
@@ -344,7 +348,7 @@ public class AdminService : IAdminService
 
         var gameweeksInfo = allGameweeks.OrderBy(g => g.WeekNumber).Select(g =>
         {
-            var fixtures = allFixtures.Where(f => f.GameweekId == g.Id).ToList();
+            var fixtures = allFixtures.Where(f => f.SeasonId == g.SeasonId && f.GameweekNumber == g.WeekNumber).ToList();
             var fixtureStatuses = fixtures.GroupBy(f => f.Status)
                 .ToDictionary(grp => grp.Key, grp => grp.Count());
 

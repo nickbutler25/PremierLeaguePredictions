@@ -48,7 +48,7 @@ public class ResultsService : IResultsService
             .OrderByDescending(g => g.WeekNumber)
             .FirstOrDefault(g =>
             {
-                var fixtures = allFixtures.Where(f => f.GameweekId == g.Id).ToList();
+                var fixtures = allFixtures.Where(f => f.SeasonId == g.SeasonId && f.GameweekNumber == g.WeekNumber).ToList();
                 var hasUnfinishedFixtures = fixtures.Any(f => f.Status != "FINISHED" && f.Status != "CANCELLED" && f.Status != "POSTPONED");
                 var hasFutureFixtures = fixtures.Any(f => f.KickoffTime > now);
                 return hasUnfinishedFixtures || hasFutureFixtures;
@@ -64,7 +64,7 @@ public class ResultsService : IResultsService
         _logger.LogInformation("Found current gameweek: GW{WeekNumber}", currentGameweek.WeekNumber);
 
         // Sync only the current gameweek
-        var gameweekResponse = await SyncGameweekResultsAsync(currentGameweek.Id, cancellationToken);
+        var gameweekResponse = await SyncGameweekResultsAsync(currentGameweek.SeasonId, currentGameweek.WeekNumber, cancellationToken);
         response.FixturesUpdated = gameweekResponse.FixturesUpdated;
         response.PicksRecalculated = gameweekResponse.PicksRecalculated;
         response.UpdatedFixtures.AddRange(gameweekResponse.UpdatedFixtures);
@@ -76,14 +76,14 @@ public class ResultsService : IResultsService
         return response;
     }
 
-    public async Task<ResultsSyncResponse> SyncGameweekResultsAsync(Guid gameweekId, CancellationToken cancellationToken = default)
+    public async Task<ResultsSyncResponse> SyncGameweekResultsAsync(string seasonId, int gameweekNumber, CancellationToken cancellationToken = default)
     {
         var response = new ResultsSyncResponse { GameweeksProcessed = 1 };
 
-        var gameweek = await _unitOfWork.Gameweeks.GetByIdAsync(gameweekId, cancellationToken);
+        var gameweek = await _unitOfWork.Gameweeks.FirstOrDefaultAsync(g => g.SeasonId == seasonId && g.WeekNumber == gameweekNumber, cancellationToken);
         if (gameweek == null)
         {
-            _logger.LogWarning("Gameweek {GameweekId} not found", gameweekId);
+            _logger.LogWarning("Gameweek {SeasonId}-{GameweekNumber} not found", seasonId, gameweekNumber);
             response.Message = "Gameweek not found";
             return response;
         }
@@ -91,7 +91,7 @@ public class ResultsService : IResultsService
         _logger.LogInformation("Syncing results for GW {WeekNumber}", gameweek.WeekNumber);
 
         // Track fixtures before sync to compare
-        var fixturesBefore = await _unitOfWork.Fixtures.FindAsync(f => f.GameweekId == gameweekId, cancellationToken);
+        var fixturesBefore = await _unitOfWork.Fixtures.FindAsync(f => f.SeasonId == seasonId && f.GameweekNumber == gameweekNumber, cancellationToken);
         var fixturesSnapshot = fixturesBefore.Select(f => new
         {
             Id = f.Id,
@@ -145,7 +145,7 @@ public class ResultsService : IResultsService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Check what changed and build detailed response
-        var fixturesAfter = await _unitOfWork.Fixtures.FindAsync(f => f.GameweekId == gameweekId, cancellationToken);
+        var fixturesAfter = await _unitOfWork.Fixtures.FindAsync(f => f.SeasonId == seasonId && f.GameweekNumber == gameweekNumber, cancellationToken);
         var fixturesAfterList = fixturesAfter.ToList();
 
         foreach (var fixtureBefore in fixturesSnapshot)
@@ -159,8 +159,8 @@ public class ResultsService : IResultsService
 
                 if (hasChanges)
                 {
-                    var homeTeam = await _unitOfWork.Teams.GetByIdAsync(fixtureAfter.HomeTeamId, cancellationToken);
-                    var awayTeam = await _unitOfWork.Teams.GetByIdAsync(fixtureAfter.AwayTeamId, cancellationToken);
+                    var homeTeam = await _unitOfWork.Teams.FirstOrDefaultAsync(t => t.Id == fixtureAfter.HomeTeamId, cancellationToken);
+                    var awayTeam = await _unitOfWork.Teams.FirstOrDefaultAsync(t => t.Id == fixtureAfter.AwayTeamId, cancellationToken);
 
                     response.UpdatedFixtures.Add(new FixtureUpdateDetail
                     {
@@ -187,10 +187,10 @@ public class ResultsService : IResultsService
             _logger.LogInformation("Recalculating points for GW {WeekNumber} due to {Count} fixture updates",
                 gameweek.WeekNumber, response.UpdatedFixtures.Count);
 
-            await _adminService.RecalculatePointsForGameweekAsync(gameweekId, cancellationToken);
+            await _adminService.RecalculatePointsForGameweekAsync(seasonId, gameweekNumber, cancellationToken);
 
             // Count picks that were recalculated
-            var picks = await _unitOfWork.Picks.FindAsync(p => p.GameweekId == gameweekId, cancellationToken);
+            var picks = await _unitOfWork.Picks.FindAsync(p => p.SeasonId == seasonId && p.GameweekNumber == gameweekNumber, cancellationToken);
             response.PicksRecalculated = picks.Count();
 
             _logger.LogInformation("Recalculated {Count} picks for GW {WeekNumber}",
@@ -219,7 +219,7 @@ public class ResultsService : IResultsService
 
         // Check if eliminations already processed
         var existingEliminations = await _unitOfWork.UserEliminations.FindAsync(
-            e => e.GameweekId == gameweek.Id,
+            e => e.SeasonId == gameweek.SeasonId && e.GameweekNumber == gameweek.WeekNumber,
             cancellationToken
         );
 
@@ -231,7 +231,7 @@ public class ResultsService : IResultsService
 
         // Check if all fixtures in this gameweek are finished
         var fixtures = await _unitOfWork.Fixtures.FindAsync(
-            f => f.GameweekId == gameweek.Id,
+            f => f.SeasonId == gameweek.SeasonId && f.GameweekNumber == gameweek.WeekNumber,
             cancellationToken
         );
 
@@ -254,7 +254,8 @@ public class ResultsService : IResultsService
             // Use a system admin ID (Guid.Empty) for automatic eliminations
             var systemAdminId = Guid.Empty;
             var eliminationResponse = await _eliminationService.ProcessGameweekEliminationsAsync(
-                gameweek.Id,
+                gameweek.SeasonId,
+                gameweek.WeekNumber,
                 systemAdminId,
                 cancellationToken
             );

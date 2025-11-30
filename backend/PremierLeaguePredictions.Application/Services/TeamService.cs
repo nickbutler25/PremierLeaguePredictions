@@ -43,7 +43,6 @@ public class TeamService : ITeamService
     {
         var team = new Team
         {
-            Id = Guid.NewGuid(),
             Name = request.Name,
             ShortName = request.ShortName,
             LogoUrl = request.LogoUrl,

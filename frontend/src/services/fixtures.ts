@@ -10,8 +10,8 @@ const realFixturesService = {
     return response.data;
   },
 
-  getFixturesByGameweek: async (gameweekId: string): Promise<Fixture[]> => {
-    const response = await apiClient.get<Fixture[]>(`/api/fixtures/gameweek/${gameweekId}`);
+  getFixturesByGameweek: async (seasonId: string, gameweekNumber: number): Promise<Fixture[]> => {
+    const response = await apiClient.get<Fixture[]>(`/api/fixtures/gameweek/${encodeURIComponent(seasonId)}/${gameweekNumber}`);
     return response.data;
   },
 

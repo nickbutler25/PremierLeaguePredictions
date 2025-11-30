@@ -7,8 +7,11 @@ public class CreateFixtureRequestValidator : AbstractValidator<CreateFixtureRequ
 {
     public CreateFixtureRequestValidator()
     {
-        RuleFor(x => x.GameweekId)
-            .NotEmpty().WithMessage("Gameweek ID is required");
+        RuleFor(x => x.SeasonId)
+            .NotEmpty().WithMessage("Season ID is required");
+
+        RuleFor(x => x.GameweekNumber)
+            .GreaterThan(0).WithMessage("Gameweek number must be greater than 0");
 
         RuleFor(x => x.HomeTeamId)
             .NotEmpty().WithMessage("Home team ID is required");

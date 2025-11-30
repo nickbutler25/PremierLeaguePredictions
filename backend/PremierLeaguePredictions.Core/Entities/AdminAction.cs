@@ -6,7 +6,8 @@ public class AdminAction
     public Guid AdminUserId { get; set; }
     public string ActionType { get; set; } = string.Empty; // OVERRIDE_PICK, OVERRIDE_DEADLINE, DEACTIVATE_USER, etc.
     public Guid? TargetUserId { get; set; }
-    public Guid? TargetGameweekId { get; set; }
+    public string? TargetSeasonId { get; set; }
+    public int? TargetGameweekNumber { get; set; }
     public string? Details { get; set; } // JSON string for additional details
     public DateTime CreatedAt { get; set; }
 

@@ -2,7 +2,15 @@ import type { DashboardData } from '@/types';
 
 // Mock dashboard data
 const mockDashboardData: DashboardData = {
-  currentGameweekId: 'mock-gw-15',
+  currentGameweek: {
+    seasonId: '2023/2024',
+    weekNumber: 15,
+    deadline: new Date(Date.now() + 86400000).toISOString(),
+    isLocked: false,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    status: 'Upcoming'
+  },
   user: {
     id: 'mock-user-123',
     firstName: 'John',
@@ -19,10 +27,11 @@ const mockDashboardData: DashboardData = {
     {
       id: 'pick-1',
       userId: 'mock-user-123',
-      gameweekId: 'gw-14',
-      teamId: 'team-001',
+      seasonId: '2023/2024',
+      gameweekNumber: 14,
+      teamId: 1,
       team: {
-        id: 'team-001',
+        id: 1,
         name: 'Manchester City',
         shortName: 'MCI',
         code: 'MCI',
@@ -36,15 +45,15 @@ const mockDashboardData: DashboardData = {
       isAutoAssigned: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      gameweekNumber: 14,
     },
     {
       id: 'pick-2',
       userId: 'mock-user-123',
-      gameweekId: 'gw-13',
-      teamId: 'team-002',
+      seasonId: '2023/2024',
+      gameweekNumber: 13,
+      teamId: 2,
       team: {
-        id: 'team-002',
+        id: 2,
         name: 'Arsenal',
         shortName: 'ARS',
         code: 'ARS',
@@ -58,15 +67,15 @@ const mockDashboardData: DashboardData = {
       isAutoAssigned: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      gameweekNumber: 13,
     },
     {
       id: 'pick-3',
       userId: 'mock-user-123',
-      gameweekId: 'gw-12',
-      teamId: 'team-003',
+      seasonId: '2023/2024',
+      gameweekNumber: 12,
+      teamId: 3,
       team: {
-        id: 'team-003',
+        id: 3,
         name: 'Liverpool',
         shortName: 'LIV',
         code: 'LIV',
@@ -80,7 +89,6 @@ const mockDashboardData: DashboardData = {
       isAutoAssigned: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      gameweekNumber: 12,
     },
   ],
 };

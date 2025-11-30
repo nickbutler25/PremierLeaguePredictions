@@ -81,7 +81,7 @@ public class PickReminderService : IPickReminderService
 
         // Get existing picks for this gameweek
         var existingPicks = await _unitOfWork.Picks.FindAsync(
-            p => p.GameweekId == gameweek.Id,
+            p => p.SeasonId == gameweek.SeasonId && p.GameweekNumber == gameweek.WeekNumber,
             cancellationToken);
 
         var usersWithPicks = existingPicks.Select(p => p.UserId).ToHashSet();

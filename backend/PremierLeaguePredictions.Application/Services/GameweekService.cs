@@ -16,12 +16,11 @@ public class GameweekService : IGameweekService
         _logger = logger;
     }
 
-    public async Task<GameweekDto?> GetGameweekByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<GameweekDto?> GetGameweekAsync(string seasonId, int weekNumber, CancellationToken cancellationToken = default)
     {
-        var gameweek = await _unitOfWork.Gameweeks.GetByIdAsync(id, cancellationToken);
+        var gameweek = await _unitOfWork.Gameweeks.FirstOrDefaultAsync(g => g.SeasonId == seasonId && g.WeekNumber == weekNumber, cancellationToken);
         return gameweek != null ? new GameweekDto
         {
-            Id = gameweek.Id,
             SeasonId = gameweek.SeasonId,
             WeekNumber = gameweek.WeekNumber,
             Deadline = gameweek.Deadline,
@@ -35,7 +34,6 @@ public class GameweekService : IGameweekService
         var gameweeks = await _unitOfWork.Gameweeks.GetAllAsync(cancellationToken);
         return gameweeks.Select(g => new GameweekDto
         {
-            Id = g.Id,
             SeasonId = g.SeasonId,
             WeekNumber = g.WeekNumber,
             Deadline = g.Deadline,
@@ -53,7 +51,6 @@ public class GameweekService : IGameweekService
         var current = gameweeks.OrderBy(g => g.Deadline).FirstOrDefault();
         return current != null ? new GameweekDto
         {
-            Id = current.Id,
             SeasonId = current.SeasonId,
             WeekNumber = current.WeekNumber,
             Deadline = current.Deadline,
@@ -62,16 +59,15 @@ public class GameweekService : IGameweekService
         } : null;
     }
 
-    public async Task<GameweekWithFixturesDto?> GetGameweekWithFixturesAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<GameweekWithFixturesDto?> GetGameweekWithFixturesAsync(string seasonId, int weekNumber, CancellationToken cancellationToken = default)
     {
-        var gameweek = await _unitOfWork.Gameweeks.GetByIdAsync(id, cancellationToken);
+        var gameweek = await _unitOfWork.Gameweeks.FirstOrDefaultAsync(g => g.SeasonId == seasonId && g.WeekNumber == weekNumber, cancellationToken);
         if (gameweek == null) return null;
 
-        var fixtures = await _unitOfWork.Fixtures.FindAsync(f => f.GameweekId == id, cancellationToken);
+        var fixtures = await _unitOfWork.Fixtures.FindAsync(f => f.SeasonId == seasonId && f.GameweekNumber == weekNumber, cancellationToken);
 
         return new GameweekWithFixturesDto
         {
-            Id = gameweek.Id,
             SeasonId = gameweek.SeasonId,
             WeekNumber = gameweek.WeekNumber,
             Deadline = gameweek.Deadline,
@@ -80,7 +76,8 @@ public class GameweekService : IGameweekService
             Fixtures = fixtures.Select(f => new FixtureDto
             {
                 Id = f.Id,
-                GameweekId = f.GameweekId,
+                SeasonId = f.SeasonId,
+                GameweekNumber = f.GameweekNumber,
                 HomeTeamId = f.HomeTeamId,
                 AwayTeamId = f.AwayTeamId,
                 HomeScore = f.HomeScore,
@@ -91,12 +88,11 @@ public class GameweekService : IGameweekService
         };
     }
 
-    public async Task<IEnumerable<GameweekDto>> GetGameweeksBySeasonIdAsync(Guid seasonId, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<GameweekDto>> GetGameweeksBySeasonIdAsync(string seasonId, CancellationToken cancellationToken = default)
     {
         var gameweeks = await _unitOfWork.Gameweeks.FindAsync(g => g.SeasonId == seasonId, cancellationToken);
         return gameweeks.Select(g => new GameweekDto
         {
-            Id = g.Id,
             SeasonId = g.SeasonId,
             WeekNumber = g.WeekNumber,
             Deadline = g.Deadline,

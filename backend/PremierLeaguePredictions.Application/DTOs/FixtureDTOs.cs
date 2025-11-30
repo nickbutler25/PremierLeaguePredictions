@@ -3,10 +3,10 @@ namespace PremierLeaguePredictions.Application.DTOs;
 public class FixtureDto
 {
     public Guid Id { get; set; }
-    public Guid GameweekId { get; set; }
+    public string SeasonId { get; set; } = string.Empty;
     public int GameweekNumber { get; set; }
-    public Guid HomeTeamId { get; set; }
-    public Guid AwayTeamId { get; set; }
+    public int HomeTeamId { get; set; }
+    public int AwayTeamId { get; set; }
     public DateTime KickoffTime { get; set; }
     public int? HomeScore { get; set; }
     public int? AwayScore { get; set; }
@@ -19,9 +19,10 @@ public class FixtureDto
 
 public class CreateFixtureRequest
 {
-    public Guid GameweekId { get; set; }
-    public Guid HomeTeamId { get; set; }
-    public Guid AwayTeamId { get; set; }
+    public string SeasonId { get; set; } = string.Empty;
+    public int GameweekNumber { get; set; }
+    public int HomeTeamId { get; set; }
+    public int AwayTeamId { get; set; }
     public DateTime KickoffTime { get; set; }
     public int? ExternalApiId { get; set; }
 }

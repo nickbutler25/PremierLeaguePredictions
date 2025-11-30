@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using FluentValidation;
 using System.Security.Claims;
 using PremierLeaguePredictions.Application.DTOs;
 using PremierLeaguePredictions.Application.Interfaces;
@@ -13,19 +12,13 @@ namespace PremierLeaguePredictions.API.Controllers;
 public class PicksController : ControllerBase
 {
     private readonly IPickService _pickService;
-    private readonly IValidator<CreatePickRequest> _createValidator;
-    private readonly IValidator<UpdatePickRequest> _updateValidator;
     private readonly ILogger<PicksController> _logger;
 
     public PicksController(
         IPickService pickService,
-        IValidator<CreatePickRequest> createValidator,
-        IValidator<UpdatePickRequest> updateValidator,
         ILogger<PicksController> logger)
     {
         _pickService = pickService;
-        _createValidator = createValidator;
-        _updateValidator = updateValidator;
         _logger = logger;
     }
 
@@ -51,32 +44,26 @@ public class PicksController : ControllerBase
         return Ok(pick);
     }
 
-    [HttpGet("gameweek/{gameweekId}")]
-    public async Task<ActionResult<IEnumerable<PickDto>>> GetPicksByGameweek(Guid gameweekId)
+    [HttpGet("gameweek/{seasonId}/{gameweekNumber}")]
+    public async Task<ActionResult<IEnumerable<PickDto>>> GetPicksByGameweek(string seasonId, int gameweekNumber)
     {
-        var picks = await _pickService.GetPicksByGameweekAsync(gameweekId);
+        var picks = await _pickService.GetPicksByGameweekAsync(seasonId, gameweekNumber);
         return Ok(picks);
     }
 
     [HttpPost]
+    [ServiceFilter(typeof(Filters.ValidationFilter<CreatePickRequest>))]
     public async Task<ActionResult<PickDto>> CreatePick([FromBody] CreatePickRequest request)
     {
-        var validationResult = await _createValidator.ValidateAsync(request);
-        if (!validationResult.IsValid)
-            return BadRequest(validationResult.Errors);
-
         var userId = GetUserIdFromClaims();
         var pick = await _pickService.CreatePickAsync(userId, request);
         return CreatedAtAction(nameof(GetPickById), new { id = pick.Id }, pick);
     }
 
     [HttpPut("{id}")]
+    [ServiceFilter(typeof(Filters.ValidationFilter<UpdatePickRequest>))]
     public async Task<ActionResult<PickDto>> UpdatePick(Guid id, [FromBody] UpdatePickRequest request)
     {
-        var validationResult = await _updateValidator.ValidateAsync(request);
-        if (!validationResult.IsValid)
-            return BadRequest(validationResult.Errors);
-
         var userId = GetUserIdFromClaims();
         var pick = await _pickService.UpdatePickAsync(id, userId, request);
         return Ok(pick);

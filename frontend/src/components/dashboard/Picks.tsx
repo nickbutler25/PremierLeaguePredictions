@@ -65,8 +65,8 @@ export function Picks() {
 
   // Create/update pick mutation
   const createPickMutation = useMutation({
-    mutationFn: ({ gameweekId, teamId }: { gameweekId: string; teamId: string }) =>
-      picksService.createPick(user?.id || '', { gameweekId, teamId }),
+    mutationFn: ({ gameweekNumber, teamId, seasonId }: { gameweekNumber: number; teamId: number; seasonId: string }) =>
+      picksService.createPick(user?.id || '', { seasonId, gameweekNumber, teamId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['picks', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['dashboard', user?.id] });
@@ -98,6 +98,7 @@ export function Picks() {
   }
 
   const currentGameweek = dashboard?.upcomingGameweeks?.[0]?.weekNumber || 1;
+  const currentSeasonId = dashboard?.upcomingGameweeks?.[0]?.seasonId || '2024/2025'; // Fallback or fetch from somewhere
 
   // Create a map of week numbers to gameweek IDs and deadlines
   const gameweekIdsByNumber = new Map<number, string>();
@@ -116,8 +117,8 @@ export function Picks() {
   });
 
   // Determine which teams have been used in each half
-  const getUsedTeamsForHalf = (gameweekNumber: number): Set<string> => {
-    const usedTeams = new Set<string>();
+  const getUsedTeamsForHalf = (gameweekNumber: number): Set<number> => {
+    const usedTeams = new Set<number>();
     const isFirstHalf = gameweekNumber <= 20;
     const startGw = isFirstHalf ? 1 : 21;
     const endGw = isFirstHalf ? 20 : 38;
@@ -138,14 +139,21 @@ export function Picks() {
     return teams.filter((team) => !usedTeams.has(team.id));
   };
 
-  const handleTeamSelect = (gameweekNumber: number, teamId: string) => {
-    const gameweekId = gameweekIdsByNumber.get(gameweekNumber);
-    if (!gameweekId) {
-      console.error(`No gameweek ID found for week ${gameweekNumber}`);
+  const handleTeamSelect = (gameweekNumber: number, teamIdStr: string) => {
+    const teamId = parseInt(teamIdStr, 10);
+    if (isNaN(teamId)) {
+      console.error(`Invalid team ID: ${teamIdStr}`);
       return;
     }
+
     setSelectedGameweek(null); // Close dropdown immediately
-    createPickMutation.mutate({ gameweekId, teamId });
+    // Assuming currentSeasonId is available or derived. 
+    // If not, we might need to find the seasonId for the gameweek.
+    // For now, let's try to find it from allGameweeks
+    const gameweek = allGameweeks.find((gw: any) => gw.weekNumber === gameweekNumber);
+    const seasonId = gameweek?.seasonId || '2024/2025'; // Fallback
+
+    createPickMutation.mutate({ gameweekNumber, teamId, seasonId });
   };
 
   // Generate all 38 gameweeks
@@ -195,15 +203,14 @@ export function Picks() {
                     <TableCell>
                       {pick ? (
                         <div className="flex items-center justify-between gap-2">
-                          <div className={`flex items-center gap-2 ${
-                            pick.points === 3
+                          <div className={`flex items-center gap-2 ${pick.points === 3
                               ? 'text-green-600 dark:text-green-400'
                               : pick.points === 1
-                              ? 'text-yellow-600 dark:text-yellow-400'
-                              : pick.points === 0 && deadlinePassed
-                              ? 'text-red-600 dark:text-red-400'
-                              : ''
-                          }`}>
+                                ? 'text-yellow-600 dark:text-yellow-400'
+                                : pick.points === 0 && deadlinePassed
+                                  ? 'text-red-600 dark:text-red-400'
+                                  : ''
+                            }`}>
                             {pick.team?.logoUrl && (
                               <img
                                 src={pick.team.logoUrl}
@@ -270,10 +277,10 @@ export function Picks() {
                             pick.points === 3
                               ? 'text-green-600 dark:text-green-400'
                               : pick.points === 1
-                              ? 'text-yellow-600 dark:text-yellow-400'
-                              : pick.points === 0 && deadlinePassed
-                              ? 'text-red-600 dark:text-red-400'
-                              : ''
+                                ? 'text-yellow-600 dark:text-yellow-400'
+                                : pick.points === 0 && deadlinePassed
+                                  ? 'text-red-600 dark:text-red-400'
+                                  : ''
                           }
                         >
                           {pick.points}

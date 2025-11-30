@@ -4,8 +4,9 @@ public class Pick
 {
     public Guid Id { get; set; }
     public Guid UserId { get; set; }
-    public Guid GameweekId { get; set; }
-    public Guid TeamId { get; set; }
+    public string SeasonId { get; set; } = string.Empty; // References Season.Name
+    public int GameweekNumber { get; set; } // References Gameweek.WeekNumber
+    public int TeamId { get; set; }
     public int Points { get; set; } = 0;
     public int GoalsFor { get; set; } = 0;
     public int GoalsAgainst { get; set; } = 0;

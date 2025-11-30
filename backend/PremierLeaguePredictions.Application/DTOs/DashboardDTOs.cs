@@ -3,7 +3,7 @@ namespace PremierLeaguePredictions.Application.DTOs;
 public class DashboardDto
 {
     public UserStatsDto User { get; set; } = null!;
-    public Guid? CurrentGameweekId { get; set; }
+    public GameweekDto? CurrentGameweek { get; set; }
     public List<PickDto> RecentPicks { get; set; } = new();
     public List<GameweekDto> UpcomingGameweeks { get; set; } = new();
 }

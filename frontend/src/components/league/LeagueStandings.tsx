@@ -72,20 +72,18 @@ export function LeagueStandings() {
                 <TableHead className="text-center w-16">GF</TableHead>
                 <TableHead className="text-center w-16">GA</TableHead>
                 <TableHead className="text-center w-16">GD</TableHead>
-                <TableHead className="text-center w-24">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.standings.map((entry) => {
+              {data.standings
+                .filter((entry) => !entry.isEliminated)
+                .map((entry) => {
                 const isCurrentUser = entry.userId === user?.id;
-                const isEliminated = entry.isEliminated;
                 return (
                   <TableRow
                     key={entry.userId}
                     className={
-                      isEliminated
-                        ? 'opacity-50 bg-red-50 dark:bg-red-950/20'
-                        : isCurrentUser
+                      isCurrentUser
                         ? 'bg-blue-50 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-950/40'
                         : ''
                     }
@@ -97,11 +95,6 @@ export function LeagueStandings() {
                       {entry.userName}
                       {isCurrentUser && (
                         <span className="ml-2 text-xs text-blue-600 dark:text-blue-400">(You)</span>
-                      )}
-                      {isEliminated && (
-                        <span className="ml-2 text-xs line-through text-red-600 dark:text-red-400">
-                          Eliminated
-                        </span>
                       )}
                     </TableCell>
                     <TableCell className="text-center">{entry.picksMade}</TableCell>
@@ -127,15 +120,6 @@ export function LeagueStandings() {
                         : ''
                     }`}>
                       {entry.goalDifference > 0 ? '+' : ''}{entry.goalDifference}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {isEliminated ? (
-                        <span className="text-xs px-2 py-1 bg-red-500 text-white rounded">
-                          GW{entry.eliminatedInGameweek}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-green-600 dark:text-green-400">Active</span>
-                      )}
                     </TableCell>
                   </TableRow>
                 );

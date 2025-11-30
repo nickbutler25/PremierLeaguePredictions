@@ -6,7 +6,6 @@ const mockUser = {
   email: 'test@example.com',
   firstName: 'John',
   lastName: 'Doe',
-  phoneNumber: '+1234567890',
   photoUrl: 'https://i.pravatar.cc/150?img=3',
   googleId: 'mock-google-id',
   isActive: true,

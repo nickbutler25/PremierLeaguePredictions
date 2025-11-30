@@ -20,17 +20,25 @@ export default function EliminationManagementPage() {
   });
 
   // Fetch elimination configs
-  const { data: configs = [], isLoading: configsLoading } = useQuery({
-    queryKey: ['eliminationConfigs', activeSeason?.id],
-    queryFn: () => eliminationService.getEliminationConfigs(activeSeason!.id),
-    enabled: !!activeSeason?.id,
+  const { data: configs = [], isLoading: configsLoading, error: configsError } = useQuery({
+    queryKey: ['eliminationConfigs', activeSeason?.name],
+    queryFn: async () => {
+      console.log('EliminationManagement: Fetching configs for season:', activeSeason?.name);
+      const result = await eliminationService.getEliminationConfigs(activeSeason!.name);
+      console.log('EliminationManagement: Received configs:', result);
+      return result;
+    },
+    enabled: !!activeSeason?.name,
   });
+
+  // Log configs whenever they change
+  console.log('EliminationManagement: configs=', configs, 'loading=', configsLoading, 'error=', configsError);
 
   // Fetch season eliminations
   const { data: eliminations = [] } = useQuery({
-    queryKey: ['seasonEliminations', activeSeason?.id],
-    queryFn: () => eliminationService.getSeasonEliminations(activeSeason!.id),
-    enabled: !!activeSeason?.id,
+    queryKey: ['seasonEliminations', activeSeason?.name],
+    queryFn: () => eliminationService.getSeasonEliminations(activeSeason!.name),
+    enabled: !!activeSeason?.name,
   });
 
   // Update single gameweek elimination count

@@ -32,6 +32,9 @@ builder.Services.AddControllers();
 // Add FluentValidation - modern approach without deprecated AspNetCore integration
 builder.Services.AddValidatorsFromAssemblyContaining<CreatePickRequestValidator>();
 
+// Register validation filters
+builder.Services.AddScoped(typeof(PremierLeaguePredictions.API.Filters.ValidationFilter<>));
+
 // Configure Database
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
@@ -246,14 +249,33 @@ app.MapControllers();
 app.MapHub<PremierLeaguePredictions.API.Hubs.NotificationHub>("/hubs/notifications");
 
 // Apply migrations on startup (for production deployment)
+// Skip migrations for in-memory database (used in tests)
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
     try
     {
-        Log.Information("Applying database migrations...");
-        dbContext.Database.Migrate();
-        Log.Information("Database migrations applied successfully");
+        // Check if we can access the provider name (fails for in-memory in test scenarios)
+        var providerName = dbContext.Database.ProviderName;
+        var isInMemory = providerName == "Microsoft.EntityFrameworkCore.InMemory";
+
+        if (!isInMemory)
+        {
+            Log.Information("Applying database migrations...");
+            dbContext.Database.Migrate();
+            Log.Information("Database migrations applied successfully");
+        }
+        else
+        {
+            Log.Information("In-memory database detected, skipping migrations");
+        }
+    }
+    catch (InvalidOperationException ex) when (ex.Message.Contains("Only a single database provider"))
+    {
+        // This happens in test scenarios where both providers are registered
+        // In this case, skip migrations as we're using in-memory database for tests
+        Log.Information("Multiple database providers detected (test scenario), skipping migrations");
     }
     catch (Exception ex)
     {

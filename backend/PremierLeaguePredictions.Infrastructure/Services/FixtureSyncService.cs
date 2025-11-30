@@ -75,7 +75,6 @@ public class FixtureSyncService : IFixtureSyncService
                 // Create new team
                 var newTeam = new Team
                 {
-                    Id = Guid.NewGuid(),
                     ExternalId = externalTeam.Id,
                     Name = CleanTeamName(externalTeam.Name),
                     ShortName = CleanTeamName(externalTeam.ShortName),
@@ -130,45 +129,45 @@ public class FixtureSyncService : IFixtureSyncService
                 continue;
             }
 
-            // Find or create gameweek
+            // Get or create the current season first
+            var seasonYear = season ?? DateTime.UtcNow.Year;
+            var seasonName = $"{seasonYear}/{seasonYear + 1}";
+
+            var seasons = await _unitOfWork.Seasons.FindAsync(
+                s => s.IsActive,
+                cancellationToken);
+            var currentSeason = seasons.FirstOrDefault();
+
+            if (currentSeason == null)
+            {
+                // Create the season if it doesn't exist
+                var startDate = new DateTime(seasonYear, 8, 1, 0, 0, 0, DateTimeKind.Utc); // Premier League typically starts in August
+                var endDate = new DateTime(seasonYear + 1, 5, 31, 23, 59, 59, DateTimeKind.Utc); // Ends in May
+
+                currentSeason = new Season
+                {
+                    Name = seasonName,
+                    StartDate = startDate,
+                    EndDate = endDate,
+                    IsActive = true,
+                    IsArchived = false,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                await _unitOfWork.Seasons.AddAsync(currentSeason, cancellationToken);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                _logger.LogInformation("Created season {SeasonName}", currentSeason.Name);
+            }
+
+            // Find or create gameweek for THIS season
             var gameweekNumber = externalFixture.Matchday ?? 1;
             var gameweeks = await _unitOfWork.Gameweeks.FindAsync(
-                g => g.WeekNumber == gameweekNumber,
+                g => g.SeasonId == currentSeason.Name && g.WeekNumber == gameweekNumber,
                 cancellationToken);
             var gameweek = gameweeks.FirstOrDefault();
 
             if (gameweek == null)
             {
-                // Get or create the current season
-                var seasonYear = season ?? DateTime.UtcNow.Year;
-                var seasonName = $"{seasonYear}/{seasonYear + 1}";
-
-                var seasons = await _unitOfWork.Seasons.FindAsync(
-                    s => s.IsActive,
-                    cancellationToken);
-                var currentSeason = seasons.FirstOrDefault();
-
-                if (currentSeason == null)
-                {
-                    // Create the season if it doesn't exist
-                    var startDate = new DateTime(seasonYear, 8, 1, 0, 0, 0, DateTimeKind.Utc); // Premier League typically starts in August
-                    var endDate = new DateTime(seasonYear + 1, 5, 31, 23, 59, 59, DateTimeKind.Utc); // Ends in May
-
-                    currentSeason = new Season
-                    {
-                        Id = Guid.NewGuid(),
-                        Name = seasonName,
-                        StartDate = startDate,
-                        EndDate = endDate,
-                        IsActive = true,
-                        IsArchived = false,
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
-                    };
-                    await _unitOfWork.Seasons.AddAsync(currentSeason, cancellationToken);
-                    await _unitOfWork.SaveChangesAsync(cancellationToken);
-                    _logger.LogInformation("Created season {SeasonName}", currentSeason.Name);
-                }
 
                 // Create the gameweek
                 // Set deadline to the earliest fixture kickoff time for this gameweek
@@ -176,8 +175,7 @@ public class FixtureSyncService : IFixtureSyncService
 
                 gameweek = new Gameweek
                 {
-                    Id = Guid.NewGuid(),
-                    SeasonId = currentSeason.Id,
+                    SeasonId = currentSeason.Name,
                     WeekNumber = gameweekNumber,
                     Deadline = deadline,
                     IsLocked = false,
@@ -238,7 +236,8 @@ public class FixtureSyncService : IFixtureSyncService
                 {
                     Id = Guid.NewGuid(),
                     ExternalId = externalFixture.Id,
-                    GameweekId = gameweek.Id,
+                    SeasonId = gameweek.SeasonId,
+                    GameweekNumber = gameweek.WeekNumber,
                     HomeTeamId = homeTeam.Id,
                     AwayTeamId = awayTeam.Id,
                     HomeScore = externalFixture.Score?.FullTime?.Home,

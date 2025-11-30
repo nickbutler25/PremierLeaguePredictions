@@ -4,8 +4,8 @@ public class UserElimination
 {
     public Guid Id { get; set; }
     public Guid UserId { get; set; }
-    public Guid SeasonId { get; set; }
-    public Guid GameweekId { get; set; }
+    public string SeasonId { get; set; } = string.Empty;
+    public int GameweekNumber { get; set; }
     public int Position { get; set; } // Position in league when eliminated
     public int TotalPoints { get; set; } // Total points when eliminated
     public DateTime EliminatedAt { get; set; }

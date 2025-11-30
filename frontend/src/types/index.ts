@@ -3,7 +3,6 @@ export interface User {
   email: string;
   firstName: string;
   lastName: string;
-  phoneNumber?: string;
   photoUrl?: string;
   isActive: boolean;
   isAdmin: boolean;
@@ -22,7 +21,7 @@ export interface Season {
 }
 
 export interface Team {
-  id: string;
+  id: number;
   name: string;
   shortName?: string;
   code?: string;
@@ -33,7 +32,6 @@ export interface Team {
 }
 
 export interface Gameweek {
-  id: string;
   seasonId: string;
   weekNumber: number;
   deadline: string;
@@ -45,10 +43,10 @@ export interface Gameweek {
 
 export interface Fixture {
   id: string;
-  gameweekId: string;
+  seasonId: string;
   gameweekNumber: number;
-  homeTeamId: string;
-  awayTeamId: string;
+  homeTeamId: number;
+  awayTeamId: number;
   homeTeam?: Team;
   awayTeam?: Team;
   kickoffTime: string;
@@ -61,8 +59,9 @@ export interface Fixture {
 export interface Pick {
   id: string;
   userId: string;
-  gameweekId: string;
-  teamId: string;
+  seasonId: string;
+  gameweekNumber: number;
+  teamId: number;
   team?: Team;
   points: number;
   goalsFor: number;
@@ -71,14 +70,13 @@ export interface Pick {
   createdAt: string;
   updatedAt: string;
   gameweekName?: string;
-  gameweekNumber?: number;
 }
 
 export interface TeamSelection {
   id: string;
   userId: string;
   seasonId: string;
-  teamId: string;
+  teamId: number;
   team: Team;
   half: 1 | 2;
   gameweekNumber: number;
@@ -101,7 +99,7 @@ export interface PlayerStats {
 
 export interface DashboardData {
   user: UserStats;
-  currentGameweekId?: string;
+  currentGameweek?: Gameweek;
   recentPicks: Pick[];
   upcomingGameweeks: Gameweek[];
 }
@@ -143,8 +141,9 @@ export interface StandingEntry {
 }
 
 export interface PickSelection {
-  gameweekId: string;
-  teamId: string;
+  seasonId: string;
+  gameweekNumber: number;
+  teamId: number;
 }
 
 export interface AuthResponse {
@@ -160,7 +159,6 @@ export interface CreateUserRequest {
   email: string;
   firstName: string;
   lastName: string;
-  phoneNumber?: string;
   photoUrl?: string;
   googleId?: string;
 }

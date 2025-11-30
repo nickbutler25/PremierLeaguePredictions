@@ -5,7 +5,6 @@ export interface UserElimination {
   userId: string;
   userName: string;
   seasonId: string;
-  gameweekId: string;
   gameweekNumber: number;
   position: number;
   totalPoints: number;
@@ -31,27 +30,27 @@ export interface ProcessEliminationsResponse {
 export const eliminationService = {
   // Get all eliminations for a season
   async getSeasonEliminations(seasonId: string) {
-    const response = await apiClient.get<UserElimination[]>(`/api/admin/eliminations/season/${seasonId}`);
+    const response = await apiClient.get<UserElimination[]>(`/api/admin/eliminations/season/${encodeURIComponent(seasonId)}`);
     return response.data;
   },
 
   // Get eliminations for a specific gameweek
-  async getGameweekEliminations(gameweekId: string) {
-    const response = await apiClient.get<UserElimination[]>(`/api/admin/eliminations/gameweek/${gameweekId}`);
+  async getGameweekEliminations(seasonId: string, gameweekNumber: number) {
+    const response = await apiClient.get<UserElimination[]>(`/api/admin/eliminations/gameweek/${encodeURIComponent(seasonId)}/${gameweekNumber}`);
     return response.data;
   },
 
   // Get elimination configuration for all gameweeks in a season
   async getEliminationConfigs(seasonId: string) {
-    const response = await apiClient.get<EliminationConfig[]>(`/api/admin/eliminations/configs/${seasonId}`);
+    const response = await apiClient.get<EliminationConfig[]>(`/api/admin/eliminations/configs/${encodeURIComponent(seasonId)}`);
     return response.data;
   },
 
-  // Update elimination count for a specific gameweek
+  // Update elimination count for a specific gameweek (not currently used - bulk update is preferred)
   async updateGameweekEliminationCount(gameweekId: string, eliminationCount: number) {
-    await apiClient.put(`/api/admin/eliminations/gameweek/${gameweekId}/count`, {
-      eliminationCount,
-    });
+    // This would require a new backend endpoint that accepts gameweekId
+    // For now, this is not used - the page uses bulkUpdateEliminationCounts instead
+    throw new Error('Single gameweek update not implemented - use bulkUpdateEliminationCounts');
   },
 
   // Bulk update elimination counts for multiple gameweeks
@@ -62,9 +61,9 @@ export const eliminationService = {
   },
 
   // Process eliminations for a gameweek
-  async processGameweekEliminations(gameweekId: string) {
+  async processGameweekEliminations(seasonId: string, gameweekNumber: number) {
     const response = await apiClient.post<ProcessEliminationsResponse>(
-      `/api/admin/eliminations/process/${gameweekId}`
+      `/api/admin/eliminations/process/${encodeURIComponent(seasonId)}/${gameweekNumber}`
     );
     return response.data;
   },

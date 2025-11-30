@@ -2,8 +2,7 @@ namespace PremierLeaguePredictions.Application.DTOs;
 
 public class SeasonDto
 {
-    public Guid Id { get; set; }
-    public string Name { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty; // Primary identifier
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
     public bool IsActive { get; set; }
@@ -21,7 +20,7 @@ public class CreateSeasonRequest
 
 public class CreateSeasonResponse
 {
-    public Guid SeasonId { get; set; }
+    public string SeasonId { get; set; } = string.Empty; // Season Name
     public string Message { get; set; } = string.Empty;
     public int TeamsCreated { get; set; }
     public int TeamsActivated { get; set; }
@@ -48,7 +47,7 @@ public class SyncFixturesResponse
 
 public class TeamStatusDto
 {
-    public Guid Id { get; set; }
+    public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? ShortName { get; set; }
     public string? LogoUrl { get; set; }
