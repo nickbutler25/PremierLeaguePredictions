@@ -7,6 +7,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using FluentValidation;
+using AspNetCoreRateLimit;
 using PremierLeaguePredictions.API.Authorization;
 using PremierLeaguePredictions.API.Middleware;
 using PremierLeaguePredictions.Infrastructure.Data;
@@ -66,7 +67,7 @@ builder.Services.AddAuthentication(options =>
 .AddJwtBearer(options =>
 {
     options.SaveToken = true;
-    options.RequireHttpsMetadata = false; // Set to true in production
+    options.RequireHttpsMetadata = builder.Environment.IsProduction();
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true,
@@ -132,6 +133,12 @@ builder.Services.AddCors(options =>
               .AllowCredentials();
     });
 });
+
+// Configure Rate Limiting
+builder.Services.AddMemoryCache();
+builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
+builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
+builder.Services.AddInMemoryRateLimiting();
 
 // Register application services
 builder.Services.AddScoped<ITokenService, TokenService>();
@@ -248,6 +255,9 @@ app.UseSerilogRequestLogging();
 
 // Use CORS
 app.UseCors("AllowFrontend");
+
+// Use Rate Limiting
+app.UseIpRateLimiting();
 
 // Use Authentication & Authorization
 app.UseAuthentication();
