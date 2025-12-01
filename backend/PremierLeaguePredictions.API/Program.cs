@@ -152,6 +152,14 @@ builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection(
 builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
 builder.Services.AddInMemoryRateLimiting();
 
+// Configure Health Checks
+builder.Services.AddHealthChecks()
+    .AddNpgSql(
+        connectionString,
+        name: "database",
+        timeout: TimeSpan.FromSeconds(3),
+        tags: new[] { "db", "sql", "postgresql" });
+
 // Register application services
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddHttpClient<IGoogleAuthService, GoogleAuthService>();
@@ -281,40 +289,85 @@ app.MapControllers();
 // Map SignalR hub
 app.MapHub<PremierLeaguePredictions.API.Hubs.NotificationHub>("/hubs/notifications");
 
-// Apply migrations on startup (for production deployment)
-// Skip migrations for in-memory database (used in tests)
-using (var scope = app.Services.CreateScope())
+// Map Health Check Endpoints
+app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
 {
-    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-    try
+    ResponseWriter = async (context, report) =>
     {
-        // Check if we can access the provider name (fails for in-memory in test scenarios)
-        var providerName = dbContext.Database.ProviderName;
-        var isInMemory = providerName == "Microsoft.EntityFrameworkCore.InMemory";
-
-        if (!isInMemory)
+        context.Response.ContentType = "application/json";
+        var result = System.Text.Json.JsonSerializer.Serialize(new
         {
-            Log.Information("Applying database migrations...");
-            dbContext.Database.Migrate();
-            Log.Information("Database migrations applied successfully");
-        }
-        else
+            status = report.Status.ToString(),
+            checks = report.Entries.Select(e => new
+            {
+                name = e.Key,
+                status = e.Value.Status.ToString(),
+                description = e.Value.Description,
+                duration = e.Value.Duration.TotalMilliseconds
+            }),
+            totalDuration = report.TotalDuration.TotalMilliseconds
+        });
+        await context.Response.WriteAsync(result);
+    }
+});
+
+app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = _ => false // Always returns healthy for liveness probe
+});
+
+app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("db") // Check database connectivity for readiness
+});
+
+// Optional: Apply migrations on startup if environment variable is set
+// WARNING: This should only be used for:
+//   - Development environments
+//   - Single-instance deployments (e.g., Render.com free tier)
+// For multi-instance production deployments, run migrations as a separate deployment step.
+var runMigrationsOnStartup = builder.Configuration.GetValue<bool>("RunMigrationsOnStartup", false);
+
+if (runMigrationsOnStartup)
+{
+    Log.Warning("Running migrations on startup - this should only be enabled in development!");
+    using (var scope = app.Services.CreateScope())
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        try
         {
-            Log.Information("In-memory database detected, skipping migrations");
+            // Check if we can access the provider name (fails for in-memory in test scenarios)
+            var providerName = dbContext.Database.ProviderName;
+            var isInMemory = providerName == "Microsoft.EntityFrameworkCore.InMemory";
+
+            if (!isInMemory)
+            {
+                Log.Information("Applying database migrations...");
+                dbContext.Database.Migrate();
+                Log.Information("Database migrations applied successfully");
+            }
+            else
+            {
+                Log.Information("In-memory database detected, skipping migrations");
+            }
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("Only a single database provider"))
+        {
+            // This happens in test scenarios where both providers are registered
+            // In this case, skip migrations as we're using in-memory database for tests
+            Log.Information("Multiple database providers detected (test scenario), skipping migrations");
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "An error occurred while applying database migrations");
+            throw;
         }
     }
-    catch (InvalidOperationException ex) when (ex.Message.Contains("Only a single database provider"))
-    {
-        // This happens in test scenarios where both providers are registered
-        // In this case, skip migrations as we're using in-memory database for tests
-        Log.Information("Multiple database providers detected (test scenario), skipping migrations");
-    }
-    catch (Exception ex)
-    {
-        Log.Error(ex, "An error occurred while applying database migrations");
-        throw;
-    }
+}
+else
+{
+    Log.Information("Automatic migrations disabled. Migrations should be run as a separate deployment step.");
 }
 
 try

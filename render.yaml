@@ -10,6 +10,8 @@ services:
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
+      - key: RunMigrationsOnStartup
+        value: true
       - key: ConnectionStrings__DefaultConnection
         sync: false
       - key: JWT__Secret
