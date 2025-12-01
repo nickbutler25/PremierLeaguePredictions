@@ -1,9 +1,13 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Moq;
+using PremierLeaguePredictions.Core.Interfaces;
 using PremierLeaguePredictions.Infrastructure.Data;
+using PremierLeaguePredictions.Infrastructure.Services;
 
 namespace PremierLeaguePredictions.Tests;
 
@@ -21,6 +25,9 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        // Set environment to Testing to ensure authorization is NOT disabled
+        builder.UseEnvironment("Testing");
+
         builder.ConfigureServices(services =>
         {
             // Remove the existing DbContext registration
@@ -39,6 +46,20 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
                 options.ConfigureWarnings(warnings =>
                     warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
             });
+
+            // Mock IFixtureSyncService to avoid external API calls in tests
+            var fixtureSyncServiceDescriptor = services.SingleOrDefault(
+                d => d.ServiceType == typeof(IFixtureSyncService));
+            if (fixtureSyncServiceDescriptor != null)
+            {
+                services.Remove(fixtureSyncServiceDescriptor);
+            }
+            var mockFixtureSyncService = new Mock<IFixtureSyncService>();
+            mockFixtureSyncService.Setup(x => x.SyncTeamsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync((0, 0)); // Return (created, updated) tuple
+            mockFixtureSyncService.Setup(x => x.SyncFixturesAsync(It.IsAny<int?>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((0, 0, 0)); // Return (fixturesCreated, fixturesUpdated, gameweeksCreated) tuple
+            services.AddSingleton(mockFixtureSyncService.Object);
 
             // Build the service provider
             var sp = services.BuildServiceProvider();

@@ -204,6 +204,11 @@ export function SeasonManagementPage() {
 
   return (
     <div className="space-y-6">
+      {/* Page Header */}
+      <div>
+        <h1 className="text-3xl font-bold">Season Management</h1>
+        <p className="text-muted-foreground mt-2">Manage seasons, teams, and synchronize data</p>
+      </div>
 
       {/* Create New Season Section */}
       <Card>
@@ -303,17 +308,14 @@ export function SeasonManagementPage() {
               </div>
               <div className="rounded-lg bg-blue-50 dark:bg-blue-950 p-4 border border-blue-200 dark:border-blue-800">
                 <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
-                  What happens when you create a season:
+                  Steps after creating a season:
                 </p>
                 <ol className="text-sm text-blue-800 dark:text-blue-200 list-decimal list-inside space-y-1">
-                  <li>Season is created with the specified name and dates</li>
-                  <li>Teams are synced from the Football Data API</li>
-                  <li>Fixtures are synced for the new season</li>
+                  <li>Sync teams from the Football Data API (automatic)</li>
+                  <li>Mark relegated teams as inactive in Team Status section</li>
+                  <li>Sync fixtures for the new season (automatic)</li>
                   <li>Pick rules are created for both halves with your specified limits</li>
                 </ol>
-                <p className="text-sm text-blue-800 dark:text-blue-200 mt-2">
-                  After creation, mark relegated teams as inactive in the Team Status section below.
-                </p>
               </div>
             </div>
           )}

@@ -129,6 +129,12 @@ export default function EliminationManagementPage() {
 
   return (
     <div className="space-y-6">
+      {/* Page Header */}
+      <div>
+        <h1 className="text-3xl font-bold">Elimination Management</h1>
+        <p className="text-muted-foreground mt-2">Configure player eliminations for each gameweek</p>
+      </div>
+
       <div className="flex items-center justify-end">
         {Object.keys(eliminationCounts).length > 0 && (
           <Button
