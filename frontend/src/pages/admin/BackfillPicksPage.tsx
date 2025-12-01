@@ -115,7 +115,9 @@ export function BackfillPicksPage() {
     mutationFn: () => {
       const userId = selectedUserId || user?.id;
       if (!userId) throw new Error('No user selected');
-      const validPicks = picks.filter(p => p.teamId !== '');
+      const validPicks = picks
+        .filter(p => p.teamId !== '')
+        .map(p => ({ ...p, teamId: parseInt(p.teamId, 10) }));
       return adminService.backfillPicks(userId, validPicks);
     },
     onSuccess: (response) => {

@@ -3,7 +3,7 @@ import type { Team } from '@/types';
 // Mock Premier League teams for 2024/25 season
 export const mockTeams: Team[] = [
   {
-    id: 'team-001',
+    id: 1,
     name: 'Arsenal',
     shortName: 'ARS',
     code: 'ARS',
@@ -13,7 +13,7 @@ export const mockTeams: Team[] = [
     updatedAt: new Date().toISOString(),
   },
   {
-    id: 'team-002',
+    id: 2,
     name: 'Aston Villa',
     shortName: 'AVL',
     code: 'AVL',
@@ -23,7 +23,7 @@ export const mockTeams: Team[] = [
     updatedAt: new Date().toISOString(),
   },
   {
-    id: 'team-003',
+    id: 3,
     name: 'Bournemouth',
     shortName: 'BOU',
     code: 'BOU',
@@ -33,7 +33,7 @@ export const mockTeams: Team[] = [
     updatedAt: new Date().toISOString(),
   },
   {
-    id: 'team-004',
+    id: 4,
     name: 'Brentford',
     shortName: 'BRE',
     code: 'BRE',
@@ -43,7 +43,7 @@ export const mockTeams: Team[] = [
     updatedAt: new Date().toISOString(),
   },
   {
-    id: 'team-005',
+    id: 5,
     name: 'Brighton & Hove Albion',
     shortName: 'BHA',
     code: 'BHA',
@@ -53,7 +53,7 @@ export const mockTeams: Team[] = [
     updatedAt: new Date().toISOString(),
   },
   {
-    id: 'team-006',
+    id: 6,
     name: 'Chelsea',
     shortName: 'CHE',
     code: 'CHE',
@@ -63,7 +63,7 @@ export const mockTeams: Team[] = [
     updatedAt: new Date().toISOString(),
   },
   {
-    id: 'team-007',
+    id: 7,
     name: 'Crystal Palace',
     shortName: 'CRY',
     code: 'CRY',
@@ -73,7 +73,7 @@ export const mockTeams: Team[] = [
     updatedAt: new Date().toISOString(),
   },
   {
-    id: 'team-008',
+    id: 8,
     name: 'Everton',
     shortName: 'EVE',
     code: 'EVE',
@@ -83,7 +83,7 @@ export const mockTeams: Team[] = [
     updatedAt: new Date().toISOString(),
   },
   {
-    id: 'team-009',
+    id: 9,
     name: 'Fulham',
     shortName: 'FUL',
     code: 'FUL',
@@ -93,7 +93,7 @@ export const mockTeams: Team[] = [
     updatedAt: new Date().toISOString(),
   },
   {
-    id: 'team-010',
+    id: 10,
     name: 'Leeds United',
     shortName: 'LEE',
     code: 'LEE',
@@ -103,7 +103,7 @@ export const mockTeams: Team[] = [
     updatedAt: new Date().toISOString(),
   },
   {
-    id: 'team-011',
+    id: 11,
     name: 'Sunderland',
     shortName: 'SUN',
     code: 'SUN',
@@ -113,7 +113,7 @@ export const mockTeams: Team[] = [
     updatedAt: new Date().toISOString(),
   },
   {
-    id: 'team-012',
+    id: 12,
     name: 'Liverpool',
     shortName: 'LIV',
     code: 'LIV',
@@ -123,7 +123,7 @@ export const mockTeams: Team[] = [
     updatedAt: new Date().toISOString(),
   },
   {
-    id: 'team-013',
+    id: 13,
     name: 'Manchester City',
     shortName: 'MCI',
     code: 'MCI',
@@ -133,7 +133,7 @@ export const mockTeams: Team[] = [
     updatedAt: new Date().toISOString(),
   },
   {
-    id: 'team-014',
+    id: 14,
     name: 'Manchester United',
     shortName: 'MUN',
     code: 'MUN',
@@ -143,7 +143,7 @@ export const mockTeams: Team[] = [
     updatedAt: new Date().toISOString(),
   },
   {
-    id: 'team-015',
+    id: 15,
     name: 'Newcastle United',
     shortName: 'NEW',
     code: 'NEW',
@@ -153,7 +153,7 @@ export const mockTeams: Team[] = [
     updatedAt: new Date().toISOString(),
   },
   {
-    id: 'team-016',
+    id: 16,
     name: 'Nottingham Forest',
     shortName: 'NFO',
     code: 'NFO',
@@ -163,7 +163,7 @@ export const mockTeams: Team[] = [
     updatedAt: new Date().toISOString(),
   },
   {
-    id: 'team-017',
+    id: 17,
     name: 'Burnley',
     shortName: 'BUR',
     code: 'BUR',
@@ -173,7 +173,7 @@ export const mockTeams: Team[] = [
     updatedAt: new Date().toISOString(),
   },
   {
-    id: 'team-018',
+    id: 18,
     name: 'Tottenham Hotspur',
     shortName: 'TOT',
     code: 'TOT',
@@ -183,7 +183,7 @@ export const mockTeams: Team[] = [
     updatedAt: new Date().toISOString(),
   },
   {
-    id: 'team-019',
+    id: 19,
     name: 'West Ham United',
     shortName: 'WHU',
     code: 'WHU',
@@ -193,7 +193,7 @@ export const mockTeams: Team[] = [
     updatedAt: new Date().toISOString(),
   },
   {
-    id: 'team-020',
+    id: 20,
     name: 'Wolverhampton Wanderers',
     shortName: 'WOL',
     code: 'WOL',

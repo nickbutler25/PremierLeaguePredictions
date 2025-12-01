@@ -206,7 +206,7 @@ describe('PendingApprovalPage - No Active Season', () => {
     });
 
     expect(screen.getByText(mockUser.email)).toBeInTheDocument();
-    expect(screen.getByText((content, element) => {
+    expect(screen.getByText((_content, element) => {
       return element?.textContent === `Season: ${mockSeason.name}`;
     })).toBeInTheDocument();
   });

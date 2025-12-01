@@ -95,7 +95,7 @@ export function SeasonManagementPage() {
   });
 
   const updateTeamStatusMutation = useMutation({
-    mutationFn: ({ teamId, isActive }: { teamId: string; isActive: boolean }) =>
+    mutationFn: ({ teamId, isActive }: { teamId: number; isActive: boolean }) =>
       adminService.updateTeamStatus(teamId, isActive),
     onSuccess: () => {
       toast({
@@ -381,8 +381,8 @@ export function SeasonManagementPage() {
                   {syncTeamsMutation.isPending
                     ? 'Syncing Teams...'
                     : syncFixturesMutation.isPending
-                    ? 'Syncing Fixtures...'
-                    : 'Syncing Results...'}
+                      ? 'Syncing Fixtures...'
+                      : 'Syncing Results...'}
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
                   This may take a few moments. Please wait...

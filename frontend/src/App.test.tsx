@@ -17,12 +17,8 @@ vi.mock('@/services/seasonParticipation', () => ({
   },
 }));
 
-// Extract the ApprovalCheckRoute logic for testing
-function ApprovalCheckRoute({ children }: { children: React.ReactNode }) {
-  // This is a simplified version - in real tests you'd import from App.tsx
-  // For now, we'll test the behavior through integration tests
-  return <>{children}</>;
-}
+// Note: ApprovalCheckRoute logic is tested through integration tests
+// The actual component is defined in App.tsx
 
 describe('ApprovalCheckRoute - No Active Season', () => {
   const mockUser = createMockUser();
@@ -42,7 +38,7 @@ describe('ApprovalCheckRoute - No Active Season', () => {
       isActive: true,
       isArchived: false,
       createdAt: '2025-01-01',
-      updatedAt: '2025-01-01',
+
     });
 
     vi.mocked(seasonParticipationService.checkParticipation).mockResolvedValue(false);
@@ -67,7 +63,6 @@ describe('ApprovalCheckRoute - No Active Season', () => {
       isActive: true,
       isArchived: false,
       createdAt: '2025-01-01',
-      updatedAt: '2025-01-01',
     });
 
     vi.mocked(seasonParticipationService.checkParticipation).mockResolvedValue(true);
@@ -124,7 +119,6 @@ describe('useSeasonApproval Hook', () => {
       isActive: true,
       isArchived: false,
       createdAt: '2025-01-01',
-      updatedAt: '2025-01-01',
     });
 
     vi.mocked(seasonParticipationService.checkParticipation).mockResolvedValue(false);
@@ -143,7 +137,6 @@ describe('useSeasonApproval Hook', () => {
       isActive: true,
       isArchived: false,
       createdAt: '2025-01-01',
-      updatedAt: '2025-01-01',
     });
 
     vi.mocked(seasonParticipationService.checkParticipation).mockResolvedValue(true);

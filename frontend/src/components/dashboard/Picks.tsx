@@ -200,8 +200,9 @@ export function Picks() {
     const firstHalfRule = pickRules.firstHalf;
     const secondHalfRule = pickRules.secondHalf;
 
-    if (firstHalfRule?.maxTimesTeamCanBePicked === secondHalfRule?.maxTimesTeamCanBePicked &&
-        firstHalfRule?.maxTimesOppositionCanBeTargeted === secondHalfRule?.maxTimesOppositionCanBeTargeted) {
+    if (firstHalfRule && secondHalfRule &&
+      firstHalfRule.maxTimesTeamCanBePicked === secondHalfRule.maxTimesTeamCanBePicked &&
+      firstHalfRule.maxTimesOppositionCanBeTargeted === secondHalfRule.maxTimesOppositionCanBeTargeted) {
       return `Each team can be picked ${firstHalfRule.maxTimesTeamCanBePicked} time${firstHalfRule.maxTimesTeamCanBePicked > 1 ? 's' : ''} per half`;
     }
 
@@ -253,12 +254,12 @@ export function Picks() {
                       {pick ? (
                         <div className="flex items-center justify-between gap-2">
                           <div className={`flex items-center gap-2 ${pick.points === 3
-                              ? 'text-green-600 dark:text-green-400'
-                              : pick.points === 1
-                                ? 'text-yellow-600 dark:text-yellow-400'
-                                : pick.points === 0 && deadlinePassed
-                                  ? 'text-red-600 dark:text-red-400'
-                                  : ''
+                            ? 'text-green-600 dark:text-green-400'
+                            : pick.points === 1
+                              ? 'text-yellow-600 dark:text-yellow-400'
+                              : pick.points === 0 && deadlinePassed
+                                ? 'text-red-600 dark:text-red-400'
+                                : ''
                             }`}>
                             {pick.team?.logoUrl && (
                               <img

@@ -47,7 +47,7 @@ export const eliminationService = {
   },
 
   // Update elimination count for a specific gameweek (not currently used - bulk update is preferred)
-  async updateGameweekEliminationCount(gameweekId: string, eliminationCount: number) {
+  async updateGameweekEliminationCount(_gameweekId: string, _eliminationCount: number) {
     // This would require a new backend endpoint that accepts gameweekId
     // For now, this is not used - the page uses bulkUpdateEliminationCounts instead
     throw new Error('Single gameweek update not implemented - use bulkUpdateEliminationCounts');

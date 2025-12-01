@@ -22,16 +22,20 @@ describe('DashboardPage - No Active Season', () => {
   it('should show "No Active Season" message when there are no gameweeks', async () => {
     // Arrange - Mock empty dashboard response (no gameweeks)
     vi.mocked(dashboardService.getDashboard).mockResolvedValue({
-      currentGameweek: null,
-      upcomingGameweeks: [],
-      userPicks: [],
-      fixtures: [],
-      leagueStandings: [],
-      userStats: {
+      user: {
+        id: mockUser.id,
+        firstName: mockUser.firstName,
+        lastName: mockUser.lastName,
+        email: mockUser.email,
         totalPoints: 0,
-        rank: 0,
-        gamesPlayed: 0,
+        totalPicks: 0,
+        totalWins: 0,
+        totalDraws: 0,
+        totalLosses: 0,
       },
+      currentGameweek: undefined,
+      upcomingGameweeks: [],
+      recentPicks: [],
     });
 
     // Act
@@ -51,16 +55,20 @@ describe('DashboardPage - No Active Season', () => {
     // Arrange - Mock admin user
     const adminUser = createMockUser({ isAdmin: true });
     vi.mocked(dashboardService.getDashboard).mockResolvedValue({
-      currentGameweek: null,
-      upcomingGameweeks: [],
-      userPicks: [],
-      fixtures: [],
-      leagueStandings: [],
-      userStats: {
+      user: {
+        id: adminUser.id,
+        firstName: adminUser.firstName,
+        lastName: adminUser.lastName,
+        email: adminUser.email,
         totalPoints: 0,
-        rank: 0,
-        gamesPlayed: 0,
+        totalPicks: 0,
+        totalWins: 0,
+        totalDraws: 0,
+        totalLosses: 0,
       },
+      currentGameweek: undefined,
+      upcomingGameweeks: [],
+      recentPicks: [],
     });
 
     // Act
@@ -84,16 +92,20 @@ describe('DashboardPage - No Active Season', () => {
     // Arrange - Mock regular user
     const regularUser = createMockUser({ isAdmin: false });
     vi.mocked(dashboardService.getDashboard).mockResolvedValue({
-      currentGameweek: null,
-      upcomingGameweeks: [],
-      userPicks: [],
-      fixtures: [],
-      leagueStandings: [],
-      userStats: {
+      user: {
+        id: regularUser.id,
+        firstName: regularUser.firstName,
+        lastName: regularUser.lastName,
+        email: regularUser.email,
         totalPoints: 0,
-        rank: 0,
-        gamesPlayed: 0,
+        totalPicks: 0,
+        totalWins: 0,
+        totalDraws: 0,
+        totalLosses: 0,
       },
+      currentGameweek: undefined,
+      upcomingGameweeks: [],
+      recentPicks: [],
     });
 
     // Act
@@ -118,16 +130,20 @@ describe('DashboardPage - No Active Season', () => {
           setTimeout(
             () =>
               resolve({
-                currentGameweek: null,
-                upcomingGameweeks: [],
-                userPicks: [],
-                fixtures: [],
-                leagueStandings: [],
-                userStats: {
+                user: {
+                  id: mockUser.id,
+                  firstName: mockUser.firstName,
+                  lastName: mockUser.lastName,
+                  email: mockUser.email,
                   totalPoints: 0,
-                  rank: 0,
-                  gamesPlayed: 0,
+                  totalPicks: 0,
+                  totalWins: 0,
+                  totalDraws: 0,
+                  totalLosses: 0,
                 },
+                currentGameweek: undefined,
+                upcomingGameweeks: [],
+                recentPicks: [],
               }),
             100
           );
@@ -161,16 +177,20 @@ describe('DashboardPage - No Active Season', () => {
     };
 
     vi.mocked(dashboardService.getDashboard).mockResolvedValue({
+      user: {
+        id: mockUser.id,
+        firstName: mockUser.firstName,
+        lastName: mockUser.lastName,
+        email: mockUser.email,
+        totalPoints: 0,
+        totalPicks: 0,
+        totalWins: 0,
+        totalDraws: 0,
+        totalLosses: 0,
+      },
       currentGameweek: mockGameweek,
       upcomingGameweeks: [mockGameweek],
-      userPicks: [],
-      fixtures: [],
-      leagueStandings: [],
-      userStats: {
-        totalPoints: 0,
-        rank: 1,
-        gamesPlayed: 0,
-      },
+      recentPicks: [],
     });
 
     // Act
@@ -190,16 +210,20 @@ describe('DashboardPage - No Active Season', () => {
     const userId = 'specific-user-id';
     const userWithId = createMockUser({ id: userId });
     vi.mocked(dashboardService.getDashboard).mockResolvedValue({
-      currentGameweek: null,
-      upcomingGameweeks: [],
-      userPicks: [],
-      fixtures: [],
-      leagueStandings: [],
-      userStats: {
+      user: {
+        id: userWithId.id,
+        firstName: userWithId.firstName,
+        lastName: userWithId.lastName,
+        email: userWithId.email,
         totalPoints: 0,
-        rank: 0,
-        gamesPlayed: 0,
+        totalPicks: 0,
+        totalWins: 0,
+        totalDraws: 0,
+        totalLosses: 0,
       },
+      currentGameweek: undefined,
+      upcomingGameweeks: [],
+      recentPicks: [],
     });
 
     // Act
@@ -214,16 +238,20 @@ describe('DashboardPage - No Active Season', () => {
   it('should not call getDashboard when user is not authenticated', () => {
     // Arrange - No user provided
     vi.mocked(dashboardService.getDashboard).mockResolvedValue({
-      currentGameweek: null,
-      upcomingGameweeks: [],
-      userPicks: [],
-      fixtures: [],
-      leagueStandings: [],
-      userStats: {
+      user: {
+        id: '',
+        firstName: '',
+        lastName: '',
+        email: '',
         totalPoints: 0,
-        rank: 0,
-        gamesPlayed: 0,
+        totalPicks: 0,
+        totalWins: 0,
+        totalDraws: 0,
+        totalLosses: 0,
       },
+      currentGameweek: undefined,
+      upcomingGameweeks: [],
+      recentPicks: [],
     });
 
     // Act
