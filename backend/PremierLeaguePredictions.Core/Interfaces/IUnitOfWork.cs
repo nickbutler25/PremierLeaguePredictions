@@ -15,6 +15,7 @@ public interface IUnitOfWork : IDisposable
     IRepository<AdminAction> AdminActions { get; }
     IRepository<SeasonParticipation> SeasonParticipations { get; }
     IRepository<UserElimination> UserEliminations { get; }
+    IRepository<PickRule> PickRules { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task BeginTransactionAsync(CancellationToken cancellationToken = default);

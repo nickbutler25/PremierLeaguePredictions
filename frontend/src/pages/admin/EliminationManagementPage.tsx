@@ -128,12 +128,8 @@ export default function EliminationManagementPage() {
   }, {} as Record<number, number>);
 
   return (
-    <div className="container mx-auto py-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Elimination Management</h1>
-          <p className="text-muted-foreground">Configure player eliminations for each gameweek</p>
-        </div>
+    <div className="space-y-6">
+      <div className="flex items-center justify-end">
         {Object.keys(eliminationCounts).length > 0 && (
           <Button
             onClick={handleBulkSave}

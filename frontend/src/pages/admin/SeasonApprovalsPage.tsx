@@ -43,6 +43,10 @@ export function SeasonApprovalsPage() {
       seasonParticipationService.approveParticipation(participationId, isApproved),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['season-approvals'] });
+      queryClient.invalidateQueries({ queryKey: ['active-season'] });
+      queryClient.invalidateQueries({ queryKey: ['season-approval'] });
+      queryClient.invalidateQueries({ queryKey: ['participation'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast({
         title: variables.isApproved ? 'Approved' : 'Rejected',
         description: `User participation has been ${variables.isApproved ? 'approved' : 'rejected'}.`,
@@ -82,7 +86,7 @@ export function SeasonApprovalsPage() {
   const activeSeason = seasons.find(s => s.isActive);
 
   return (
-    <div className="container mx-auto py-8">
+    <div>
       <Card>
         <CardHeader>
           <CardTitle>Season Participation Approvals</CardTitle>

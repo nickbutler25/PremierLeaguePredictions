@@ -33,6 +33,33 @@ export interface TeamStatus {
   isActive: boolean;
 }
 
+export interface PickRuleDto {
+  id: string;
+  seasonId: string;
+  half: number;
+  maxTimesTeamCanBePicked: number;
+  maxTimesOppositionCanBeTargeted: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePickRuleRequest {
+  seasonId: string;
+  half: number;
+  maxTimesTeamCanBePicked: number;
+  maxTimesOppositionCanBeTargeted: number;
+}
+
+export interface UpdatePickRuleRequest {
+  maxTimesTeamCanBePicked: number;
+  maxTimesOppositionCanBeTargeted: number;
+}
+
+export interface PickRulesResponse {
+  firstHalf: PickRuleDto | null;
+  secondHalf: PickRuleDto | null;
+}
+
 export const adminService = {
   // Season management
   async getSeasons() {
@@ -103,6 +130,31 @@ export const adminService = {
       userId,
       picks,
     });
+    return response.data;
+  },
+
+  // Pick rules management
+  async getPickRules(seasonId: string) {
+    const response = await apiClient.get<PickRulesResponse>(`/api/admin/pick-rules/${encodeURIComponent(seasonId)}`);
+    return response.data;
+  },
+
+  async createPickRule(request: CreatePickRuleRequest) {
+    const response = await apiClient.post<PickRuleDto>('/api/admin/pick-rules', request);
+    return response.data;
+  },
+
+  async updatePickRule(id: string, request: UpdatePickRuleRequest) {
+    const response = await apiClient.put<PickRuleDto>(`/api/admin/pick-rules/${id}`, request);
+    return response.data;
+  },
+
+  async deletePickRule(id: string) {
+    await apiClient.delete(`/api/admin/pick-rules/${id}`);
+  },
+
+  async initializeDefaultPickRules(seasonId: string) {
+    const response = await apiClient.post<PickRulesResponse>(`/api/admin/pick-rules/${encodeURIComponent(seasonId)}/initialize`);
     return response.data;
   },
 };

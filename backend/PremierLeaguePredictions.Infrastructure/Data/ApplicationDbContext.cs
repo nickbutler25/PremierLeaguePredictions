@@ -21,6 +21,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<AdminAction> AdminActions { get; set; }
     public DbSet<SeasonParticipation> SeasonParticipations { get; set; }
     public DbSet<UserElimination> UserEliminations { get; set; }
+    public DbSet<PickRule> PickRules { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -324,6 +325,27 @@ public class ApplicationDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasIndex(e => new { e.UserId, e.SeasonId }).IsUnique();
+        });
+
+        // PickRule configuration
+        modelBuilder.Entity<PickRule>(entity =>
+        {
+            entity.ToTable("pick_rules");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id").HasDefaultValueSql("uuid_generate_v4()");
+            entity.Property(e => e.SeasonId).HasColumnName("season_id").HasMaxLength(100).IsRequired();
+            entity.Property(e => e.Half).HasColumnName("half").IsRequired();
+            entity.Property(e => e.MaxTimesTeamCanBePicked).HasColumnName("max_times_team_can_be_picked").HasDefaultValue(1);
+            entity.Property(e => e.MaxTimesOppositionCanBeTargeted).HasColumnName("max_times_opposition_can_be_targeted").HasDefaultValue(1);
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            entity.HasOne(e => e.Season)
+                .WithMany(s => s.PickRules)
+                .HasForeignKey(e => e.SeasonId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.SeasonId, e.Half }).IsUnique();
         });
     }
 }

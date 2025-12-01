@@ -17,6 +17,7 @@ public class AdminController : ControllerBase
     private readonly IEliminationService _eliminationService;
     private readonly IAutoPickService _autoPickService;
     private readonly IPickReminderService _pickReminderService;
+    private readonly IPickRuleService _pickRuleService;
     private readonly ILogger<AdminController> _logger;
 
     public AdminController(
@@ -26,6 +27,7 @@ public class AdminController : ControllerBase
         IEliminationService eliminationService,
         IAutoPickService autoPickService,
         IPickReminderService pickReminderService,
+        IPickRuleService pickRuleService,
         ILogger<AdminController> logger)
     {
         _adminService = adminService;
@@ -34,6 +36,7 @@ public class AdminController : ControllerBase
         _eliminationService = eliminationService;
         _autoPickService = autoPickService;
         _pickReminderService = pickReminderService;
+        _pickRuleService = pickRuleService;
         _logger = logger;
     }
 
@@ -315,6 +318,46 @@ public class AdminController : ControllerBase
             _logger.LogError(ex, "Failed to send pick reminders");
             return StatusCode(500, new { message = "Failed to send pick reminders", error = ex.Message });
         }
+    }
+
+    // Pick Rules endpoints
+    [HttpGet("pick-rules/{seasonId}")]
+    public async Task<ActionResult<PickRulesResponse>> GetPickRules(string seasonId)
+    {
+        var decodedSeasonId = Uri.UnescapeDataString(seasonId);
+        var rules = await _pickRuleService.GetPickRulesForSeasonAsync(decodedSeasonId);
+        return Ok(rules);
+    }
+
+    [HttpPost("pick-rules")]
+    [ServiceFilter(typeof(Filters.ValidationFilter<CreatePickRuleRequest>))]
+    public async Task<ActionResult<PickRuleDto>> CreatePickRule([FromBody] CreatePickRuleRequest request)
+    {
+        var rule = await _pickRuleService.CreatePickRuleAsync(request);
+        return CreatedAtAction(nameof(GetPickRules), new { seasonId = rule.SeasonId }, rule);
+    }
+
+    [HttpPut("pick-rules/{id}")]
+    [ServiceFilter(typeof(Filters.ValidationFilter<UpdatePickRuleRequest>))]
+    public async Task<ActionResult<PickRuleDto>> UpdatePickRule(Guid id, [FromBody] UpdatePickRuleRequest request)
+    {
+        var rule = await _pickRuleService.UpdatePickRuleAsync(id, request);
+        return Ok(rule);
+    }
+
+    [HttpDelete("pick-rules/{id}")]
+    public async Task<IActionResult> DeletePickRule(Guid id)
+    {
+        await _pickRuleService.DeletePickRuleAsync(id);
+        return NoContent();
+    }
+
+    [HttpPost("pick-rules/{seasonId}/initialize")]
+    public async Task<ActionResult<PickRulesResponse>> InitializeDefaultPickRules(string seasonId)
+    {
+        var decodedSeasonId = Uri.UnescapeDataString(seasonId);
+        var rules = await _pickRuleService.InitializeDefaultPickRulesAsync(decodedSeasonId);
+        return Ok(rules);
     }
 }
 

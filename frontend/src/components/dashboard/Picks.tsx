@@ -5,6 +5,7 @@ import { dashboardService } from '@/services/dashboard';
 import { gameweeksService } from '@/services/gameweeks';
 import { leagueService } from '@/services/league';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSeasonApproval } from '@/hooks/useSeasonApproval';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -21,6 +22,7 @@ export function Picks() {
   const queryClient = useQueryClient();
   const [selectedGameweek, setSelectedGameweek] = useState<number | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const { activeSeason } = useSeasonApproval();
 
   // Fetch data
   const { data: picks = [], isLoading: picksLoading } = useQuery({
@@ -43,6 +45,13 @@ export function Picks() {
   const { data: allGameweeks = [] } = useQuery({
     queryKey: ['gameweeks'],
     queryFn: () => gameweeksService.getAllGameweeks(),
+  });
+
+  // Fetch pick rules for the active season
+  const { data: pickRules } = useQuery({
+    queryKey: ['pick-rules', activeSeason?.name],
+    queryFn: () => gameweeksService.getPickRules(activeSeason?.name || ''),
+    enabled: !!activeSeason?.name,
   });
 
   // Check if user is eliminated
@@ -72,6 +81,11 @@ export function Picks() {
       queryClient.invalidateQueries({ queryKey: ['dashboard', user?.id] });
       setSelectedGameweek(null);
     },
+    onError: (error: any) => {
+      // Display error message from the backend validation
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to create pick';
+      alert(errorMessage); // You might want to use a toast notification instead
+    },
   });
 
   // Delete pick mutation
@@ -98,7 +112,6 @@ export function Picks() {
   }
 
   const currentGameweek = dashboard?.upcomingGameweeks?.[0]?.weekNumber || 1;
-  const currentSeasonId = dashboard?.upcomingGameweeks?.[0]?.seasonId || '2024/2025'; // Fallback or fetch from somewhere
 
   // Create a map of week numbers to gameweek IDs and deadlines
   const gameweekIdsByNumber = new Map<number, string>();
@@ -116,27 +129,49 @@ export function Picks() {
     }
   });
 
+  // Get pick rules for the current half
+  const getPickRulesForHalf = (gameweekNumber: number) => {
+    const half = gameweekNumber <= 19 ? 1 : 2;
+    return half === 1 ? pickRules?.firstHalf : pickRules?.secondHalf;
+  };
+
   // Determine which teams have been used in each half
-  const getUsedTeamsForHalf = (gameweekNumber: number): Set<number> => {
-    const usedTeams = new Set<number>();
-    const isFirstHalf = gameweekNumber <= 20;
-    const startGw = isFirstHalf ? 1 : 21;
-    const endGw = isFirstHalf ? 20 : 38;
+  const getUsedTeamsForHalf = (gameweekNumber: number): Map<number, number> => {
+    const usedTeamsCount = new Map<number, number>();
+    const half = gameweekNumber <= 19 ? 1 : 2;
+    const startGw = half === 1 ? 1 : 20;
+    const endGw = half === 1 ? 19 : 38;
 
     for (let gw = startGw; gw <= endGw; gw++) {
       const pick = picksByGameweek.get(gw);
       if (pick) {
-        usedTeams.add(pick.teamId);
+        const count = usedTeamsCount.get(pick.teamId) || 0;
+        usedTeamsCount.set(pick.teamId, count + 1);
       }
     }
 
-    return usedTeams;
+    return usedTeamsCount;
   };
 
   // Get available teams for a specific gameweek
   const getAvailableTeams = (gameweekNumber: number) => {
-    const usedTeams = getUsedTeamsForHalf(gameweekNumber);
-    return teams.filter((team) => !usedTeams.has(team.id));
+    const usedTeamsCount = getUsedTeamsForHalf(gameweekNumber);
+    const rules = getPickRulesForHalf(gameweekNumber);
+
+    let availableTeams;
+    if (!rules) {
+      // No rules configured, fall back to "each team once per half"
+      availableTeams = teams.filter((team) => !usedTeamsCount.has(team.id));
+    } else {
+      // Filter teams based on how many times they've been picked
+      availableTeams = teams.filter((team) => {
+        const timesUsed = usedTeamsCount.get(team.id) || 0;
+        return timesUsed < rules.maxTimesTeamCanBePicked;
+      });
+    }
+
+    // Sort teams alphabetically by name
+    return availableTeams.sort((a, b) => a.name.localeCompare(b.name));
   };
 
   const handleTeamSelect = (gameweekNumber: number, teamIdStr: string) => {
@@ -147,11 +182,8 @@ export function Picks() {
     }
 
     setSelectedGameweek(null); // Close dropdown immediately
-    // Assuming currentSeasonId is available or derived. 
-    // If not, we might need to find the seasonId for the gameweek.
-    // For now, let's try to find it from allGameweeks
     const gameweek = allGameweeks.find((gw: any) => gw.weekNumber === gameweekNumber);
-    const seasonId = gameweek?.seasonId || '2024/2025'; // Fallback
+    const seasonId = gameweek?.seasonId || activeSeason?.name || '2024/2025';
 
     createPickMutation.mutate({ gameweekNumber, teamId, seasonId });
   };
@@ -159,12 +191,29 @@ export function Picks() {
   // Generate all 38 gameweeks
   const gameweeks = Array.from({ length: 38 }, (_, i) => i + 1);
 
+  // Get rule description
+  const getRuleDescription = () => {
+    if (!pickRules?.firstHalf && !pickRules?.secondHalf) {
+      return 'Pick rules not configured - please contact an administrator';
+    }
+
+    const firstHalfRule = pickRules.firstHalf;
+    const secondHalfRule = pickRules.secondHalf;
+
+    if (firstHalfRule?.maxTimesTeamCanBePicked === secondHalfRule?.maxTimesTeamCanBePicked &&
+        firstHalfRule?.maxTimesOppositionCanBeTargeted === secondHalfRule?.maxTimesOppositionCanBeTargeted) {
+      return `Each team can be picked ${firstHalfRule.maxTimesTeamCanBePicked} time${firstHalfRule.maxTimesTeamCanBePicked > 1 ? 's' : ''} per half`;
+    }
+
+    return `First half: teams ${firstHalfRule?.maxTimesTeamCanBePicked}x | Second half: teams ${secondHalfRule?.maxTimesTeamCanBePicked}x`;
+  };
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Your Picks</CardTitle>
         <CardDescription>
-          Select one team per gameweek - Each team can only be picked once per half
+          {getRuleDescription()}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -182,7 +231,7 @@ export function Picks() {
                 const pick = picksByGameweek.get(gw);
                 const deadline = gameweekDeadlinesByNumber.get(gw);
                 const deadlinePassed = deadline ? new Date(deadline) < currentTime : false;
-                const isSecondHalfLocked = gw > 20 && currentGameweek <= 20; // Lock second half during first half
+                const isSecondHalfLocked = gw > 19 && currentGameweek <= 19; // Lock second half during first half
                 const canEdit = !deadlinePassed && !isSecondHalfLocked && !isEliminated;
                 const canRemove = canEdit && pick; // Can remove if editable and has a pick
                 const canSelect = canEdit && !pick; // Can select if editable and no pick
@@ -298,8 +347,24 @@ export function Picks() {
         <div className="mt-4 text-xs text-muted-foreground space-y-1">
           <p>• Current gameweek highlighted in blue</p>
           <p>• Picks cannot be changed after the gameweek deadline passes 🔒</p>
-          <p>• Teams reset at gameweek 21 (start of second half)</p>
-          <p>• Second half picks locked until gameweek 21</p>
+          {currentGameweek <= 19 ? (
+            // First half - only show first half rules
+            pickRules?.firstHalf && (
+              <>
+                <p>• First half (GW 1-19): Each team can be picked up to {pickRules.firstHalf.maxTimesTeamCanBePicked} time{pickRules.firstHalf.maxTimesTeamCanBePicked > 1 ? 's' : ''}</p>
+                <p>• First half (GW 1-19): Each opposition can be targeted up to {pickRules.firstHalf.maxTimesOppositionCanBeTargeted} time{pickRules.firstHalf.maxTimesOppositionCanBeTargeted > 1 ? 's' : ''}</p>
+                <p>• Second half picks locked until gameweek 20</p>
+              </>
+            )
+          ) : (
+            // Second half - only show second half rules
+            pickRules?.secondHalf && (
+              <>
+                <p>• Second half (GW 20-38): Each team can be picked up to {pickRules.secondHalf.maxTimesTeamCanBePicked} time{pickRules.secondHalf.maxTimesTeamCanBePicked > 1 ? 's' : ''}</p>
+                <p>• Second half (GW 20-38): Each opposition can be targeted up to {pickRules.secondHalf.maxTimesOppositionCanBeTargeted} time{pickRules.secondHalf.maxTimesOppositionCanBeTargeted > 1 ? 's' : ''}</p>
+              </>
+            )
+          )}
           {isEliminated && <p className="text-red-600 dark:text-red-400">• You have been eliminated and cannot make new picks 🚫</p>}
         </div>
       </CardContent>

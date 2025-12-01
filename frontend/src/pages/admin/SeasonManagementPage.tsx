@@ -4,11 +4,14 @@ import { adminService, type TeamStatus } from '@/services/admin';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 
 export function SeasonManagementPage() {
   const [isCreatingseason, setIsCreatingSeason] = useState(false);
   const [selectedSeasonName, setSelectedSeasonName] = useState('');
+  const [maxTeamPicks, setMaxTeamPicks] = useState(1);
+  const [maxOppositionTargets, setMaxOppositionTargets] = useState(1);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -37,16 +40,50 @@ export function SeasonManagementPage() {
 
   const createSeasonMutation = useMutation({
     mutationFn: adminService.createSeason,
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       toast({
         title: 'Season Created Successfully',
         description: `Teams Created: ${response.teamsCreated}, Deactivated: ${response.teamsDeactivated}, Fixtures: ${response.fixturesCreated}`,
         duration: 7000,
       });
+
+      // Create pick rules for first half
+      try {
+        await adminService.createPickRule({
+          seasonId: response.seasonId,
+          half: 1,
+          maxTimesTeamCanBePicked: maxTeamPicks,
+          maxTimesOppositionCanBeTargeted: maxOppositionTargets,
+        });
+
+        // Create pick rules for second half (same as first half by default)
+        await adminService.createPickRule({
+          seasonId: response.seasonId,
+          half: 2,
+          maxTimesTeamCanBePicked: maxTeamPicks,
+          maxTimesOppositionCanBeTargeted: maxOppositionTargets,
+        });
+
+        toast({
+          title: 'Pick Rules Created',
+          description: `Pick rules set: Teams ${maxTeamPicks}x, Opposition ${maxOppositionTargets}x per half`,
+        });
+      } catch (error: any) {
+        toast({
+          title: 'Warning',
+          description: 'Season created but pick rules failed: ' + (error.response?.data?.message || error.message),
+          variant: 'destructive',
+        });
+      }
+
       queryClient.invalidateQueries({ queryKey: ['admin', 'seasons'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'teams'] });
+      queryClient.invalidateQueries({ queryKey: ['active-season'] });
+      queryClient.invalidateQueries({ queryKey: ['season-approval'] });
       setIsCreatingSeason(false);
       setSelectedSeasonName('');
+      setMaxTeamPicks(1);
+      setMaxOppositionTargets(1);
     },
     onError: (error: any) => {
       toast({
@@ -166,12 +203,7 @@ export function SeasonManagementPage() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Season Management</h1>
-      </div>
-
-      <div className="space-y-6">
+    <div className="space-y-6">
 
       {/* Create New Season Section */}
       <Card>
@@ -212,6 +244,44 @@ export function SeasonManagementPage() {
                   ))}
                 </select>
               </div>
+
+              <div className="border-t pt-4 space-y-4">
+                <h3 className="font-medium">Pick Rules (First Half)</h3>
+                <p className="text-sm text-muted-foreground">
+                  These rules will apply to both halves of the season. You can modify the second half rules later if needed.
+                </p>
+
+                <div className="space-y-2">
+                  <Label htmlFor="maxTeamPicks">Max times a team can be picked per half</Label>
+                  <Input
+                    id="maxTeamPicks"
+                    type="number"
+                    min="1"
+                    max="19"
+                    value={maxTeamPicks}
+                    onChange={(e) => setMaxTeamPicks(parseInt(e.target.value) || 1)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Range: 1-19 (1 = each team once per half, 19 = allows picking every week)
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="maxOppositionTargets">Max times an opposition can be targeted per half</Label>
+                  <Input
+                    id="maxOppositionTargets"
+                    type="number"
+                    min="1"
+                    max="19"
+                    value={maxOppositionTargets}
+                    onChange={(e) => setMaxOppositionTargets(parseInt(e.target.value) || 1)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Range: 1-19 (prevents repeatedly targeting weak teams)
+                  </p>
+                </div>
+              </div>
+
               <div className="flex gap-2">
                 <Button
                   onClick={handleCreateSeason}
@@ -224,6 +294,8 @@ export function SeasonManagementPage() {
                   onClick={() => {
                     setIsCreatingSeason(false);
                     setSelectedSeasonName('');
+                    setMaxTeamPicks(1);
+                    setMaxOppositionTargets(1);
                   }}
                 >
                   Cancel
@@ -231,13 +303,17 @@ export function SeasonManagementPage() {
               </div>
               <div className="rounded-lg bg-blue-50 dark:bg-blue-950 p-4 border border-blue-200 dark:border-blue-800">
                 <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
-                  Steps after creating a season:
+                  What happens when you create a season:
                 </p>
                 <ol className="text-sm text-blue-800 dark:text-blue-200 list-decimal list-inside space-y-1">
-                  <li>Sync teams from the Football Data API</li>
-                  <li>Mark relegated teams as inactive in the Team Status section below</li>
-                  <li>Sync fixtures for the new season</li>
+                  <li>Season is created with the specified name and dates</li>
+                  <li>Teams are synced from the Football Data API</li>
+                  <li>Fixtures are synced for the new season</li>
+                  <li>Pick rules are created for both halves with your specified limits</li>
                 </ol>
+                <p className="text-sm text-blue-800 dark:text-blue-200 mt-2">
+                  After creation, mark relegated teams as inactive in the Team Status section below.
+                </p>
               </div>
             </div>
           )}
@@ -403,7 +479,6 @@ export function SeasonManagementPage() {
           )}
         </CardContent>
       </Card>
-      </div>
     </div>
   );
 }

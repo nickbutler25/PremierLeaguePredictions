@@ -148,6 +148,7 @@ builder.Services.AddScoped<ISeasonParticipationService, SeasonParticipationServi
 builder.Services.AddScoped<IEliminationService, EliminationService>();
 builder.Services.AddScoped<IAutoPickService, AutoPickService>();
 builder.Services.AddScoped<IPickReminderService, PickReminderService>();
+builder.Services.AddScoped<IPickRuleService, PickRuleService>();
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<INotificationService>(sp =>
 {

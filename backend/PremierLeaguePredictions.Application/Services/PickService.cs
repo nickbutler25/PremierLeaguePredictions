@@ -9,11 +9,13 @@ namespace PremierLeaguePredictions.Application.Services;
 public class PickService : IPickService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IPickRuleService _pickRuleService;
     private readonly ILogger<PickService> _logger;
 
-    public PickService(IUnitOfWork unitOfWork, ILogger<PickService> logger)
+    public PickService(IUnitOfWork unitOfWork, IPickRuleService pickRuleService, ILogger<PickService> logger)
     {
         _unitOfWork = unitOfWork;
+        _pickRuleService = pickRuleService;
         _logger = logger;
     }
 
@@ -94,6 +96,9 @@ public class PickService : IPickService
             throw new KeyNotFoundException("Team not found");
         }
 
+        // Validate pick against rules
+        await ValidatePickAgainstRulesAsync(userId, request.SeasonId, request.GameweekNumber, request.TeamId, cancellationToken);
+
         var pick = new Pick
         {
             Id = Guid.NewGuid(),
@@ -155,6 +160,9 @@ public class PickService : IPickService
         {
             throw new KeyNotFoundException("Team not found");
         }
+
+        // Validate new team against rules (excluding current pick)
+        await ValidatePickAgainstRulesAsync(userId, pick.SeasonId, pick.GameweekNumber, request.TeamId, cancellationToken, pick.Id);
 
         pick.TeamId = request.TeamId;
         pick.UpdatedAt = DateTime.UtcNow;
@@ -233,5 +241,97 @@ public class PickService : IPickService
             } : null,
             GameweekName = gameweek != null ? $"Gameweek {gameweek.WeekNumber}" : null
         };
+    }
+
+    private async Task ValidatePickAgainstRulesAsync(
+        Guid userId,
+        string seasonId,
+        int gameweekNumber,
+        int teamId,
+        CancellationToken cancellationToken,
+        Guid? excludePickId = null)
+    {
+        // Determine which half of the season
+        int half = gameweekNumber <= 19 ? 1 : 2;
+        int halfStartWeek = half == 1 ? 1 : 20;
+        int halfEndWeek = half == 1 ? 19 : 38;
+
+        // Get pick rules for this season/half
+        var rules = await _pickRuleService.GetPickRulesForSeasonAsync(seasonId);
+        var activeRule = half == 1 ? rules.FirstHalf : rules.SecondHalf;
+
+        // If no rules exist, allow the pick (fail open for backwards compatibility)
+        if (activeRule == null)
+        {
+            _logger.LogWarning("No pick rules found for {SeasonId} half {Half}, allowing pick", seasonId, half);
+            return;
+        }
+
+        // Get user's picks for this half (excluding the current pick if updating)
+        var userPicksInHalf = await _unitOfWork.Picks.FindAsync(
+            p => p.UserId == userId &&
+                 p.SeasonId == seasonId &&
+                 p.GameweekNumber >= halfStartWeek &&
+                 p.GameweekNumber <= halfEndWeek &&
+                 (excludePickId == null || p.Id != excludePickId),
+            cancellationToken);
+
+        var picksList = userPicksInHalf.ToList();
+
+        // Rule 1: Check max times team can be picked
+        var timesTeamPicked = picksList.Count(p => p.TeamId == teamId);
+        if (timesTeamPicked >= activeRule.MaxTimesTeamCanBePicked)
+        {
+            var team = await _unitOfWork.Teams.FirstOrDefaultAsync(t => t.Id == teamId, cancellationToken);
+            throw new InvalidOperationException(
+                $"You have already picked {team?.Name ?? "this team"} " +
+                $"{timesTeamPicked} time(s) in half {half}. Maximum allowed: {activeRule.MaxTimesTeamCanBePicked}");
+        }
+
+        // Rule 2: Check max times opposition can be targeted
+        // Get all fixtures for this gameweek to find the opposition
+        var fixtures = await _unitOfWork.Fixtures.FindAsync(
+            f => f.SeasonId == seasonId && f.GameweekNumber == gameweekNumber,
+            cancellationToken);
+
+        var fixturesList = fixtures.ToList();
+        var fixture = fixturesList.FirstOrDefault(f => f.HomeTeamId == teamId || f.AwayTeamId == teamId);
+
+        if (fixture != null)
+        {
+            int oppositionTeamId = fixture.HomeTeamId == teamId ? fixture.AwayTeamId : fixture.HomeTeamId;
+
+            // Count how many times user has targeted this opposition in this half
+            var timesOppositionTargeted = 0;
+            foreach (var pick in picksList)
+            {
+                var pickFixtures = await _unitOfWork.Fixtures.FindAsync(
+                    f => f.SeasonId == pick.SeasonId &&
+                         f.GameweekNumber == pick.GameweekNumber &&
+                         (f.HomeTeamId == pick.TeamId || f.AwayTeamId == pick.TeamId),
+                    cancellationToken);
+
+                var pickFixture = pickFixtures.FirstOrDefault();
+                if (pickFixture != null)
+                {
+                    int pickOppositionId = pickFixture.HomeTeamId == pick.TeamId
+                        ? pickFixture.AwayTeamId
+                        : pickFixture.HomeTeamId;
+
+                    if (pickOppositionId == oppositionTeamId)
+                    {
+                        timesOppositionTargeted++;
+                    }
+                }
+            }
+
+            if (timesOppositionTargeted >= activeRule.MaxTimesOppositionCanBeTargeted)
+            {
+                var oppositionTeam = await _unitOfWork.Teams.FirstOrDefaultAsync(t => t.Id == oppositionTeamId, cancellationToken);
+                throw new InvalidOperationException(
+                    $"You have already targeted {oppositionTeam?.Name ?? "this opposition"} " +
+                    $"{timesOppositionTargeted} time(s) in half {half}. Maximum allowed: {activeRule.MaxTimesOppositionCanBeTargeted}");
+            }
+        }
     }
 }

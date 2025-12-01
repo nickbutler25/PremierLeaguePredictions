@@ -9,10 +9,12 @@ namespace PremierLeaguePredictions.API.Controllers;
 public class GameweeksController : ControllerBase
 {
     private readonly IGameweekService _gameweekService;
+    private readonly IPickRuleService _pickRuleService;
 
-    public GameweeksController(IGameweekService gameweekService)
+    public GameweeksController(IGameweekService gameweekService, IPickRuleService pickRuleService)
     {
         _gameweekService = gameweekService;
+        _pickRuleService = pickRuleService;
     }
 
     [HttpGet]
@@ -38,5 +40,13 @@ public class GameweeksController : ControllerBase
         if (gameweek == null)
             return NotFound();
         return Ok(gameweek);
+    }
+
+    [HttpGet("pick-rules/{seasonId}")]
+    public async Task<ActionResult<PickRulesResponse>> GetPickRules(string seasonId)
+    {
+        var decodedSeasonId = Uri.UnescapeDataString(seasonId);
+        var rules = await _pickRuleService.GetPickRulesForSeasonAsync(decodedSeasonId);
+        return Ok(rules);
     }
 }

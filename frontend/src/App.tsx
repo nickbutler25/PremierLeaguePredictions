@@ -15,6 +15,8 @@ import { SeasonManagementPage } from '@/pages/admin/SeasonManagementPage';
 import { SeasonApprovalsPage } from '@/pages/admin/SeasonApprovalsPage';
 import EliminationManagementPage from '@/pages/admin/EliminationManagementPage';
 import { BackfillPicksPage } from '@/pages/admin/BackfillPicksPage';
+import { PickRulesManagementPage } from '@/pages/admin/PickRulesManagementPage';
+import { AdminLayout } from '@/components/layout/AdminLayout';
 import { Toaster } from '@/components/ui/toaster';
 import { useSeasonApproval } from '@/hooks/useSeasonApproval';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -112,7 +114,9 @@ function AppRoutes() {
         element={
           <AdminRoute>
             <Layout>
-              <SeasonManagementPage />
+              <AdminLayout>
+                <SeasonManagementPage />
+              </AdminLayout>
             </Layout>
           </AdminRoute>
         }
@@ -122,7 +126,9 @@ function AppRoutes() {
         element={
           <AdminRoute>
             <Layout>
-              <SeasonApprovalsPage />
+              <AdminLayout>
+                <SeasonApprovalsPage />
+              </AdminLayout>
             </Layout>
           </AdminRoute>
         }
@@ -132,7 +138,9 @@ function AppRoutes() {
         element={
           <AdminRoute>
             <Layout>
-              <EliminationManagementPage />
+              <AdminLayout>
+                <EliminationManagementPage />
+              </AdminLayout>
             </Layout>
           </AdminRoute>
         }
@@ -142,7 +150,21 @@ function AppRoutes() {
         element={
           <AdminRoute>
             <Layout>
-              <BackfillPicksPage />
+              <AdminLayout>
+                <BackfillPicksPage />
+              </AdminLayout>
+            </Layout>
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/pick-rules"
+        element={
+          <AdminRoute>
+            <Layout>
+              <AdminLayout>
+                <PickRulesManagementPage />
+              </AdminLayout>
             </Layout>
           </AdminRoute>
         }
