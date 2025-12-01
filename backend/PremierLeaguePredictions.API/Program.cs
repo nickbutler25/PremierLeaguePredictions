@@ -80,18 +80,30 @@ builder.Services.AddAuthentication(options =>
         ClockSkew = TimeSpan.Zero
     };
 
-    // Configure SignalR to accept JWT tokens from query string
+    // Configure JWT token retrieval from cookies and query string (for SignalR)
     options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
     {
         OnMessageReceived = context =>
         {
-            var accessToken = context.Request.Query["access_token"];
-            var path = context.HttpContext.Request.Path;
+            // First, try to get token from cookie
+            var token = context.Request.Cookies["auth_token"];
 
-            // If the request is for our hub and has a token in the query string
-            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+            // For SignalR connections, check query string
+            if (string.IsNullOrEmpty(token))
             {
-                context.Token = accessToken;
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+
+                // If the request is for our hub and has a token in the query string
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                {
+                    token = accessToken;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(token))
+            {
+                context.Token = token;
             }
 
             return Task.CompletedTask;

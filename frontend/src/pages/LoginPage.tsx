@@ -24,7 +24,7 @@ export function LoginPage() {
 
     try {
       const authResponse = await authService.login(credentialResponse.credential);
-      login(authResponse);
+      await login(authResponse);
     } catch (err) {
       console.error('Login failed:', err);
       setError('Failed to login. Please try again.');
@@ -43,7 +43,7 @@ export function LoginPage() {
 
     try {
       const response = await apiClient.post<AuthResponse>('/api/dev/login-as-admin');
-      login(response.data);
+      await login(response.data);
     } catch (err) {
       console.error('Dev login failed:', err);
       setError('Failed to login as admin. Please try again.');

@@ -96,9 +96,19 @@ public class AuthController : ControllerBase
             // Generate JWT token
             var token = _tokenService.GenerateToken(user);
 
+            // Set token in HTTP-only cookie
+            var cookieOptions = new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true, // Requires HTTPS
+                SameSite = SameSiteMode.Strict,
+                Expires = DateTimeOffset.UtcNow.AddDays(1)
+            };
+            Response.Cookies.Append("auth_token", token, cookieOptions);
+
             var response = new AuthResponse
             {
-                Token = token,
+                Token = null, // Don't send token in response body
                 User = new UserDto
                 {
                     Id = user.Id,
@@ -158,9 +168,19 @@ public class AuthController : ControllerBase
             // Generate JWT token
             var token = _tokenService.GenerateToken(user);
 
+            // Set token in HTTP-only cookie
+            var cookieOptions = new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true, // Requires HTTPS
+                SameSite = SameSiteMode.Strict,
+                Expires = DateTimeOffset.UtcNow.AddDays(1)
+            };
+            Response.Cookies.Append("auth_token", token, cookieOptions);
+
             var response = new AuthResponse
             {
-                Token = token,
+                Token = null, // Don't send token in response body
                 User = new UserDto
                 {
                     Id = user.Id,
@@ -181,5 +201,13 @@ public class AuthController : ControllerBase
             _logger.LogError(ex, "Error during registration");
             return StatusCode(500, new { message = "An error occurred during registration" });
         }
+    }
+
+    [HttpPost("logout")]
+    public IActionResult Logout()
+    {
+        // Clear the auth cookie
+        Response.Cookies.Delete("auth_token");
+        return Ok(new { message = "Logged out successfully" });
     }
 }

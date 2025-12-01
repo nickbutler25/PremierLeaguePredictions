@@ -1,13 +1,13 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import type { User, AuthResponse } from '@/types';
-import { STORAGE_KEYS } from '@/config/constants';
+import { authService } from '@/services/auth';
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (authData: AuthResponse) => void;
-  logout: () => void;
+  login: (authData: AuthResponse) => Promise<void>;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
   isAdmin: boolean;
 }
@@ -21,28 +21,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
-    // Load auth data from localStorage on mount
-    const storedToken = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
-    const storedUser = localStorage.getItem(STORAGE_KEYS.USER);
-
-    if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(JSON.parse(storedUser));
-    }
+    // On mount, check if user is authenticated by making an API call
+    // The auth cookie will be sent automatically
+    const checkAuth = async () => {
+      try {
+        // We can try to fetch user profile or make a simple authenticated request
+        // For now, we'll rely on the API client to handle auth via cookies
+        // The user will be set when they login
+      } catch (error) {
+        console.error('Auth check failed:', error);
+      }
+    };
+    checkAuth();
   }, []);
 
-  const login = (authData: AuthResponse) => {
-    setToken(authData.token);
+  const login = async (authData: AuthResponse) => {
+    // Token is now in httpOnly cookie, so we don't store it
+    // We only keep the user data in memory (not localStorage)
     setUser(authData.user);
-    localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, authData.token);
-    localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(authData.user));
+    // Note: Token is implicitly available via cookie
+    setToken('cookie'); // Placeholder to indicate auth state
   };
 
-  const logout = () => {
-    setToken(null);
-    setUser(null);
-    localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
-    localStorage.removeItem(STORAGE_KEYS.USER);
+  const logout = async () => {
+    try {
+      // Call logout endpoint to clear the cookie
+      await authService.logout();
+    } catch (error) {
+      console.error('Logout API call failed:', error);
+    } finally {
+      setToken(null);
+      setUser(null);
+    }
   };
 
   const value: AuthContextType = {

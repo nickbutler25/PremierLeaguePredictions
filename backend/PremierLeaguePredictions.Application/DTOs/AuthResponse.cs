@@ -2,7 +2,7 @@ namespace PremierLeaguePredictions.Application.DTOs;
 
 public class AuthResponse
 {
-    public string Token { get; set; } = string.Empty;
+    public string? Token { get; set; } // Nullable since token is now sent via cookie
     public UserDto User { get; set; } = null!;
 }
 
