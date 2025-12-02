@@ -40,12 +40,24 @@ public class PickService : IPickService
             : new List<Team>();
 
         var gameweekKeys = picksList.Select(p => new { p.SeasonId, p.GameweekNumber }).Distinct().ToList();
-        var gameweeks = gameweekKeys.Any()
-            ? (await _unitOfWork.Gameweeks.FindAsync(
-                g => gameweekKeys.Any(k => k.SeasonId == g.SeasonId && k.GameweekNumber == g.WeekNumber),
+
+        // Fetch gameweeks by building a query for each unique season
+        var uniqueSeasonIds = gameweekKeys.Select(k => k.SeasonId).Distinct().ToList();
+        var gameweeks = new List<Gameweek>();
+
+        if (uniqueSeasonIds.Any())
+        {
+            // Fetch all gameweeks for the seasons involved
+            var allGameweeks = await _unitOfWork.Gameweeks.FindAsync(
+                g => uniqueSeasonIds.Contains(g.SeasonId),
                 trackChanges: false,
-                cancellationToken)).ToList()
-            : new List<Gameweek>();
+                cancellationToken);
+
+            // Filter in memory to match the specific gameweek keys we need
+            gameweeks = allGameweeks
+                .Where(g => gameweekKeys.Any(k => k.SeasonId == g.SeasonId && k.GameweekNumber == g.WeekNumber))
+                .ToList();
+        }
 
         return picksList.Select(p => MapToDto(p, teams.FirstOrDefault(t => t.Id == p.TeamId), gameweeks.FirstOrDefault(g => g.SeasonId == p.SeasonId && g.WeekNumber == p.GameweekNumber)));
     }
