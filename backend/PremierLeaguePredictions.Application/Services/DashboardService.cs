@@ -28,7 +28,7 @@ public class DashboardService : IDashboardService
         if (!string.IsNullOrEmpty(activeSeasonId))
         {
             var participation = await _unitOfWork.SeasonParticipations.FindAsync(
-                sp => sp.UserId == userId &&
+                sp => sp.UserId.Equals(userId) &&
                       sp.SeasonId == activeSeasonId &&
                       sp.IsApproved,
                 trackChanges: false,
