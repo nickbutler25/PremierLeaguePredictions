@@ -21,15 +21,15 @@ public class DashboardController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<DashboardDto>> GetMyDashboard()
+    public async Task<ActionResult<ApiResponse<DashboardDto>>> GetMyDashboard()
     {
         var userId = GetUserIdFromClaims();
         var dashboard = await _dashboardService.GetUserDashboardAsync(userId);
-        return Ok(dashboard);
+        return Ok(ApiResponse<DashboardDto>.SuccessResult(dashboard));
     }
 
     [HttpGet("{userId}")]
-    public async Task<ActionResult<DashboardDto>> GetUserDashboard(Guid userId)
+    public async Task<ActionResult<ApiResponse<DashboardDto>>> GetUserDashboard(Guid userId)
     {
         var currentUserId = GetUserIdFromClaims();
         var isAdmin = User.IsInRole("Admin");
@@ -38,7 +38,7 @@ public class DashboardController : ControllerBase
             return Forbid();
 
         var dashboard = await _dashboardService.GetUserDashboardAsync(userId);
-        return Ok(dashboard);
+        return Ok(ApiResponse<DashboardDto>.SuccessResult(dashboard));
     }
 
     private Guid GetUserIdFromClaims()

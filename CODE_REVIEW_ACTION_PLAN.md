@@ -72,213 +72,86 @@
 
 ---
 
-## 📊 Medium Priority Issues
+## ✅ Completed Medium Priority Issues
 
-### 11. No Response Caching
+### 11. ✅ Response Caching Implemented
 **Severity:** MEDIUM
-**Location:** API Controllers
+**Location:** `TeamService.cs`, `LeagueService.cs`
+**Status:** COMPLETED on 2025-12-02
 
-**Issue:**
-Frequently accessed, rarely changing data (teams, seasons, league standings) has no caching strategy.
+**Implementation:**
+- Added IMemoryCache to TeamService with 24-hour cache duration
+- Teams list cached with automatic invalidation on create/update/delete
+- Added IMemoryCache to LeagueService with 5-minute cache duration
+- League standings cached per season with automatic key generation
+- Cache uses trackChanges: false for read operations
 
-**Fix:**
-Implement caching at multiple levels:
+### 12. ✅ Health Checks Already Implemented
+**Severity:** MEDIUM
+**Location:** `backend/PremierLeaguePredictions.API/Program.cs` (Lines 167-334)
+**Status:** VERIFIED on 2025-12-02
 
-**1. In-Memory Caching:**
-```csharp
-// In Program.cs
-services.AddMemoryCache();
+**Endpoints:**
+- `/health` - Full health status with PostgreSQL check and JSON response
+- `/health/live` - Liveness probe (always healthy)
+- `/health/ready` - Readiness probe (checks database connectivity)
 
-// In service
-private readonly IMemoryCache _cache;
-
-public async Task<List<TeamDto>> GetTeamsAsync()
-{
-    if (!_cache.TryGetValue("teams", out List<TeamDto> teams))
-    {
-        teams = await _unitOfWork.Teams
-            .GetAllAsync(trackChanges: false, cancellationToken);
-        _cache.Set("teams", teams, TimeSpan.FromHours(1));
-    }
-    return teams;
-}
-```
-
-**2. Response Caching:**
-```csharp
-// In Program.cs
-services.AddResponseCaching();
-app.UseResponseCaching();
-
-// In controller
-[ResponseCache(Duration = 300, VaryByQueryKeys = new[] { "seasonId" })]
-[HttpGet("standings")]
-public async Task<ActionResult<LeagueStandingsDto>> GetStandings()
-```
-
-**3. Distributed Caching for Production:**
-```csharp
-services.AddStackExchangeRedisCache(options =>
-{
-    options.Configuration = Configuration.GetConnectionString("Redis");
-});
-```
-
-**Cache Invalidation Strategy:**
-```csharp
-// In services that modify data
-await _cache.RemoveAsync("teams");
-await _cache.RemoveAsync("standings");
-```
-
----
-
-### 12. No Health Checks
+### 13. ✅ Production Logging Fixed
 **Severity:** MEDIUM
 **Location:** `backend/PremierLeaguePredictions.API/Program.cs`
+**Status:** COMPLETED on 2025-12-02
 
-**Issue:**
-render.yaml specifies `healthCheckPath: /health` but no health check endpoint exists.
+**Implementation:**
+- Development: File-based logging to `logs/api-.log` for debugging
+- Production: JSON-formatted console logging (container-friendly)
+- Removed static Log.Logger initialization
+- Uses Serilog.Formatting.Json.JsonFormatter for structured logs
 
-**Fix:**
-```csharp
-// In Program.cs
-services.AddHealthChecks()
-    .AddNpgSql(
-        connectionString,
-        name: "database",
-        timeout: TimeSpan.FromSeconds(3),
-        tags: new[] { "db", "sql", "postgresql" })
-    .AddSignalRHub(
-        hubName: "ResultsHub",
-        name: "signalr",
-        timeout: TimeSpan.FromSeconds(3),
-        tags: new[] { "signalr" });
+### 17. ✅ SignalR Already Optimized
+**Severity:** MEDIUM
+**Location:** `frontend/src/contexts/SignalRContext.tsx` (Line 81)
+**Status:** VERIFIED on 2025-12-02
 
-// Map health check endpoints
-app.MapHealthChecks("/health", new HealthCheckOptions
-{
-    ResponseWriter = async (context, report) =>
-    {
-        context.Response.ContentType = "application/json";
-        var result = JsonSerializer.Serialize(new
-        {
-            status = report.Status.ToString(),
-            checks = report.Entries.Select(e => new
-            {
-                name = e.Key,
-                status = e.Value.Status.ToString(),
-                description = e.Value.Description,
-                duration = e.Value.Duration.TotalMilliseconds
-            }),
-            totalDuration = report.TotalDuration.TotalMilliseconds
-        });
-        await context.Response.WriteAsync(result);
-    }
-});
-
-// Add liveness and readiness endpoints
-app.MapHealthChecks("/health/live", new HealthCheckOptions
-{
-    Predicate = _ => false // Always returns healthy for liveness
-});
-
-app.MapHealthChecks("/health/ready", new HealthCheckOptions
-{
-    Predicate = check => check.Tags.Contains("db") // Check dependencies
-});
-```
+**Features:**
+- Uses `.withAutomaticReconnect()` with built-in exponential backoff
+- Reconnection handlers for UI feedback (onreconnecting, onreconnected, onclose)
+- Connection state management with isConnected flag
 
 ---
 
-### 13. File-Based Logging in Containers
+## 📊 Remaining Medium Priority Issues
+
+### 14. ✅ API Response Formats Standardized
 **Severity:** MEDIUM
-**Location:** `backend/PremierLeaguePredictions.API/Program.cs` (Line 24)
+**Location:** All controllers
+**Status:** COMPLETED on 2025-12-02
 
-**Issue:**
-```csharp
-.WriteTo.File("logs/api-.log", rollingInterval: RollingInterval.Day)
-```
-File-based logging won't work in containerized environments with ephemeral storage.
+**Implementation:**
+- Created `ApiResponse<T>` wrapper class in `backend/PremierLeaguePredictions.Application/DTOs/ApiResponse.cs`
+- Updated all 11 API controllers to use `ApiResponse<T>` format:
+  - AuthController, DevController, TeamsController, UsersController
+  - DashboardController, LeagueController, FixturesController
+  - SeasonParticipationController, PicksController, AdminController, GameweeksController
+- Updated all 11 frontend API service files to unwrap `ApiResponse<T>`:
+  - auth.ts, picks.ts, dashboard.ts, league.ts, teams.ts, users.ts
+  - fixtures.ts, seasonParticipation.ts, admin.ts, gameweeks.ts, elimination.ts
+- Updated backend integration tests to handle new response format
+- Added `ApiResponse<T>` type to frontend types
 
-**Fix:**
-```csharp
-builder.Host.UseSerilog((context, config) =>
+**Response Format:**
+```json
 {
-    config.WriteTo.Console(); // Always log to console
-
-    if (context.HostingEnvironment.IsDevelopment())
-    {
-        config.WriteTo.File("logs/api-.log", rollingInterval: RollingInterval.Day);
-    }
-    else
-    {
-        // Production: use structured JSON logging
-        config.WriteTo.Console(new JsonFormatter());
-
-        // Optional: send to external logging service
-        // config.WriteTo.Seq(context.Configuration["Seq:ServerUrl"]);
-        // config.WriteTo.DatadogLogs(apiKey, configuration: ddConfig);
-    }
-});
-```
-
----
-
-### 14. Inconsistent API Response Formats
-**Severity:** MEDIUM
-**Location:** Various controllers
-
-**Issue:**
-Success responses return DTO objects directly, while errors return anonymous objects. No standard envelope format.
-
-**Example:**
-```csharp
-return Ok(new { message = "Success" }); // Some endpoints
-return Ok(teamDto); // Other endpoints
-```
-
-**Fix:**
-Create standard response wrapper:
-
-```csharp
-public class ApiResponse<T>
-{
-    public bool Success { get; set; }
-    public T? Data { get; set; }
-    public string? Message { get; set; }
-    public List<string>? Errors { get; set; }
-    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
-
-    public static ApiResponse<T> SuccessResult(T data, string? message = null)
-    {
-        return new ApiResponse<T>
-        {
-            Success = true,
-            Data = data,
-            Message = message
-        };
-    }
-
-    public static ApiResponse<T> FailureResult(string message, List<string>? errors = null)
-    {
-        return new ApiResponse<T>
-        {
-            Success = false,
-            Message = message,
-            Errors = errors
-        };
-    }
-}
-
-// Usage in controllers
-[HttpGet("{id}")]
-public async Task<ActionResult<ApiResponse<TeamDto>>> GetTeam(Guid id)
-{
-    var team = await _teamService.GetTeamByIdAsync(id);
-    return Ok(ApiResponse<TeamDto>.SuccessResult(team));
+  "success": true,
+  "data": { /* actual data */ },
+  "message": "Success message",
+  "errors": null,
+  "timestamp": "2025-12-02T..."
 }
 ```
+
+**Test Results:**
+- Backend: 39/43 tests passing (4 failures unrelated to this change)
+- Frontend: 52/52 tests passing ✅
 
 ---
 
@@ -627,13 +500,13 @@ public static class ValidationRules
 2. ✅ Add database indexes migration (COMPLETED)
 
 ### Medium Priority (Should Do)
-1. Add response caching
-2. Add health checks
-3. Fix logging for containers
-4. Standardize API responses
+1. ✅ Add response caching (COMPLETED)
+2. ✅ Add health checks (COMPLETED)
+3. ✅ Fix logging for containers (COMPLETED)
+4. ✅ Standardize API responses (COMPLETED)
 5. Split AdminController
 6. Enhance admin authorization
-7. Optimize SignalR reconnection
+7. ✅ Optimize SignalR reconnection (COMPLETED)
 
 ### Low Priority (Nice to Have)
 1. Add API versioning
@@ -642,5 +515,5 @@ public static class ValidationRules
 
 ---
 
-**Last Updated:** 2025-12-01
-**Status:** 10/20 issues resolved (50% complete - All HIGH priority issues completed! ✅)
+**Last Updated:** 2025-12-02
+**Status:** 15/20 issues resolved (75% complete - All HIGH priority + 5 MEDIUM priority issues completed! ✅)

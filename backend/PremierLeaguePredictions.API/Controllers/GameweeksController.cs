@@ -18,35 +18,35 @@ public class GameweeksController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<GameweekDto>>> GetAllGameweeks()
+    public async Task<ActionResult<ApiResponse<IEnumerable<GameweekDto>>>> GetAllGameweeks()
     {
         var gameweeks = await _gameweekService.GetAllGameweeksAsync();
-        return Ok(gameweeks);
+        return Ok(ApiResponse<IEnumerable<GameweekDto>>.SuccessResult(gameweeks));
     }
 
     [HttpGet("current")]
-    public async Task<ActionResult<GameweekDto>> GetCurrentGameweek()
+    public async Task<ActionResult<ApiResponse<GameweekDto>>> GetCurrentGameweek()
     {
         var gameweek = await _gameweekService.GetCurrentGameweekAsync();
         if (gameweek == null)
-            return NotFound();
-        return Ok(gameweek);
+            return NotFound(ApiResponse<GameweekDto>.FailureResult("No current gameweek found"));
+        return Ok(ApiResponse<GameweekDto>.SuccessResult(gameweek));
     }
 
     [HttpGet("{seasonId}/{weekNumber}")]
-    public async Task<ActionResult<GameweekWithFixturesDto>> GetGameweekById(string seasonId, int weekNumber)
+    public async Task<ActionResult<ApiResponse<GameweekWithFixturesDto>>> GetGameweekById(string seasonId, int weekNumber)
     {
         var gameweek = await _gameweekService.GetGameweekWithFixturesAsync(seasonId, weekNumber);
         if (gameweek == null)
-            return NotFound();
-        return Ok(gameweek);
+            return NotFound(ApiResponse<GameweekWithFixturesDto>.FailureResult("Gameweek not found"));
+        return Ok(ApiResponse<GameweekWithFixturesDto>.SuccessResult(gameweek));
     }
 
     [HttpGet("pick-rules/{seasonId}")]
-    public async Task<ActionResult<PickRulesResponse>> GetPickRules(string seasonId)
+    public async Task<ActionResult<ApiResponse<PickRulesResponse>>> GetPickRules(string seasonId)
     {
         var decodedSeasonId = Uri.UnescapeDataString(seasonId);
         var rules = await _pickRuleService.GetPickRulesForSeasonAsync(decodedSeasonId);
-        return Ok(rules);
+        return Ok(ApiResponse<PickRulesResponse>.SuccessResult(rules));
     }
 }

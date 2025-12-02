@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using PremierLeaguePredictions.Application.DTOs;
 using PremierLeaguePredictions.Application.Interfaces;
@@ -10,11 +11,14 @@ public class LeagueService : ILeagueService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<LeagueService> _logger;
+    private readonly IMemoryCache _cache;
+    private static readonly TimeSpan StandingsCacheDuration = TimeSpan.FromMinutes(5);
 
-    public LeagueService(IUnitOfWork unitOfWork, ILogger<LeagueService> logger)
+    public LeagueService(IUnitOfWork unitOfWork, ILogger<LeagueService> logger, IMemoryCache cache)
     {
         _unitOfWork = unitOfWork;
         _logger = logger;
+        _cache = cache;
     }
 
     public async Task<LeagueStandingsDto> GetLeagueStandingsAsync(string? seasonId = null, CancellationToken cancellationToken = default)
@@ -41,6 +45,14 @@ public class LeagueService : ILeagueService
                 TotalPlayers = 0,
                 LastUpdated = DateTime.UtcNow
             };
+        }
+
+        // Check cache first
+        var cacheKey = $"standings_{seasonId}";
+        if (_cache.TryGetValue(cacheKey, out LeagueStandingsDto? cachedStandings) && cachedStandings != null)
+        {
+            _logger.LogDebug("Returning standings from cache for season {SeasonId}", seasonId);
+            return cachedStandings;
         }
 
         _logger.LogInformation("Calculating standings for season {SeasonId}", seasonId);
@@ -103,11 +115,16 @@ public class LeagueService : ILeagueService
 
         _logger.LogInformation("Calculated standings for {Count} players", sortedStandings.Count);
 
-        return new LeagueStandingsDto
+        var result = new LeagueStandingsDto
         {
             Standings = sortedStandings,
             TotalPlayers = sortedStandings.Count,
             LastUpdated = DateTime.UtcNow
         };
+
+        // Cache the result
+        _cache.Set(cacheKey, result, StandingsCacheDuration);
+
+        return result;
     }
 }

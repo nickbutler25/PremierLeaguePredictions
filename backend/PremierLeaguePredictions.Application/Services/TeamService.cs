@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using PremierLeaguePredictions.Application.DTOs;
 using PremierLeaguePredictions.Application.Interfaces;
@@ -10,11 +11,15 @@ public class TeamService : ITeamService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<TeamService> _logger;
+    private readonly IMemoryCache _cache;
+    private const string TeamsCacheKey = "all_teams";
+    private static readonly TimeSpan CacheDuration = TimeSpan.FromHours(24);
 
-    public TeamService(IUnitOfWork unitOfWork, ILogger<TeamService> logger)
+    public TeamService(IUnitOfWork unitOfWork, ILogger<TeamService> logger, IMemoryCache cache)
     {
         _unitOfWork = unitOfWork;
         _logger = logger;
+        _cache = cache;
     }
 
     public async Task<TeamDto?> GetTeamByIdAsync(Guid id, CancellationToken cancellationToken = default)
@@ -25,8 +30,18 @@ public class TeamService : ITeamService
 
     public async Task<IEnumerable<TeamDto>> GetAllTeamsAsync(CancellationToken cancellationToken = default)
     {
-        var teams = await _unitOfWork.Teams.GetAllAsync(cancellationToken);
-        return teams.Select(MapToDto);
+        if (_cache.TryGetValue(TeamsCacheKey, out IEnumerable<TeamDto>? cachedTeams) && cachedTeams != null)
+        {
+            _logger.LogDebug("Returning teams from cache");
+            return cachedTeams;
+        }
+
+        _logger.LogDebug("Cache miss - fetching teams from database");
+        var teams = await _unitOfWork.Teams.GetAllAsync(trackChanges: false, cancellationToken);
+        var teamDtos = teams.Select(MapToDto).ToList();
+
+        _cache.Set(TeamsCacheKey, teamDtos, CacheDuration);
+        return teamDtos;
     }
 
     public async Task<IEnumerable<TeamDto>> GetAvailableTeamsForGameweekAsync(Guid userId, Guid gameweekId, CancellationToken cancellationToken = default)
@@ -53,6 +68,9 @@ public class TeamService : ITeamService
         await _unitOfWork.Teams.AddAsync(team, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        // Invalidate cache
+        _cache.Remove(TeamsCacheKey);
+
         _logger.LogInformation("Team created: {TeamName}", team.Name);
         return MapToDto(team);
     }
@@ -70,6 +88,9 @@ public class TeamService : ITeamService
         _unitOfWork.Teams.Update(team);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        // Invalidate cache
+        _cache.Remove(TeamsCacheKey);
+
         _logger.LogInformation("Team updated: {TeamId}", id);
         return MapToDto(team);
     }
@@ -81,6 +102,9 @@ public class TeamService : ITeamService
 
         _unitOfWork.Teams.Remove(team);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // Invalidate cache
+        _cache.Remove(TeamsCacheKey);
 
         _logger.LogInformation("Team deleted: {TeamId}", id);
     }

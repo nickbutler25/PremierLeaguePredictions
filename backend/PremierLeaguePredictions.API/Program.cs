@@ -18,16 +18,24 @@ using PremierLeaguePredictions.Application.Validators;
 using PremierLeaguePredictions.Application.Interfaces;
 using PremierLeaguePredictions.Application.Services;
 
-// Configure Serilog
-Log.Logger = new LoggerConfiguration()
-    .WriteTo.Console()
-    .WriteTo.File("logs/api-.log", rollingInterval: RollingInterval.Day)
-    .CreateLogger();
-
 var builder = WebApplication.CreateBuilder(args);
 
-// Use Serilog for logging
-builder.Host.UseSerilog();
+// Configure Serilog based on environment
+builder.Host.UseSerilog((context, config) =>
+{
+    config.WriteTo.Console();
+
+    if (context.HostingEnvironment.IsDevelopment())
+    {
+        // Development: Write to file for easier debugging
+        config.WriteTo.File("logs/api-.log", rollingInterval: RollingInterval.Day);
+    }
+    else
+    {
+        // Production: Use structured JSON logging for container environments
+        config.WriteTo.Console(new Serilog.Formatting.Json.JsonFormatter());
+    }
+});
 
 // Add services to the container
 builder.Services.AddControllers();
@@ -382,16 +390,4 @@ else
     Log.Information("Automatic migrations disabled. Migrations should be run as a separate deployment step.");
 }
 
-try
-{
-    Log.Information("Starting Premier League Predictions API");
-    app.Run();
-}
-catch (Exception ex)
-{
-    Log.Fatal(ex, "Application terminated unexpectedly");
-}
-finally
-{
-    Log.CloseAndFlush();
-}
+app.Run();

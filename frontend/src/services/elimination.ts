@@ -1,4 +1,5 @@
 import { apiClient } from './api';
+import type { ApiResponse } from '@/types';
 
 export interface UserElimination {
   id: string;
@@ -30,20 +31,20 @@ export interface ProcessEliminationsResponse {
 export const eliminationService = {
   // Get all eliminations for a season
   async getSeasonEliminations(seasonId: string) {
-    const response = await apiClient.get<UserElimination[]>(`/api/admin/eliminations/season/${encodeURIComponent(seasonId)}`);
-    return response.data;
+    const response = await apiClient.get<ApiResponse<UserElimination[]>>(`/api/admin/eliminations/season/${encodeURIComponent(seasonId)}`);
+    return response.data.data!;
   },
 
   // Get eliminations for a specific gameweek
   async getGameweekEliminations(seasonId: string, gameweekNumber: number) {
-    const response = await apiClient.get<UserElimination[]>(`/api/admin/eliminations/gameweek/${encodeURIComponent(seasonId)}/${gameweekNumber}`);
-    return response.data;
+    const response = await apiClient.get<ApiResponse<UserElimination[]>>(`/api/admin/eliminations/gameweek/${encodeURIComponent(seasonId)}/${gameweekNumber}`);
+    return response.data.data!;
   },
 
   // Get elimination configuration for all gameweeks in a season
   async getEliminationConfigs(seasonId: string) {
-    const response = await apiClient.get<EliminationConfig[]>(`/api/admin/eliminations/configs/${encodeURIComponent(seasonId)}`);
-    return response.data;
+    const response = await apiClient.get<ApiResponse<EliminationConfig[]>>(`/api/admin/eliminations/configs/${encodeURIComponent(seasonId)}`);
+    return response.data.data!;
   },
 
   // Update elimination count for a specific gameweek (not currently used - bulk update is preferred)
@@ -62,10 +63,10 @@ export const eliminationService = {
 
   // Process eliminations for a gameweek
   async processGameweekEliminations(seasonId: string, gameweekNumber: number) {
-    const response = await apiClient.post<ProcessEliminationsResponse>(
+    const response = await apiClient.post<ApiResponse<ProcessEliminationsResponse>>(
       `/api/admin/eliminations/process/${encodeURIComponent(seasonId)}/${gameweekNumber}`
     );
-    return response.data;
+    return response.data.data!;
   },
 
   // Check if a user is eliminated

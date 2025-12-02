@@ -23,59 +23,59 @@ public class SeasonParticipationController : ControllerBase
     }
 
     [HttpPost("request")]
-    public async Task<ActionResult<SeasonParticipationDto>> RequestParticipation([FromBody] CreateSeasonParticipationRequest request)
+    public async Task<ActionResult<ApiResponse<SeasonParticipationDto>>> RequestParticipation([FromBody] CreateSeasonParticipationRequest request)
     {
         var userId = GetUserId();
         var participation = await _seasonParticipationService.RequestParticipationAsync(userId, request.SeasonId);
-        return Ok(participation);
+        return Ok(ApiResponse<SeasonParticipationDto>.SuccessResult(participation, "Participation request submitted successfully"));
     }
 
     [HttpPost("approve")]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<SeasonParticipationDto>> ApproveParticipation([FromBody] ApproveSeasonParticipationRequest request)
+    public async Task<ActionResult<ApiResponse<SeasonParticipationDto>>> ApproveParticipation([FromBody] ApproveSeasonParticipationRequest request)
     {
         var adminUserId = GetUserId();
         var participation = await _seasonParticipationService.ApproveParticipationAsync(
             request.ParticipationId,
             adminUserId,
             request.IsApproved);
-        return Ok(participation);
+        return Ok(ApiResponse<SeasonParticipationDto>.SuccessResult(participation, request.IsApproved ? "Participation approved successfully" : "Participation rejected"));
     }
 
     [HttpGet("pending")]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<IEnumerable<PendingApprovalDto>>> GetPendingApprovals([FromQuery] string? seasonId = null)
+    public async Task<ActionResult<ApiResponse<IEnumerable<PendingApprovalDto>>>> GetPendingApprovals([FromQuery] string? seasonId = null)
     {
         var pendingApprovals = await _seasonParticipationService.GetPendingApprovalsAsync(seasonId);
-        return Ok(pendingApprovals);
+        return Ok(ApiResponse<IEnumerable<PendingApprovalDto>>.SuccessResult(pendingApprovals));
     }
 
     [HttpGet("my-participations")]
-    public async Task<ActionResult<IEnumerable<SeasonParticipationDto>>> GetMyParticipations()
+    public async Task<ActionResult<ApiResponse<IEnumerable<SeasonParticipationDto>>>> GetMyParticipations()
     {
         var userId = GetUserId();
         var participations = await _seasonParticipationService.GetUserParticipationsAsync(userId);
-        return Ok(participations);
+        return Ok(ApiResponse<IEnumerable<SeasonParticipationDto>>.SuccessResult(participations));
     }
 
     [HttpGet("check")]
-    public async Task<ActionResult<bool>> CheckParticipation([FromQuery] string seasonId)
+    public async Task<ActionResult<ApiResponse<bool>>> CheckParticipation([FromQuery] string seasonId)
     {
         var userId = GetUserId();
         var isApproved = await _seasonParticipationService.IsUserApprovedForSeasonAsync(userId, seasonId);
-        return Ok(isApproved);
+        return Ok(ApiResponse<bool>.SuccessResult(isApproved));
     }
 
     [HttpGet("participation")]
-    public async Task<ActionResult<SeasonParticipationDto>> GetParticipation([FromQuery] string seasonId)
+    public async Task<ActionResult<ApiResponse<SeasonParticipationDto>>> GetParticipation([FromQuery] string seasonId)
     {
         var userId = GetUserId();
         var participation = await _seasonParticipationService.GetParticipationAsync(userId, seasonId);
         if (participation == null)
         {
-            return NotFound();
+            return NotFound(ApiResponse<SeasonParticipationDto>.FailureResult("Participation not found"));
         }
-        return Ok(participation);
+        return Ok(ApiResponse<SeasonParticipationDto>.SuccessResult(participation));
     }
 
     private Guid GetUserId()

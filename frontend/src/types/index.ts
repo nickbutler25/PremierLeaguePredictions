@@ -190,3 +190,11 @@ export interface PendingApproval {
   requestedAt: string;
   isPaid: boolean;
 }
+
+export interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  message?: string;
+  errors?: string[];
+  timestamp: string;
+}

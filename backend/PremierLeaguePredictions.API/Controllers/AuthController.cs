@@ -29,7 +29,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
-    public async Task<ActionResult<AuthResponse>> Login([FromBody] GoogleLoginRequest request)
+    public async Task<ActionResult<ApiResponse<AuthResponse>>> Login([FromBody] GoogleLoginRequest request)
     {
         try
         {
@@ -38,7 +38,7 @@ public class AuthController : ControllerBase
             if (string.IsNullOrEmpty(request.GoogleToken))
             {
                 _logger.LogWarning("Login failed: GoogleToken is null or empty");
-                return BadRequest(new { message = "Google token is required" });
+                return BadRequest(ApiResponse<AuthResponse>.FailureResult("Google token is required"));
             }
 
             // Verify Google token
@@ -46,7 +46,7 @@ public class AuthController : ControllerBase
             if (googleUserInfo == null)
             {
                 _logger.LogWarning("Login failed: Google token verification failed");
-                return Unauthorized(new { message = "Invalid Google token" });
+                return Unauthorized(ApiResponse<AuthResponse>.FailureResult("Invalid Google token"));
             }
 
             // Check if user exists
@@ -99,7 +99,7 @@ public class AuthController : ControllerBase
             // Check if user is active
             if (!user.IsActive)
             {
-                return Unauthorized(new { message = "Your account has been deactivated. Please contact an administrator." });
+                return Unauthorized(ApiResponse<AuthResponse>.FailureResult("Your account has been deactivated. Please contact an administrator."));
             }
 
             // Generate JWT token
@@ -115,7 +115,7 @@ public class AuthController : ControllerBase
             };
             Response.Cookies.Append("auth_token", token, cookieOptions);
 
-            var response = new AuthResponse
+            var authResponse = new AuthResponse
             {
                 Token = null, // Don't send token in response body
                 User = new UserDto
@@ -131,17 +131,17 @@ public class AuthController : ControllerBase
                 }
             };
 
-            return Ok(response);
+            return Ok(ApiResponse<AuthResponse>.SuccessResult(authResponse, "Login successful"));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error during login");
-            return StatusCode(500, new { message = "An error occurred during login" });
+            return StatusCode(500, ApiResponse<AuthResponse>.FailureResult("An error occurred during login"));
         }
     }
 
     [HttpPost("register")]
-    public async Task<ActionResult<AuthResponse>> Register([FromBody] RegisterRequest request)
+    public async Task<ActionResult<ApiResponse<AuthResponse>>> Register([FromBody] RegisterRequest request)
     {
         try
         {
@@ -151,7 +151,7 @@ public class AuthController : ControllerBase
 
             if (existingUser != null)
             {
-                return BadRequest(new { message = "User with this email already exists" });
+                return BadRequest(ApiResponse<AuthResponse>.FailureResult("User with this email already exists"));
             }
 
             // Create new user
@@ -187,7 +187,7 @@ public class AuthController : ControllerBase
             };
             Response.Cookies.Append("auth_token", token, cookieOptions);
 
-            var response = new AuthResponse
+            var authResponse = new AuthResponse
             {
                 Token = null, // Don't send token in response body
                 User = new UserDto
@@ -203,12 +203,12 @@ public class AuthController : ControllerBase
                 }
             };
 
-            return Ok(response);
+            return Ok(ApiResponse<AuthResponse>.SuccessResult(authResponse, "Registration successful"));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error during registration");
-            return StatusCode(500, new { message = "An error occurred during registration" });
+            return StatusCode(500, ApiResponse<AuthResponse>.FailureResult("An error occurred during registration"));
         }
     }
 
@@ -217,6 +217,6 @@ public class AuthController : ControllerBase
     {
         // Clear the auth cookie
         Response.Cookies.Delete("auth_token");
-        return Ok(new { message = "Logged out successfully" });
+        return Ok(ApiResponse.SuccessResult("Logged out successfully"));
     }
 }

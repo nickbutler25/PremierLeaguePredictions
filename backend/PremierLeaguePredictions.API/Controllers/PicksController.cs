@@ -23,50 +23,50 @@ public class PicksController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<PickDto>>> GetMyPicks()
+    public async Task<ActionResult<ApiResponse<IEnumerable<PickDto>>>> GetMyPicks()
     {
         var userId = GetUserIdFromClaims();
         var picks = await _pickService.GetUserPicksAsync(userId);
-        return Ok(picks);
+        return Ok(ApiResponse<IEnumerable<PickDto>>.SuccessResult(picks));
     }
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<PickDto>> GetPickById(Guid id)
+    public async Task<ActionResult<ApiResponse<PickDto>>> GetPickById(Guid id)
     {
         var pick = await _pickService.GetPickByIdAsync(id);
         if (pick == null)
-            return NotFound();
+            return NotFound(ApiResponse<PickDto>.FailureResult("Pick not found"));
 
         var userId = GetUserIdFromClaims();
         if (pick.UserId != userId)
             return Forbid();
 
-        return Ok(pick);
+        return Ok(ApiResponse<PickDto>.SuccessResult(pick));
     }
 
     [HttpGet("gameweek/{seasonId}/{gameweekNumber}")]
-    public async Task<ActionResult<IEnumerable<PickDto>>> GetPicksByGameweek(string seasonId, int gameweekNumber)
+    public async Task<ActionResult<ApiResponse<IEnumerable<PickDto>>>> GetPicksByGameweek(string seasonId, int gameweekNumber)
     {
         var picks = await _pickService.GetPicksByGameweekAsync(seasonId, gameweekNumber);
-        return Ok(picks);
+        return Ok(ApiResponse<IEnumerable<PickDto>>.SuccessResult(picks));
     }
 
     [HttpPost]
     [ServiceFilter(typeof(Filters.ValidationFilter<CreatePickRequest>))]
-    public async Task<ActionResult<PickDto>> CreatePick([FromBody] CreatePickRequest request)
+    public async Task<ActionResult<ApiResponse<PickDto>>> CreatePick([FromBody] CreatePickRequest request)
     {
         var userId = GetUserIdFromClaims();
         var pick = await _pickService.CreatePickAsync(userId, request);
-        return CreatedAtAction(nameof(GetPickById), new { id = pick.Id }, pick);
+        return CreatedAtAction(nameof(GetPickById), new { id = pick.Id }, ApiResponse<PickDto>.SuccessResult(pick, "Pick created successfully"));
     }
 
     [HttpPut("{id}")]
     [ServiceFilter(typeof(Filters.ValidationFilter<UpdatePickRequest>))]
-    public async Task<ActionResult<PickDto>> UpdatePick(Guid id, [FromBody] UpdatePickRequest request)
+    public async Task<ActionResult<ApiResponse<PickDto>>> UpdatePick(Guid id, [FromBody] UpdatePickRequest request)
     {
         var userId = GetUserIdFromClaims();
         var pick = await _pickService.UpdatePickAsync(id, userId, request);
-        return Ok(pick);
+        return Ok(ApiResponse<PickDto>.SuccessResult(pick, "Pick updated successfully"));
     }
 
     [HttpDelete("{id}")]

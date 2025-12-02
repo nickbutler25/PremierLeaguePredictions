@@ -63,84 +63,86 @@ public class AdminController : ControllerBase
     }
 
     [HttpGet("actions")]
-    public async Task<ActionResult<IEnumerable<AdminActionDto>>> GetAdminActions([FromQuery] int limit = 50)
+    public async Task<ActionResult<ApiResponse<IEnumerable<AdminActionDto>>>> GetAdminActions([FromQuery] int limit = 50)
     {
         var actions = await _adminService.GetAdminActionsAsync(limit);
-        return Ok(actions);
+        return Ok(ApiResponse<IEnumerable<AdminActionDto>>.SuccessResult(actions));
     }
 
     [HttpPost("sync/teams")]
-    public async Task<IActionResult> SyncTeams()
+    public async Task<ActionResult<ApiResponse<object>>> SyncTeams()
     {
         var (created, updated) = await _fixtureSyncService.SyncTeamsAsync();
         var teams = await _adminService.GetTeamStatusesAsync();
         var activeCount = teams.Count(t => t.IsActive);
 
-        return Ok(new
+        var result = new
         {
-            message = $"Teams sync completed. Created: {created}, Updated: {updated}, Active: {activeCount}",
             teamsCreated = created,
             teamsUpdated = updated,
             totalActiveTeams = activeCount
-        });
+        };
+
+        return Ok(ApiResponse<object>.SuccessResult(result, $"Teams sync completed. Created: {created}, Updated: {updated}, Active: {activeCount}"));
     }
 
     [HttpPost("sync/fixtures")]
-    public async Task<IActionResult> SyncFixtures([FromQuery] int? season = null)
+    public async Task<ActionResult<ApiResponse<object>>> SyncFixtures([FromQuery] int? season = null)
     {
         var (fixturesCreated, fixturesUpdated, gameweeksCreated) = await _fixtureSyncService.SyncFixturesAsync(season);
         var message = season.HasValue
             ? $"Fixtures sync completed for season {season}. Created: {fixturesCreated} fixtures, {gameweeksCreated} gameweeks. Updated: {fixturesUpdated} fixtures"
             : $"Fixtures sync completed for current season. Created: {fixturesCreated} fixtures, {gameweeksCreated} gameweeks. Updated: {fixturesUpdated} fixtures";
 
-        return Ok(new
+        var result = new
         {
-            message,
             fixturesCreated,
             fixturesUpdated,
             gameweeksCreated
-        });
+        };
+
+        return Ok(ApiResponse<object>.SuccessResult(result, message));
     }
 
     [HttpPost("sync/results")]
-    public async Task<ActionResult<ResultsSyncResponse>> SyncResults()
+    public async Task<ActionResult<ApiResponse<ResultsSyncResponse>>> SyncResults()
     {
         var response = await _resultsService.SyncRecentResultsAsync();
-        return Ok(response);
+        return Ok(ApiResponse<ResultsSyncResponse>.SuccessResult(response, "Results synced successfully"));
     }
 
     [HttpPost("sync/results/gameweek/{seasonId}/{gameweekNumber}")]
-    public async Task<ActionResult<ResultsSyncResponse>> SyncGameweekResults(string seasonId, int gameweekNumber)
+    public async Task<ActionResult<ApiResponse<ResultsSyncResponse>>> SyncGameweekResults(string seasonId, int gameweekNumber)
     {
         var decodedSeasonId = Uri.UnescapeDataString(seasonId);
         var response = await _resultsService.SyncGameweekResultsAsync(decodedSeasonId, gameweekNumber);
-        return Ok(response);
+        return Ok(ApiResponse<ResultsSyncResponse>.SuccessResult(response, "Gameweek results synced successfully"));
     }
 
     [HttpGet("seasons")]
-    public async Task<ActionResult<IEnumerable<SeasonDto>>> GetSeasons()
+    public async Task<ActionResult<ApiResponse<IEnumerable<SeasonDto>>>> GetSeasons()
     {
         var seasons = await _adminService.GetAllSeasonsAsync();
-        return Ok(seasons);
+        return Ok(ApiResponse<IEnumerable<SeasonDto>>.SuccessResult(seasons));
     }
 
     [HttpGet("seasons/active")]
     [AllowAnonymous]
-    public async Task<ActionResult<SeasonDto>> GetActiveSeason()
+    public async Task<ActionResult<ApiResponse<SeasonDto>>> GetActiveSeason()
     {
         var activeSeason = await _adminService.GetActiveSeasonAsync();
 
         if (activeSeason == null)
         {
-            return NotFound(new { message = "No active season found" });
+            return NotFound(ApiResponse<SeasonDto>.FailureResult("No active season found"));
         }
 
-        return Ok(activeSeason);
+        return Ok(ApiResponse<SeasonDto>.SuccessResult(activeSeason));
     }
 
     [HttpPost("seasons")]
     [ServiceFilter(typeof(Filters.ValidationFilter<CreateSeasonRequest>))]
-    public async Task<ActionResult<CreateSeasonResponse>> CreateSeason([FromBody] CreateSeasonRequest request)
+    public async Task<ActionResult<ApiResponse<CreateSeasonResponse>>> CreateSeason([FromBody] CreateSeasonRequest request)
     {
         try
         {
@@ -169,19 +171,19 @@ public class AdminController : ControllerBase
                 FixturesCreated = fixturesCreated
             };
 
-            return Ok(response);
+            return Ok(ApiResponse<CreateSeasonResponse>.SuccessResult(response, response.Message));
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(ApiResponse<CreateSeasonResponse>.FailureResult(ex.Message));
         }
     }
 
     [HttpGet("teams/status")]
-    public async Task<ActionResult<IEnumerable<TeamStatusDto>>> GetTeamStatuses()
+    public async Task<ActionResult<ApiResponse<IEnumerable<TeamStatusDto>>>> GetTeamStatuses()
     {
         var teams = await _adminService.GetTeamStatusesAsync();
-        return Ok(teams);
+        return Ok(ApiResponse<IEnumerable<TeamStatusDto>>.SuccessResult(teams));
     }
 
     [HttpPut("teams/{teamId}/status")]
@@ -192,44 +194,44 @@ public class AdminController : ControllerBase
     }
 
     [HttpPost("picks/backfill")]
-    public async Task<ActionResult<BackfillPicksResponse>> BackfillPicks([FromBody] BackfillPicksRequest request)
+    public async Task<ActionResult<ApiResponse<BackfillPicksResponse>>> BackfillPicks([FromBody] BackfillPicksRequest request)
     {
         var response = await _adminService.BackfillPicksAsync(request.UserId, request.Picks);
-        return Ok(response);
+        return Ok(ApiResponse<BackfillPicksResponse>.SuccessResult(response, "Picks backfilled successfully"));
     }
 
     [HttpGet("gameweeks/debug")]
-    public async Task<ActionResult> GetGameweeksDebugInfo()
+    public async Task<ActionResult<ApiResponse<object>>> GetGameweeksDebugInfo()
     {
         var gameweeksDebug = await _adminService.GetGameweeksDebugInfoAsync();
-        return Ok(gameweeksDebug);
+        return Ok(ApiResponse<object>.SuccessResult(gameweeksDebug));
     }
 
     // Elimination management endpoints
     [HttpGet("eliminations/season/{seasonId}")]
-    public async Task<ActionResult<List<UserEliminationDto>>> GetSeasonEliminations(string seasonId)
+    public async Task<ActionResult<ApiResponse<List<UserEliminationDto>>>> GetSeasonEliminations(string seasonId)
     {
         var decodedSeasonId = Uri.UnescapeDataString(seasonId);
         var eliminations = await _eliminationService.GetSeasonEliminationsAsync(decodedSeasonId);
-        return Ok(eliminations);
+        return Ok(ApiResponse<List<UserEliminationDto>>.SuccessResult(eliminations));
     }
 
     [HttpGet("eliminations/gameweek/{seasonId}/{gameweekNumber}")]
-    public async Task<ActionResult<List<UserEliminationDto>>> GetGameweekEliminations(string seasonId, int gameweekNumber)
+    public async Task<ActionResult<ApiResponse<List<UserEliminationDto>>>> GetGameweekEliminations(string seasonId, int gameweekNumber)
     {
         var decodedSeasonId = Uri.UnescapeDataString(seasonId);
         var eliminations = await _eliminationService.GetGameweekEliminationsAsync(decodedSeasonId, gameweekNumber);
-        return Ok(eliminations);
+        return Ok(ApiResponse<List<UserEliminationDto>>.SuccessResult(eliminations));
     }
 
     [HttpGet("eliminations/configs/{seasonId}")]
-    public async Task<ActionResult<List<EliminationConfigDto>>> GetEliminationConfigs(string seasonId)
+    public async Task<ActionResult<ApiResponse<List<EliminationConfigDto>>>> GetEliminationConfigs(string seasonId)
     {
         var decodedSeasonId = Uri.UnescapeDataString(seasonId);
         _logger.LogInformation("GetEliminationConfigs called for seasonId: {SeasonId}", decodedSeasonId);
         var configs = await _eliminationService.GetEliminationConfigsAsync(decodedSeasonId);
         _logger.LogInformation("Returned {Count} elimination configs for season {SeasonId}", configs.Count, decodedSeasonId);
-        return Ok(configs);
+        return Ok(ApiResponse<List<EliminationConfigDto>>.SuccessResult(configs));
     }
 
     [HttpPut("eliminations/gameweek/{seasonId}/{gameweekNumber}/count")]
@@ -243,11 +245,11 @@ public class AdminController : ControllerBase
         }
         catch (ArgumentException ex)
         {
-            return NotFound(new { message = ex.Message });
+            return NotFound(ApiResponse<object>.FailureResult(ex.Message));
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(ApiResponse<object>.FailureResult(ex.Message));
         }
     }
 
@@ -259,90 +261,90 @@ public class AdminController : ControllerBase
     }
 
     [HttpPost("eliminations/process/{seasonId}/{gameweekNumber}")]
-    public async Task<ActionResult<ProcessEliminationsResponse>> ProcessEliminations(string seasonId, int gameweekNumber)
+    public async Task<ActionResult<ApiResponse<ProcessEliminationsResponse>>> ProcessEliminations(string seasonId, int gameweekNumber)
     {
         var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var adminUserId))
         {
-            return Unauthorized(new { message = "User ID not found in token" });
+            return Unauthorized(ApiResponse<ProcessEliminationsResponse>.FailureResult("User ID not found in token"));
         }
 
         var decodedSeasonId = Uri.UnescapeDataString(seasonId);
         var response = await _eliminationService.ProcessGameweekEliminationsAsync(decodedSeasonId, gameweekNumber, adminUserId);
-        return Ok(response);
+        return Ok(ApiResponse<ProcessEliminationsResponse>.SuccessResult(response, "Eliminations processed successfully"));
     }
 
     // Auto-pick assignment endpoints
     [HttpPost("picks/auto-assign/{seasonId}/{gameweekNumber}")]
-    public async Task<IActionResult> AutoAssignPicksForGameweek(string seasonId, int gameweekNumber)
+    public async Task<ActionResult<ApiResponse<object>>> AutoAssignPicksForGameweek(string seasonId, int gameweekNumber)
     {
         try
         {
             var decodedSeasonId = Uri.UnescapeDataString(seasonId);
             await _autoPickService.AssignMissedPicksForGameweekAsync(decodedSeasonId, gameweekNumber);
-            return Ok(new { message = "Auto-pick assignment completed successfully" });
+            return Ok(ApiResponse<object>.SuccessResult(new { }, "Auto-pick assignment completed successfully"));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to auto-assign picks for gameweek {SeasonId}-{GameweekNumber}", seasonId, gameweekNumber);
-            return StatusCode(500, new { message = "Failed to auto-assign picks", error = ex.Message });
+            return StatusCode(500, ApiResponse<object>.FailureResult("Failed to auto-assign picks", new List<string> { ex.Message }));
         }
     }
 
     [HttpPost("picks/auto-assign-all")]
-    public async Task<IActionResult> AutoAssignAllMissedPicks()
+    public async Task<ActionResult<ApiResponse<object>>> AutoAssignAllMissedPicks()
     {
         try
         {
             await _autoPickService.AssignAllMissedPicksAsync();
-            return Ok(new { message = "Auto-pick assignment completed for all gameweeks" });
+            return Ok(ApiResponse<object>.SuccessResult(new { }, "Auto-pick assignment completed for all gameweeks"));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to auto-assign all missed picks");
-            return StatusCode(500, new { message = "Failed to auto-assign picks", error = ex.Message });
+            return StatusCode(500, ApiResponse<object>.FailureResult("Failed to auto-assign picks", new List<string> { ex.Message }));
         }
     }
 
     // Pick reminder endpoints
     [HttpPost("picks/send-reminders")]
-    public async Task<IActionResult> SendPickReminders()
+    public async Task<ActionResult<ApiResponse<object>>> SendPickReminders()
     {
         try
         {
             await _pickReminderService.SendPickRemindersAsync();
-            return Ok(new { message = "Pick reminders sent successfully" });
+            return Ok(ApiResponse<object>.SuccessResult(new { }, "Pick reminders sent successfully"));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send pick reminders");
-            return StatusCode(500, new { message = "Failed to send pick reminders", error = ex.Message });
+            return StatusCode(500, ApiResponse<object>.FailureResult("Failed to send pick reminders", new List<string> { ex.Message }));
         }
     }
 
     // Pick Rules endpoints
     [HttpGet("pick-rules/{seasonId}")]
-    public async Task<ActionResult<PickRulesResponse>> GetPickRules(string seasonId)
+    public async Task<ActionResult<ApiResponse<PickRulesResponse>>> GetPickRules(string seasonId)
     {
         var decodedSeasonId = Uri.UnescapeDataString(seasonId);
         var rules = await _pickRuleService.GetPickRulesForSeasonAsync(decodedSeasonId);
-        return Ok(rules);
+        return Ok(ApiResponse<PickRulesResponse>.SuccessResult(rules));
     }
 
     [HttpPost("pick-rules")]
     [ServiceFilter(typeof(Filters.ValidationFilter<CreatePickRuleRequest>))]
-    public async Task<ActionResult<PickRuleDto>> CreatePickRule([FromBody] CreatePickRuleRequest request)
+    public async Task<ActionResult<ApiResponse<PickRuleDto>>> CreatePickRule([FromBody] CreatePickRuleRequest request)
     {
         var rule = await _pickRuleService.CreatePickRuleAsync(request);
-        return CreatedAtAction(nameof(GetPickRules), new { seasonId = rule.SeasonId }, rule);
+        return CreatedAtAction(nameof(GetPickRules), new { seasonId = rule.SeasonId }, ApiResponse<PickRuleDto>.SuccessResult(rule, "Pick rule created successfully"));
     }
 
     [HttpPut("pick-rules/{id}")]
     [ServiceFilter(typeof(Filters.ValidationFilter<UpdatePickRuleRequest>))]
-    public async Task<ActionResult<PickRuleDto>> UpdatePickRule(Guid id, [FromBody] UpdatePickRuleRequest request)
+    public async Task<ActionResult<ApiResponse<PickRuleDto>>> UpdatePickRule(Guid id, [FromBody] UpdatePickRuleRequest request)
     {
         var rule = await _pickRuleService.UpdatePickRuleAsync(id, request);
-        return Ok(rule);
+        return Ok(ApiResponse<PickRuleDto>.SuccessResult(rule, "Pick rule updated successfully"));
     }
 
     [HttpDelete("pick-rules/{id}")]
@@ -353,11 +355,11 @@ public class AdminController : ControllerBase
     }
 
     [HttpPost("pick-rules/{seasonId}/initialize")]
-    public async Task<ActionResult<PickRulesResponse>> InitializeDefaultPickRules(string seasonId)
+    public async Task<ActionResult<ApiResponse<PickRulesResponse>>> InitializeDefaultPickRules(string seasonId)
     {
         var decodedSeasonId = Uri.UnescapeDataString(seasonId);
         var rules = await _pickRuleService.InitializeDefaultPickRulesAsync(decodedSeasonId);
-        return Ok(rules);
+        return Ok(ApiResponse<PickRulesResponse>.SuccessResult(rules, "Default pick rules initialized successfully"));
     }
 }
 

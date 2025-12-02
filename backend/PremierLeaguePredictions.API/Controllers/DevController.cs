@@ -32,23 +32,23 @@ public class DevController : ControllerBase
     public async Task<IActionResult> SeedDatabase()
     {
         await _seeder.SeedAsync();
-        return Ok(new { message = "Database seeded successfully" });
+        return Ok(ApiResponse.SuccessResult("Database seeded successfully"));
     }
 
     [HttpPost("login-as-admin")]
-    public async Task<ActionResult<AuthResponse>> LoginAsAdmin()
+    public async Task<ActionResult<ApiResponse<AuthResponse>>> LoginAsAdmin()
     {
         var adminUser = await _context.Users
             .FirstOrDefaultAsync(u => u.IsAdmin);
 
         if (adminUser == null)
         {
-            return NotFound(new { message = "No admin user found. Run /api/dev/seed first." });
+            return NotFound(ApiResponse<AuthResponse>.FailureResult("No admin user found. Run /api/dev/seed first."));
         }
 
         var token = _tokenService.GenerateToken(adminUser);
 
-        return Ok(new AuthResponse
+        var authResponse = new AuthResponse
         {
             Token = token,
             User = new UserDto
@@ -62,23 +62,25 @@ public class DevController : ControllerBase
                 IsAdmin = adminUser.IsAdmin,
                 IsPaid = adminUser.IsPaid
             }
-        });
+        };
+
+        return Ok(ApiResponse<AuthResponse>.SuccessResult(authResponse, "Logged in as admin"));
     }
 
     [HttpPost("login-as-user")]
-    public async Task<ActionResult<AuthResponse>> LoginAsUser()
+    public async Task<ActionResult<ApiResponse<AuthResponse>>> LoginAsUser()
     {
         var testUser = await _context.Users
             .FirstOrDefaultAsync(u => u.Email == "test@plpredictions.com");
 
         if (testUser == null)
         {
-            return NotFound(new { message = "No test user found. Run /api/dev/seed first." });
+            return NotFound(ApiResponse<AuthResponse>.FailureResult("No test user found. Run /api/dev/seed first."));
         }
 
         var token = _tokenService.GenerateToken(testUser);
 
-        return Ok(new AuthResponse
+        var authResponse = new AuthResponse
         {
             Token = token,
             User = new UserDto
@@ -92,7 +94,9 @@ public class DevController : ControllerBase
                 IsAdmin = testUser.IsAdmin,
                 IsPaid = testUser.IsPaid
             }
-        });
+        };
+
+        return Ok(ApiResponse<AuthResponse>.SuccessResult(authResponse, "Logged in as test user"));
     }
 
     [HttpGet("test-football-api")]
@@ -101,22 +105,22 @@ public class DevController : ControllerBase
         try
         {
             var teams = await footballDataService.GetTeamsAsync();
-            return Ok(new
+            var testData = new
             {
-                success = true,
                 message = "Successfully connected to Football Data API",
                 teamCount = teams.Count(),
                 teams = teams.Take(3)
-            });
+            };
+            return Ok(ApiResponse<object>.SuccessResult(testData));
         }
         catch (Exception ex)
         {
-            return Ok(new
+            var errorData = new
             {
-                success = false,
                 error = ex.Message,
                 stackTrace = ex.StackTrace
-            });
+            };
+            return Ok(ApiResponse<object>.FailureResult("Failed to connect to Football Data API"));
         }
     }
 }

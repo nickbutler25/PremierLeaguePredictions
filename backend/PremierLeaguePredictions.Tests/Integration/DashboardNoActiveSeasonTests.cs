@@ -78,7 +78,10 @@ public class DashboardNoActiveSeasonTests
         // Get auth token via dev endpoint
         var loginResponse = await client.PostAsync("/api/dev/login-as-user", null);
         loginResponse.EnsureSuccessStatusCode();
-        var authResponse = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>();
+        var authApiResponse = await loginResponse.Content.ReadFromJsonAsync<ApiResponse<AuthResponse>>();
+        authApiResponse.Should().NotBeNull();
+        authApiResponse!.Success.Should().BeTrue();
+        var authResponse = authApiResponse.Data;
         authResponse.Should().NotBeNull();
 
         // Add auth token to subsequent requests
@@ -92,11 +95,13 @@ public class DashboardNoActiveSeasonTests
         // The dashboard endpoint returns empty data rather than 401
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var dashboard = await response.Content.ReadFromJsonAsync<DashboardDto>();
-        dashboard.Should().NotBeNull();
-        dashboard!.CurrentGameweek.Should().BeNull();
-        dashboard.RecentPicks.Should().BeEmpty();
-        dashboard.UpcomingGameweeks.Should().BeEmpty();
+        var apiResponse = await response.Content.ReadFromJsonAsync<ApiResponse<DashboardDto>>();
+        apiResponse.Should().NotBeNull();
+        apiResponse!.Success.Should().BeTrue();
+        apiResponse.Data.Should().NotBeNull();
+        apiResponse.Data!.CurrentGameweek.Should().BeNull();
+        apiResponse.Data.RecentPicks.Should().BeEmpty();
+        apiResponse.Data.UpcomingGameweeks.Should().BeEmpty();
     }
 
     [Fact]
@@ -159,7 +164,10 @@ public class DashboardNoActiveSeasonTests
         // Get auth token via dev endpoint
         var loginResponse = await client.PostAsync("/api/dev/login-as-user", null);
         loginResponse.EnsureSuccessStatusCode();
-        var authResponse = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>();
+        var authApiResponse = await loginResponse.Content.ReadFromJsonAsync<ApiResponse<AuthResponse>>();
+        authApiResponse.Should().NotBeNull();
+        authApiResponse!.Success.Should().BeTrue();
+        var authResponse = authApiResponse.Data;
         authResponse.Should().NotBeNull();
 
         // Add auth token to subsequent requests
@@ -172,11 +180,13 @@ public class DashboardNoActiveSeasonTests
         // Assert - Should return 200 OK with empty dashboard data
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var dashboard = await response.Content.ReadFromJsonAsync<DashboardDto>();
-        dashboard.Should().NotBeNull();
-        dashboard!.CurrentGameweek.Should().BeNull();
-        dashboard.UpcomingGameweeks.Should().BeEmpty();
-        dashboard.RecentPicks.Should().BeEmpty();
+        var apiResponse = await response.Content.ReadFromJsonAsync<ApiResponse<DashboardDto>>();
+        apiResponse.Should().NotBeNull();
+        apiResponse!.Success.Should().BeTrue();
+        apiResponse.Data.Should().NotBeNull();
+        apiResponse.Data!.CurrentGameweek.Should().BeNull();
+        apiResponse.Data.UpcomingGameweeks.Should().BeEmpty();
+        apiResponse.Data.RecentPicks.Should().BeEmpty();
     }
 
     [Fact]
@@ -213,7 +223,10 @@ public class DashboardNoActiveSeasonTests
         // Get auth token via dev endpoint
         var loginResponse = await client.PostAsync("/api/dev/login-as-admin", null);
         loginResponse.EnsureSuccessStatusCode();
-        var authResponse = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>();
+        var authApiResponse = await loginResponse.Content.ReadFromJsonAsync<ApiResponse<AuthResponse>>();
+        authApiResponse.Should().NotBeNull();
+        authApiResponse!.Success.Should().BeTrue();
+        var authResponse = authApiResponse.Data;
         authResponse.Should().NotBeNull();
 
         // Add auth token to subsequent requests
@@ -226,8 +239,10 @@ public class DashboardNoActiveSeasonTests
         // Assert - Admin should be able to access admin endpoints even without active season
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var seasons = await response.Content.ReadFromJsonAsync<List<SeasonDto>>();
-        seasons.Should().NotBeNull();
-        seasons.Should().BeEmpty(); // No seasons created yet
+        var apiResponse = await response.Content.ReadFromJsonAsync<ApiResponse<List<SeasonDto>>>();
+        apiResponse.Should().NotBeNull();
+        apiResponse!.Success.Should().BeTrue();
+        apiResponse.Data.Should().NotBeNull();
+        apiResponse.Data.Should().BeEmpty(); // No seasons created yet
     }
 }

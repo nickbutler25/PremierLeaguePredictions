@@ -49,7 +49,10 @@ public class CreateSeasonTests
         // Get auth token
         var loginResponse = await client.PostAsync("/api/dev/login-as-admin", null);
         loginResponse.EnsureSuccessStatusCode();
-        var authResponse = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>();
+        var authApiResponse = await loginResponse.Content.ReadFromJsonAsync<ApiResponse<AuthResponse>>();
+        authApiResponse.Should().NotBeNull();
+        authApiResponse!.Success.Should().BeTrue();
+        var authResponse = authApiResponse.Data;
 
         client.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", authResponse!.Token);
@@ -68,8 +71,11 @@ public class CreateSeasonTests
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var result = await response.Content.ReadFromJsonAsync<CreateSeasonResponse>();
-        result.Should().NotBeNull();
+        var apiResponse = await response.Content.ReadFromJsonAsync<ApiResponse<CreateSeasonResponse>>();
+        apiResponse.Should().NotBeNull();
+        apiResponse!.Success.Should().BeTrue();
+        apiResponse.Data.Should().NotBeNull();
+        var result = apiResponse.Data;
         result!.SeasonId.Should().NotBeEmpty();
         result.Message.Should().Contain("2025/2026");
         result.Message.Should().Contain("created successfully");
@@ -106,7 +112,10 @@ public class CreateSeasonTests
         // Get auth token for regular user
         var loginResponse = await client.PostAsync("/api/dev/login-as-user", null);
         loginResponse.EnsureSuccessStatusCode();
-        var authResponse = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>();
+        var authApiResponse = await loginResponse.Content.ReadFromJsonAsync<ApiResponse<AuthResponse>>();
+        authApiResponse.Should().NotBeNull();
+        authApiResponse!.Success.Should().BeTrue();
+        var authResponse = authApiResponse.Data;
 
         client.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", authResponse!.Token);
@@ -191,7 +200,10 @@ public class CreateSeasonTests
         // Get auth token
         var loginResponse = await client.PostAsync("/api/dev/login-as-admin", null);
         loginResponse.EnsureSuccessStatusCode();
-        var authResponse = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>();
+        var authApiResponse = await loginResponse.Content.ReadFromJsonAsync<ApiResponse<AuthResponse>>();
+        authApiResponse.Should().NotBeNull();
+        authApiResponse!.Success.Should().BeTrue();
+        var authResponse = authApiResponse.Data;
 
         client.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", authResponse!.Token);
@@ -209,8 +221,10 @@ public class CreateSeasonTests
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        var content = await response.Content.ReadAsStringAsync();
-        content.Should().Contain("already exists");
+        var apiResponse = await response.Content.ReadFromJsonAsync<ApiResponse<object>>();
+        apiResponse.Should().NotBeNull();
+        apiResponse!.Success.Should().BeFalse();
+        apiResponse.Message.Should().Contain("already exists");
     }
 
     [Fact]
@@ -244,7 +258,10 @@ public class CreateSeasonTests
         // Get auth token
         var loginResponse = await client.PostAsync("/api/dev/login-as-admin", null);
         loginResponse.EnsureSuccessStatusCode();
-        var authResponse = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>();
+        var authApiResponse = await loginResponse.Content.ReadFromJsonAsync<ApiResponse<AuthResponse>>();
+        authApiResponse.Should().NotBeNull();
+        authApiResponse!.Success.Should().BeTrue();
+        var authResponse = authApiResponse.Data;
 
         client.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", authResponse!.Token);
@@ -309,7 +326,10 @@ public class CreateSeasonTests
         // Get auth token
         var loginResponse = await client.PostAsync("/api/dev/login-as-admin", null);
         loginResponse.EnsureSuccessStatusCode();
-        var authResponse = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>();
+        var authApiResponse = await loginResponse.Content.ReadFromJsonAsync<ApiResponse<AuthResponse>>();
+        authApiResponse.Should().NotBeNull();
+        authApiResponse!.Success.Should().BeTrue();
+        var authResponse = authApiResponse.Data;
 
         client.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", authResponse!.Token);
@@ -320,8 +340,11 @@ public class CreateSeasonTests
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var seasons = await response.Content.ReadFromJsonAsync<List<SeasonDto>>();
-        seasons.Should().NotBeNull();
+        var apiResponse = await response.Content.ReadFromJsonAsync<ApiResponse<List<SeasonDto>>>();
+        apiResponse.Should().NotBeNull();
+        apiResponse!.Success.Should().BeTrue();
+        apiResponse.Data.Should().NotBeNull();
+        var seasons = apiResponse.Data;
         seasons.Should().HaveCount(1);
         seasons![0].Name.Should().Be("2025/2026");
         seasons[0].IsActive.Should().BeFalse();
@@ -338,7 +361,9 @@ public class CreateSeasonTests
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-        var content = await response.Content.ReadAsStringAsync();
-        content.Should().Contain("No active season found");
+        var apiResponse = await response.Content.ReadFromJsonAsync<ApiResponse<object>>();
+        apiResponse.Should().NotBeNull();
+        apiResponse!.Success.Should().BeFalse();
+        apiResponse.Message.Should().Contain("No active season found");
     }
 }

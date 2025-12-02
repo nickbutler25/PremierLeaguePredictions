@@ -89,7 +89,10 @@ public class EliminationManagementTests
         // Get auth token
         var loginResponse = await client.PostAsync("/api/dev/login-as-admin", null);
         loginResponse.EnsureSuccessStatusCode();
-        var authResponse = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>();
+        var authApiResponse = await loginResponse.Content.ReadFromJsonAsync<ApiResponse<AuthResponse>>();
+        authApiResponse.Should().NotBeNull();
+        authApiResponse!.Success.Should().BeTrue();
+        var authResponse = authApiResponse.Data;
 
         client.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", authResponse!.Token);
@@ -100,8 +103,11 @@ public class EliminationManagementTests
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var configs = await response.Content.ReadFromJsonAsync<List<EliminationConfigDto>>();
-        configs.Should().NotBeNull();
+        var apiResponse = await response.Content.ReadFromJsonAsync<ApiResponse<List<EliminationConfigDto>>>();
+        apiResponse.Should().NotBeNull();
+        apiResponse!.Success.Should().BeTrue();
+        apiResponse.Data.Should().NotBeNull();
+        var configs = apiResponse.Data;
         configs.Should().HaveCount(3, "we created 3 gameweeks");
 
         configs![0].GameweekId.Should().Be("2025/2026-1");
@@ -179,7 +185,10 @@ public class EliminationManagementTests
         // Get auth token
         var loginResponse = await client.PostAsync("/api/dev/login-as-admin", null);
         loginResponse.EnsureSuccessStatusCode();
-        var authResponse = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>();
+        var authApiResponse = await loginResponse.Content.ReadFromJsonAsync<ApiResponse<AuthResponse>>();
+        authApiResponse.Should().NotBeNull();
+        authApiResponse!.Success.Should().BeTrue();
+        var authResponse = authApiResponse.Data;
 
         client.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", authResponse!.Token);
@@ -309,7 +318,10 @@ public class EliminationManagementTests
         // Get auth token
         var loginResponse = await client.PostAsync("/api/dev/login-as-admin", null);
         loginResponse.EnsureSuccessStatusCode();
-        var authResponse = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>();
+        var authApiResponse = await loginResponse.Content.ReadFromJsonAsync<ApiResponse<AuthResponse>>();
+        authApiResponse.Should().NotBeNull();
+        authApiResponse!.Success.Should().BeTrue();
+        var authResponse = authApiResponse.Data;
 
         client.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", authResponse!.Token);
@@ -374,7 +386,10 @@ public class EliminationManagementTests
         // Get auth token for regular user
         var loginResponse = await client.PostAsync("/api/dev/login-as-user", null);
         loginResponse.EnsureSuccessStatusCode();
-        var authResponse = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>();
+        var authApiResponse = await loginResponse.Content.ReadFromJsonAsync<ApiResponse<AuthResponse>>();
+        authApiResponse.Should().NotBeNull();
+        authApiResponse!.Success.Should().BeTrue();
+        var authResponse = authApiResponse.Data;
 
         client.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", authResponse!.Token);
@@ -487,7 +502,10 @@ public class EliminationManagementTests
         // Get auth token
         var loginResponse = await client.PostAsync("/api/dev/login-as-admin", null);
         loginResponse.EnsureSuccessStatusCode();
-        var authResponse = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>();
+        var authApiResponse = await loginResponse.Content.ReadFromJsonAsync<ApiResponse<AuthResponse>>();
+        authApiResponse.Should().NotBeNull();
+        authApiResponse!.Success.Should().BeTrue();
+        var authResponse = authApiResponse.Data;
 
         client.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", authResponse!.Token);
@@ -498,8 +516,11 @@ public class EliminationManagementTests
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var configs = await response.Content.ReadFromJsonAsync<List<EliminationConfigDto>>();
-        configs.Should().NotBeNull();
+        var apiResponse = await response.Content.ReadFromJsonAsync<ApiResponse<List<EliminationConfigDto>>>();
+        apiResponse.Should().NotBeNull();
+        apiResponse!.Success.Should().BeTrue();
+        apiResponse.Data.Should().NotBeNull();
+        var configs = apiResponse.Data;
         configs.Should().HaveCount(2, "we created 2 gameweeks");
 
         // GW1 should show as processed

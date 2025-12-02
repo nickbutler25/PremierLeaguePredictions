@@ -1,15 +1,15 @@
 import { apiClient } from './api';
 import { mockAuthService } from './auth.mock';
-import type { AuthResponse, LoginRequest } from '@/types';
+import type { AuthResponse, LoginRequest, ApiResponse } from '@/types';
 
 const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true';
 
 const realAuthService = {
   login: async (googleToken: string): Promise<AuthResponse> => {
-    const response = await apiClient.post<AuthResponse>('/api/auth/login', {
+    const response = await apiClient.post<ApiResponse<AuthResponse>>('/api/auth/login', {
       googleToken,
     } as LoginRequest);
-    return response.data;
+    return response.data.data!;
   },
 
   logout: async (): Promise<void> => {
