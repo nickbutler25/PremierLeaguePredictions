@@ -31,24 +31,21 @@ public class PickService : IPickService
 
     public async Task<IEnumerable<PickDto>> GetUserPicksAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        var picks = await _unitOfWork.Picks.FindAsync(p => p.UserId == userId, cancellationToken);
+        var picks = await _unitOfWork.Picks.FindAsync(p => p.UserId == userId, trackChanges: false, cancellationToken);
         var picksList = picks.ToList();
 
-        var teamIds = picksList.Select(p => p.TeamId).Distinct();
-        var teams = new List<Team>();
-        foreach (var teamId in teamIds)
-        {
-            var team = await _unitOfWork.Teams.FirstOrDefaultAsync(t => t.Id == teamId, cancellationToken);
-            if (team != null) teams.Add(team);
-        }
+        var teamIds = picksList.Select(p => p.TeamId).Distinct().ToList();
+        var teams = teamIds.Any()
+            ? (await _unitOfWork.Teams.FindAsync(t => teamIds.Contains(t.Id), trackChanges: false, cancellationToken)).ToList()
+            : new List<Team>();
 
-        var gameweekKeys = picksList.Select(p => new { p.SeasonId, p.GameweekNumber }).Distinct();
-        var gameweeks = new List<Gameweek>();
-        foreach (var key in gameweekKeys)
-        {
-            var gameweek = await _unitOfWork.Gameweeks.FirstOrDefaultAsync(g => g.SeasonId == key.SeasonId && g.WeekNumber == key.GameweekNumber, cancellationToken);
-            if (gameweek != null) gameweeks.Add(gameweek);
-        }
+        var gameweekKeys = picksList.Select(p => new { p.SeasonId, p.GameweekNumber }).Distinct().ToList();
+        var gameweeks = gameweekKeys.Any()
+            ? (await _unitOfWork.Gameweeks.FindAsync(
+                g => gameweekKeys.Any(k => k.SeasonId == g.SeasonId && k.GameweekNumber == g.WeekNumber),
+                trackChanges: false,
+                cancellationToken)).ToList()
+            : new List<Gameweek>();
 
         return picksList.Select(p => MapToDto(p, teams.FirstOrDefault(t => t.Id == p.TeamId), gameweeks.FirstOrDefault(g => g.SeasonId == p.SeasonId && g.WeekNumber == p.GameweekNumber)));
     }
@@ -203,16 +200,13 @@ public class PickService : IPickService
 
     public async Task<IEnumerable<PickDto>> GetPicksByGameweekAsync(string seasonId, int gameweekNumber, CancellationToken cancellationToken = default)
     {
-        var picks = await _unitOfWork.Picks.FindAsync(p => p.SeasonId == seasonId && p.GameweekNumber == gameweekNumber, cancellationToken);
+        var picks = await _unitOfWork.Picks.FindAsync(p => p.SeasonId == seasonId && p.GameweekNumber == gameweekNumber, trackChanges: false, cancellationToken);
         var picksList = picks.ToList();
 
-        var teamIds = picksList.Select(p => p.TeamId).Distinct();
-        var teams = new List<Team>();
-        foreach (var teamId in teamIds)
-        {
-            var team = await _unitOfWork.Teams.FirstOrDefaultAsync(t => t.Id == teamId, cancellationToken);
-            if (team != null) teams.Add(team);
-        }
+        var teamIds = picksList.Select(p => p.TeamId).Distinct().ToList();
+        var teams = teamIds.Any()
+            ? (await _unitOfWork.Teams.FindAsync(t => teamIds.Contains(t.Id), trackChanges: false, cancellationToken)).ToList()
+            : new List<Team>();
 
         return picksList.Select(p => MapToDto(p, teams.FirstOrDefault(t => t.Id == p.TeamId)));
     }
@@ -292,6 +286,7 @@ public class PickService : IPickService
         // Get all fixtures for this gameweek to find the opposition
         var fixtures = await _unitOfWork.Fixtures.FindAsync(
             f => f.SeasonId == seasonId && f.GameweekNumber == gameweekNumber,
+            trackChanges: false,
             cancellationToken);
 
         var fixturesList = fixtures.ToList();
@@ -301,17 +296,25 @@ public class PickService : IPickService
         {
             int oppositionTeamId = fixture.HomeTeamId == teamId ? fixture.AwayTeamId : fixture.HomeTeamId;
 
+            // Get all fixtures for this half in a single query to avoid N+1
+            var halfFixtures = await _unitOfWork.Fixtures.FindAsync(
+                f => f.SeasonId == seasonId &&
+                     f.GameweekNumber >= halfStartWeek &&
+                     f.GameweekNumber <= halfEndWeek,
+                trackChanges: false,
+                cancellationToken);
+
+            var halfFixturesList = halfFixtures.ToList();
+
             // Count how many times user has targeted this opposition in this half
             var timesOppositionTargeted = 0;
             foreach (var pick in picksList)
             {
-                var pickFixtures = await _unitOfWork.Fixtures.FindAsync(
-                    f => f.SeasonId == pick.SeasonId &&
-                         f.GameweekNumber == pick.GameweekNumber &&
-                         (f.HomeTeamId == pick.TeamId || f.AwayTeamId == pick.TeamId),
-                    cancellationToken);
+                var pickFixture = halfFixturesList.FirstOrDefault(f =>
+                    f.SeasonId == pick.SeasonId &&
+                    f.GameweekNumber == pick.GameweekNumber &&
+                    (f.HomeTeamId == pick.TeamId || f.AwayTeamId == pick.TeamId));
 
-                var pickFixture = pickFixtures.FirstOrDefault();
                 if (pickFixture != null)
                 {
                     int pickOppositionId = pickFixture.HomeTeamId == pick.TeamId
@@ -327,7 +330,7 @@ public class PickService : IPickService
 
             if (timesOppositionTargeted >= activeRule.MaxTimesOppositionCanBeTargeted)
             {
-                var oppositionTeam = await _unitOfWork.Teams.FirstOrDefaultAsync(t => t.Id == oppositionTeamId, cancellationToken);
+                var oppositionTeam = await _unitOfWork.Teams.FirstOrDefaultAsync(t => t.Id == oppositionTeamId, trackChanges: false, cancellationToken);
                 throw new InvalidOperationException(
                     $"You have already targeted {oppositionTeam?.Name ?? "this opposition"} " +
                     $"{timesOppositionTargeted} time(s) in half {half}. Maximum allowed: {activeRule.MaxTimesOppositionCanBeTargeted}");

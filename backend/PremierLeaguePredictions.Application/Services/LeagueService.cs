@@ -19,125 +19,94 @@ public class LeagueService : ILeagueService
 
     public async Task<LeagueStandingsDto> GetLeagueStandingsAsync(string? seasonId = null, CancellationToken cancellationToken = default)
     {
-        var allUsers = await _unitOfWork.Users.GetAllAsync(cancellationToken);
-        var allPicks = await _unitOfWork.Picks.GetAllAsync(cancellationToken);
-        var allGameweeks = await _unitOfWork.Gameweeks.GetAllAsync(cancellationToken);
-
         // Get active season if not specified
         Season? activeSeason = null;
         if (string.IsNullOrEmpty(seasonId))
         {
-            var seasons = await _unitOfWork.Seasons.FindAsync(s => s.IsActive, cancellationToken);
+            var seasons = await _unitOfWork.Seasons.FindAsync(s => s.IsActive, trackChanges: false, cancellationToken);
             activeSeason = seasons.FirstOrDefault();
             seasonId = activeSeason?.Name;
         }
         else
         {
-            activeSeason = await _unitOfWork.Seasons.FirstOrDefaultAsync(s => s.Name == seasonId, cancellationToken);
+            activeSeason = await _unitOfWork.Seasons.FirstOrDefaultAsync(s => s.Name == seasonId, trackChanges: false, cancellationToken);
         }
 
-        // Get approved participants for this season
-        HashSet<Guid> approvedUserIds;
-        if (!string.IsNullOrEmpty(seasonId))
+        if (string.IsNullOrEmpty(seasonId))
         {
-            var approvedParticipations = await _unitOfWork.SeasonParticipations.FindAsync(
-                sp => sp.SeasonId == seasonId && sp.IsApproved,
-                cancellationToken);
-            approvedUserIds = approvedParticipations.Select(sp => sp.UserId).ToHashSet();
-            _logger.LogInformation("Found {Count} approved participants for season {SeasonId}", approvedUserIds.Count, seasonId);
-        }
-        else
-        {
-            // No season, no participants
-            approvedUserIds = new HashSet<Guid>();
-        }
-
-        // Get eliminations for the season
-        var eliminations = !string.IsNullOrEmpty(seasonId)
-            ? await _unitOfWork.UserEliminations.FindAsync(e => e.SeasonId == seasonId, cancellationToken)
-            : new List<Core.Entities.UserElimination>().AsEnumerable();
-
-        var eliminationsByUser = eliminations.ToDictionary(e => e.UserId, e => e);
-        var gameweeksDict = allGameweeks.ToDictionary(g => $"{g.SeasonId}-{g.WeekNumber}", g => g);
-
-        // Create a set of gameweek IDs that have passed their deadline
-        var completedGameweekIds = allGameweeks
-            .Where(g => g.Deadline < DateTime.UtcNow)
-            .Select(g => $"{g.SeasonId}-{g.WeekNumber}")
-            .ToHashSet();
-
-        // Filter users to only include approved participants (admins can participate if approved)
-        var eligibleUsers = allUsers.Where(u =>
-            u.IsActive &&
-            approvedUserIds.Contains(u.Id));
-
-        var userStandings = eligibleUsers.Select(user =>
-        {
-            var userPicks = allPicks.Where(p => p.UserId == user.Id).ToList();
-
-            // Only count picks in completed gameweeks
-            var completedPicks = userPicks.Where(p => completedGameweekIds.Contains($"{p.SeasonId}-{p.GameweekNumber}")).ToList();
-
-            var totalPoints = userPicks.Sum(p => p.Points);
-            var picksMade = completedPicks.Count; // Only count completed picks as "played"
-            var wins = completedPicks.Count(p => p.Points == 3);
-            var draws = completedPicks.Count(p => p.Points == 1);
-            var losses = completedPicks.Count(p => p.Points == 0);
-
-            // Calculate goals (only from completed picks)
-            var goalsFor = completedPicks.Sum(p => p.GoalsFor);
-            var goalsAgainst = completedPicks.Sum(p => p.GoalsAgainst);
-            var goalDifference = goalsFor - goalsAgainst;
-
-            // Check elimination status
-            var isEliminated = eliminationsByUser.TryGetValue(user.Id, out var elimination);
-            int? eliminatedInGameweek = null;
-            int? eliminationPosition = null;
-
-            if (isEliminated && elimination != null)
+            // No season found, return empty standings
+            return new LeagueStandingsDto
             {
-                if (gameweeksDict.TryGetValue($"{elimination.SeasonId}-{elimination.GameweekNumber}", out var gameweek))
-                {
-                    eliminatedInGameweek = gameweek.WeekNumber;
-                }
-                eliminationPosition = elimination.Position;
-            }
-
-            return new StandingEntryDto
-            {
-                UserId = user.Id,
-                UserName = $"{user.FirstName} {user.LastName}",
-                TotalPoints = totalPoints,
-                PicksMade = picksMade,
-                Wins = wins,
-                Draws = draws,
-                Losses = losses,
-                GoalsFor = goalsFor,
-                GoalsAgainst = goalsAgainst,
-                GoalDifference = goalDifference,
-                IsEliminated = isEliminated,
-                EliminatedInGameweek = eliminatedInGameweek,
-                EliminationPosition = eliminationPosition,
-                Position = 0, // Will be calculated after sorting
-                Rank = 0 // Will be calculated after sorting
+                Standings = new List<StandingEntryDto>(),
+                TotalPlayers = 0,
+                LastUpdated = DateTime.UtcNow
             };
-        })
-        .OrderByDescending(s => s.TotalPoints)
-        .ThenByDescending(s => s.GoalDifference)
-        .ThenByDescending(s => s.GoalsFor)
-        .ToList();
+        }
+
+        _logger.LogInformation("Calculating standings for season {SeasonId}", seasonId);
+
+        // Get approved participant IDs for filtering
+        var approvedParticipations = await _unitOfWork.SeasonParticipations.FindAsync(
+            sp => sp.SeasonId == seasonId && sp.IsApproved,
+            trackChanges: false,
+            cancellationToken);
+        var approvedUserIds = approvedParticipations.Select(sp => sp.UserId).ToList();
+
+        _logger.LogInformation("Found {Count} approved participants for season {SeasonId}", approvedUserIds.Count, seasonId);
+
+        if (!approvedUserIds.Any())
+        {
+            return new LeagueStandingsDto
+            {
+                Standings = new List<StandingEntryDto>(),
+                TotalPlayers = 0,
+                LastUpdated = DateTime.UtcNow
+            };
+        }
+
+        // Optimized query: Push all aggregation to the database via UnitOfWork
+        var standingsData = await _unitOfWork.GetStandingsDataAsync(seasonId, approvedUserIds, cancellationToken);
+
+        // Map to DTOs and calculate goal difference
+        var standings = standingsData.Select(data => new StandingEntryDto
+        {
+            UserId = data.UserId,
+            UserName = $"{data.FirstName} {data.LastName}",
+            TotalPoints = data.TotalPoints,
+            PicksMade = data.CompletedPicksCount,
+            Wins = data.Wins,
+            Draws = data.Draws,
+            Losses = data.Losses,
+            GoalsFor = data.GoalsFor,
+            GoalsAgainst = data.GoalsAgainst,
+            GoalDifference = data.GoalsFor - data.GoalsAgainst,
+            IsEliminated = data.IsEliminated,
+            EliminatedInGameweek = data.EliminationGameweek,
+            EliminationPosition = data.EliminationPosition,
+            Position = 0, // Will be calculated after sorting
+            Rank = 0 // Will be calculated after sorting
+        }).ToList();
+
+        // Sort in memory (minimal data already loaded from database)
+        var sortedStandings = standings
+            .OrderByDescending(s => s.TotalPoints)
+            .ThenByDescending(s => s.GoalDifference)
+            .ThenByDescending(s => s.GoalsFor)
+            .ToList();
 
         // Assign positions and ranks
-        for (int i = 0; i < userStandings.Count; i++)
+        for (int i = 0; i < sortedStandings.Count; i++)
         {
-            userStandings[i].Position = i + 1;
-            userStandings[i].Rank = i + 1;
+            sortedStandings[i].Position = i + 1;
+            sortedStandings[i].Rank = i + 1;
         }
+
+        _logger.LogInformation("Calculated standings for {Count} players", sortedStandings.Count);
 
         return new LeagueStandingsDto
         {
-            Standings = userStandings,
-            TotalPlayers = userStandings.Count,
+            Standings = sortedStandings,
+            TotalPlayers = sortedStandings.Count,
             LastUpdated = DateTime.UtcNow
         };
     }

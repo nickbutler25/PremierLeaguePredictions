@@ -21,9 +21,21 @@ public class Repository<T> : IRepository<T> where T : class
         return await _dbSet.FindAsync(new object[] { id }, cancellationToken);
     }
 
+    public virtual async Task<T?> GetByIdAsync(Guid id, bool trackChanges, CancellationToken cancellationToken = default)
+    {
+        var query = trackChanges ? _dbSet.AsTracking() : _dbSet.AsNoTracking();
+        return await query.FirstOrDefaultAsync(e => EF.Property<Guid>(e, "Id") == id, cancellationToken);
+    }
+
     public virtual async Task<IEnumerable<T>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         return await _dbSet.ToListAsync(cancellationToken);
+    }
+
+    public virtual async Task<IEnumerable<T>> GetAllAsync(bool trackChanges, CancellationToken cancellationToken = default)
+    {
+        var query = trackChanges ? _dbSet.AsTracking() : _dbSet.AsNoTracking();
+        return await query.ToListAsync(cancellationToken);
     }
 
     public virtual async Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default)
@@ -31,9 +43,42 @@ public class Repository<T> : IRepository<T> where T : class
         return await _dbSet.Where(predicate).ToListAsync(cancellationToken);
     }
 
+    public virtual async Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate, bool trackChanges, CancellationToken cancellationToken = default)
+    {
+        var query = trackChanges ? _dbSet.AsTracking() : _dbSet.AsNoTracking();
+        return await query.Where(predicate).ToListAsync(cancellationToken);
+    }
+
+    public virtual async Task<IEnumerable<T>> FindWithIncludesAsync(
+        Expression<Func<T, bool>> predicate,
+        bool trackChanges = false,
+        CancellationToken cancellationToken = default,
+        params Expression<Func<T, object>>[] includes)
+    {
+        IQueryable<T> query = _dbSet;
+
+        if (!trackChanges)
+        {
+            query = query.AsNoTracking();
+        }
+
+        foreach (var include in includes)
+        {
+            query = query.Include(include);
+        }
+
+        return await query.Where(predicate).ToListAsync(cancellationToken);
+    }
+
     public virtual async Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default)
     {
         return await _dbSet.FirstOrDefaultAsync(predicate, cancellationToken);
+    }
+
+    public virtual async Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate, bool trackChanges, CancellationToken cancellationToken = default)
+    {
+        var query = trackChanges ? _dbSet.AsTracking() : _dbSet.AsNoTracking();
+        return await query.FirstOrDefaultAsync(predicate, cancellationToken);
     }
 
     public virtual async Task<T> AddAsync(T entity, CancellationToken cancellationToken = default)

@@ -101,7 +101,7 @@ public class AuthController : ControllerBase
             {
                 HttpOnly = true,
                 Secure = true, // Requires HTTPS
-                SameSite = SameSiteMode.Strict,
+                SameSite = SameSiteMode.None, // None required for cross-origin (different subdomains)
                 Expires = DateTimeOffset.UtcNow.AddDays(1)
             };
             Response.Cookies.Append("auth_token", token, cookieOptions);
@@ -173,7 +173,7 @@ public class AuthController : ControllerBase
             {
                 HttpOnly = true,
                 Secure = true, // Requires HTTPS
-                SameSite = SameSiteMode.Strict,
+                SameSite = SameSiteMode.None, // None required for cross-origin (different subdomains)
                 Expires = DateTimeOffset.UtcNow.AddDays(1)
             };
             Response.Cookies.Append("auth_token", token, cookieOptions);

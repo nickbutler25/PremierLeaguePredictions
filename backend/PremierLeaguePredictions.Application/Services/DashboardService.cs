@@ -18,11 +18,11 @@ public class DashboardService : IDashboardService
 
     public async Task<DashboardDto> GetUserDashboardAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        var user = await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken);
+        var user = await _unitOfWork.Users.GetByIdAsync(userId, trackChanges: false, cancellationToken);
         if (user == null) throw new KeyNotFoundException("User not found");
 
         // Check if user has approved participation for the active season (applies to all users including admins)
-        var activeSeason = await _unitOfWork.Seasons.FindAsync(s => s.IsActive, cancellationToken);
+        var activeSeason = await _unitOfWork.Seasons.FindAsync(s => s.IsActive, trackChanges: false, cancellationToken);
         var activeSeasonId = activeSeason.FirstOrDefault()?.Name;
 
         if (!string.IsNullOrEmpty(activeSeasonId))
@@ -31,6 +31,7 @@ public class DashboardService : IDashboardService
                 sp => sp.UserId == userId &&
                       sp.SeasonId == activeSeasonId &&
                       sp.IsApproved,
+                trackChanges: false,
                 cancellationToken);
 
             if (!participation.Any())
@@ -40,11 +41,11 @@ public class DashboardService : IDashboardService
             }
         }
 
-        var picks = await _unitOfWork.Picks.FindAsync(p => p.UserId == userId, cancellationToken);
+        var picks = await _unitOfWork.Picks.FindAsync(p => p.UserId == userId, trackChanges: false, cancellationToken);
         var picksList = picks.ToList();
 
         // Get all gameweeks to determine which are completed
-        var allGameweeks = await _unitOfWork.Gameweeks.GetAllAsync(cancellationToken);
+        var allGameweeks = await _unitOfWork.Gameweeks.GetAllAsync(trackChanges: false, cancellationToken);
         var completedGameweekKeys = allGameweeks
             .Where(g => g.Deadline < DateTime.UtcNow)
             .Select(g => new { g.SeasonId, GameweekNumber = g.WeekNumber })
@@ -79,7 +80,7 @@ public class DashboardService : IDashboardService
             now, allGameweeksOrdered.Count, userId);
 
         // Get all fixtures to check gameweek status
-        var allFixtures = await _unitOfWork.Fixtures.GetAllAsync(cancellationToken);
+        var allFixtures = await _unitOfWork.Fixtures.GetAllAsync(trackChanges: false, cancellationToken);
         var fixturesByGameweek = allFixtures.GroupBy(f => new { f.SeasonId, GameweekNumber = f.GameweekNumber }).ToDictionary(g => g.Key, g => g.ToList());
 
         GameweekDto? currentGameweek = null;
@@ -143,6 +144,7 @@ public class DashboardService : IDashboardService
             // Then add the next upcoming gameweeks
             var upcoming = await _unitOfWork.Gameweeks.FindAsync(
                 g => !g.IsLocked && g.Deadline > now,
+                trackChanges: false,
                 cancellationToken);
             upcomingGameweeksList.AddRange(upcoming
                 .OrderBy(g => g.Deadline)
@@ -162,6 +164,7 @@ public class DashboardService : IDashboardService
             // No gameweek in progress, so get the next upcoming one
             var upcoming = await _unitOfWork.Gameweeks.FindAsync(
                 g => !g.IsLocked && g.Deadline > now,
+                trackChanges: false,
                 cancellationToken);
             upcomingGameweeksList = upcoming
                 .OrderBy(g => g.Deadline)

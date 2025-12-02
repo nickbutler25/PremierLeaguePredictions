@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using PremierLeaguePredictions.Core.Entities;
 using PremierLeaguePredictions.Core.Interfaces;
@@ -74,5 +75,47 @@ public class UnitOfWork : IUnitOfWork
     {
         _transaction?.Dispose();
         _context.Dispose();
+    }
+
+    public async Task<List<StandingsData>> GetStandingsDataAsync(string seasonId, List<Guid> approvedUserIds, CancellationToken cancellationToken = default)
+    {
+        var now = DateTime.UtcNow;
+
+        var standings = await _context.Users
+            .Where(u => u.IsActive && approvedUserIds.Contains(u.Id))
+            .Select(u => new
+            {
+                User = u,
+                AllPicks = u.Picks.Where(p => p.SeasonId == seasonId),
+                CompletedPicks = u.Picks.Where(p =>
+                    p.SeasonId == seasonId &&
+                    _context.Gameweeks.Any(g =>
+                        g.SeasonId == p.SeasonId &&
+                        g.WeekNumber == p.GameweekNumber &&
+                        g.Deadline < now)),
+                Elimination = _context.UserEliminations
+                    .Where(e => e.UserId == u.Id && e.SeasonId == seasonId)
+                    .FirstOrDefault()
+            })
+            .Select(x => new StandingsData
+            {
+                UserId = x.User.Id,
+                FirstName = x.User.FirstName,
+                LastName = x.User.LastName,
+                TotalPoints = x.AllPicks.Sum(p => p.Points),
+                CompletedPicksCount = x.CompletedPicks.Count(),
+                Wins = x.CompletedPicks.Count(p => p.Points == 3),
+                Draws = x.CompletedPicks.Count(p => p.Points == 1),
+                Losses = x.CompletedPicks.Count(p => p.Points == 0),
+                GoalsFor = x.CompletedPicks.Sum(p => p.GoalsFor),
+                GoalsAgainst = x.CompletedPicks.Sum(p => p.GoalsAgainst),
+                IsEliminated = x.Elimination != null,
+                EliminationGameweek = x.Elimination != null ? (int?)x.Elimination.GameweekNumber : null,
+                EliminationPosition = x.Elimination != null ? (int?)x.Elimination.Position : null
+            })
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        return standings;
     }
 }
