@@ -33,10 +33,19 @@ public class AuthController : ControllerBase
     {
         try
         {
+            _logger.LogInformation("Login attempt received. GoogleToken present: {HasToken}", !string.IsNullOrEmpty(request.GoogleToken));
+
+            if (string.IsNullOrEmpty(request.GoogleToken))
+            {
+                _logger.LogWarning("Login failed: GoogleToken is null or empty");
+                return BadRequest(new { message = "Google token is required" });
+            }
+
             // Verify Google token
             var googleUserInfo = await _googleAuthService.VerifyGoogleTokenAsync(request.GoogleToken);
             if (googleUserInfo == null)
             {
+                _logger.LogWarning("Login failed: Google token verification failed");
                 return Unauthorized(new { message = "Invalid Google token" });
             }
 

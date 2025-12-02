@@ -54,9 +54,21 @@ builder.Services.AddScoped<DbSeeder>();
 
 // Configure JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secret = jwtSettings["Secret"] ?? throw new InvalidOperationException("JWT Secret is not configured");
-var issuer = jwtSettings["Issuer"] ?? throw new InvalidOperationException("JWT Issuer is not configured");
-var audience = jwtSettings["Audience"] ?? throw new InvalidOperationException("JWT Audience is not configured");
+var secret = jwtSettings["Secret"];
+if (string.IsNullOrWhiteSpace(secret))
+{
+    throw new InvalidOperationException("JWT Secret is not configured. Set JwtSettings__Secret environment variable.");
+}
+var issuer = jwtSettings["Issuer"];
+if (string.IsNullOrWhiteSpace(issuer))
+{
+    throw new InvalidOperationException("JWT Issuer is not configured. Set JwtSettings__Issuer environment variable.");
+}
+var audience = jwtSettings["Audience"];
+if (string.IsNullOrWhiteSpace(audience))
+{
+    throw new InvalidOperationException("JWT Audience is not configured. Set JwtSettings__Audience environment variable.");
+}
 
 builder.Services.AddAuthentication(options =>
 {
