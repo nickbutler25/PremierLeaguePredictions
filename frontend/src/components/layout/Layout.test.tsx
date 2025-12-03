@@ -29,6 +29,7 @@ const mockAuthContextValue = {
     isActive: true,
     isPaid: true
   },
+  token: 'mock-token',
   isAuthenticated: true,
   isAdmin: false,
   login: vi.fn(),

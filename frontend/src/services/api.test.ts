@@ -197,6 +197,7 @@ describe('API Service Endpoint Paths', () => {
 
       postSpy.mockClear();
       await picksService.createPick('user-id', {
+        seasonId: 'season-id',
         gameweekNumber: 1,
         teamId: 1,
       });

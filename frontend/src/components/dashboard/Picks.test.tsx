@@ -1,26 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { render as rtlRender, screen } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Picks } from './Picks';
-import { AuthProvider } from '@/contexts/AuthContext';
-import { createMockUser } from '@/test/test-utils';
 
-// Test utility to render with providers
-const render = (ui: React.ReactElement) => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-    },
-  });
-
-  return rtlRender(
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        {ui}
-      </AuthProvider>
-    </QueryClientProvider>
-  );
-};
+// Unused imports removed - these tests are documentation-only tests
+// that verify the logic exists in the component without full integration testing
 
 describe('Picks Component - Points Display Logic', () => {
   it('should show dash (-) for unplayed fixtures with 0-0-0 stats', () => {
