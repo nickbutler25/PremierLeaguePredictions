@@ -45,10 +45,10 @@ export function ErrorDisplay({
   const errorMessage = getErrorMessage(error);
 
   return (
-    <Card className="border-destructive/50">
+    <Card className="border-destructive/50" role="alert" aria-live="assertive">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-destructive">
-          <AlertCircle className="w-5 h-5" />
+          <AlertCircle className="w-5 h-5" aria-hidden="true" />
           {title}
         </CardTitle>
         <CardDescription>{errorMessage}</CardDescription>
@@ -59,7 +59,7 @@ export function ErrorDisplay({
             <summary className="cursor-pointer text-sm font-medium mb-2">
               Technical Details
             </summary>
-            <pre className="text-xs overflow-auto bg-background p-2 rounded">
+            <pre className="text-xs overflow-auto bg-background p-2 rounded" aria-label="Error details">
               {(() => {
                 try {
                   return JSON.stringify(error, null, 2);
@@ -72,8 +72,8 @@ export function ErrorDisplay({
         ) : null}
 
         {onRetry && (
-          <Button onClick={onRetry} variant="default" size="sm">
-            <RefreshCw className="w-4 h-4 mr-2" />
+          <Button onClick={onRetry} variant="default" size="sm" aria-label="Retry loading">
+            <RefreshCw className="w-4 h-4 mr-2" aria-hidden="true" />
             Retry
           </Button>
         )}
@@ -92,8 +92,8 @@ export function InlineError({ message, error, className = '' }: InlineErrorProps
   const errorMessage = error instanceof Error ? error.message : message || 'An error occurred';
 
   return (
-    <div className={`flex items-center gap-2 text-destructive text-sm ${className}`}>
-      <AlertCircle className="w-4 h-4 flex-shrink-0" />
+    <div className={`flex items-center gap-2 text-destructive text-sm ${className}`} role="alert" aria-live="polite">
+      <AlertCircle className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
       <span>{errorMessage}</span>
     </div>
   );

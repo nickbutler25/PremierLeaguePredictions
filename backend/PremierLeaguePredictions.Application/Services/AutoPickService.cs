@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PremierLeaguePredictions.Application.Interfaces;
+using PremierLeaguePredictions.Core.Constants;
 using PremierLeaguePredictions.Core.Entities;
 using PremierLeaguePredictions.Core.Interfaces;
 
@@ -292,9 +293,9 @@ public class AutoPickService : IAutoPickService
         var gameweeksList = allGameweeks.ToList();
 
         // Determine which half we're in
-        int half = currentWeekNumber <= 20 ? 1 : 2;
-        int halfStartWeek = half == 1 ? 1 : 21;
-        int halfEndWeek = half == 1 ? 20 : 38;
+        int half = GameRules.GetHalfForGameweek(currentWeekNumber);
+        int halfStartWeek = GameRules.GetHalfStart(half);
+        int halfEndWeek = GameRules.GetHalfEnd(half);
 
         // Get gameweeks for current half
         var currentHalfGameweeks = gameweeksList

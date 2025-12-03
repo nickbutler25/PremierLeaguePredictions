@@ -748,4 +748,206 @@ public class LeagueStandingsOptimizationTests
         result.Standings.Should().HaveCount(1);
         result.Standings[0].UserName.Should().Be("Approved User");
     }
+
+    [Fact]
+    public async Task GetLeagueStandings_OnlyCountsFinishedFixtures_NotDeadlinePassed()
+    {
+        // Arrange
+        using var scope = _factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var leagueService = scope.ServiceProvider.GetRequiredService<ILeagueService>();
+
+        var seasonId = "2024/2025-FixtureStatus";
+        var season = new Season
+        {
+            Name = seasonId,
+            StartDate = new DateTime(2024, 8, 1),
+            EndDate = new DateTime(2025, 5, 31),
+            IsActive = true,
+            IsArchived = false,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+        dbContext.Seasons.Add(season);
+
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = $"user-fixture-status@test.com",
+            FirstName = "Fixture",
+            LastName = "Tester",
+            GoogleId = $"google-fixture-status",
+            IsActive = true,
+            IsAdmin = false,
+            IsPaid = true,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+        dbContext.Users.Add(user);
+
+        dbContext.SeasonParticipations.Add(new SeasonParticipation
+        {
+            UserId = user.Id,
+            SeasonId = seasonId,
+            IsApproved = true,
+            RequestedAt = DateTime.UtcNow,
+            ApprovedAt = DateTime.UtcNow
+        });
+
+        var team1 = new Team
+        {
+            Id = Random.Shared.Next(10000, 20000),
+            Name = $"Team-Finished-{Guid.NewGuid().ToString()[..8]}",
+            ShortName = "TF1",
+            ExternalId = Random.Shared.Next(10000, 20000),
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+        dbContext.Teams.Add(team1);
+
+        var team2 = new Team
+        {
+            Id = Random.Shared.Next(20000, 30000),
+            Name = $"Team-Scheduled-{Guid.NewGuid().ToString()[..8]}",
+            ShortName = "TS1",
+            ExternalId = Random.Shared.Next(20000, 30000),
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+        dbContext.Teams.Add(team2);
+
+        var opposingTeam = new Team
+        {
+            Id = Random.Shared.Next(30000, 40000),
+            Name = $"Team-Opposing-{Guid.NewGuid().ToString()[..8]}",
+            ShortName = "TO1",
+            ExternalId = Random.Shared.Next(30000, 40000),
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+        dbContext.Teams.Add(opposingTeam);
+
+        // Gameweek 1: Deadline passed, fixture finished
+        var gameweek1 = new Gameweek
+        {
+            SeasonId = seasonId,
+            WeekNumber = 1,
+            Deadline = DateTime.UtcNow.AddDays(-2),
+            IsLocked = true,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+        dbContext.Gameweeks.Add(gameweek1);
+
+        // Gameweek 2: Deadline passed BUT fixture not finished yet (in progress)
+        var gameweek2 = new Gameweek
+        {
+            SeasonId = seasonId,
+            WeekNumber = 2,
+            Deadline = DateTime.UtcNow.AddHours(-2),
+            IsLocked = true,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+        dbContext.Gameweeks.Add(gameweek2);
+
+        // Create fixture for gameweek 1 with FINISHED status
+        var finishedFixture = new Fixture
+        {
+            Id = Guid.NewGuid(),
+            SeasonId = seasonId,
+            GameweekNumber = 1,
+            HomeTeamId = team1.Id,
+            AwayTeamId = opposingTeam.Id,
+            KickoffTime = DateTime.UtcNow.AddDays(-2),
+            HomeScore = 2,
+            AwayScore = 1,
+            Status = "FINISHED",
+            ExternalId = Random.Shared.Next(1000, 10000),
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+        dbContext.Fixtures.Add(finishedFixture);
+
+        // Create fixture for gameweek 2 with TIMED status (deadline passed but not finished)
+        var scheduledFixture = new Fixture
+        {
+            Id = Guid.NewGuid(),
+            SeasonId = seasonId,
+            GameweekNumber = 2,
+            HomeTeamId = team2.Id,
+            AwayTeamId = opposingTeam.Id,
+            KickoffTime = DateTime.UtcNow.AddHours(1), // Kicks off in 1 hour
+            HomeScore = null,
+            AwayScore = null,
+            Status = "TIMED", // Scheduled but not finished
+            ExternalId = Random.Shared.Next(10000, 20000),
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+        dbContext.Fixtures.Add(scheduledFixture);
+
+        // Pick for gameweek 1 (finished fixture) - scored with 3 points
+        var pick1 = new Pick
+        {
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            SeasonId = seasonId,
+            GameweekNumber = 1,
+            TeamId = team1.Id,
+            Points = 3,
+            GoalsFor = 2,
+            GoalsAgainst = 1,
+            IsAutoAssigned = false,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+        dbContext.Picks.Add(pick1);
+
+        // Pick for gameweek 2 (deadline passed but fixture not finished) - 0 points
+        var pick2 = new Pick
+        {
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            SeasonId = seasonId,
+            GameweekNumber = 2,
+            TeamId = team2.Id,
+            Points = 0, // No points yet because fixture not finished
+            GoalsFor = 0,
+            GoalsAgainst = 0,
+            IsAutoAssigned = false,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+        dbContext.Picks.Add(pick2);
+
+        await dbContext.SaveChangesAsync();
+        dbContext.ChangeTracker.Clear();
+
+        // Act
+        var result = await leagueService.GetLeagueStandingsAsync(seasonId);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Standings.Should().HaveCount(1);
+
+        var standing = result.Standings[0];
+
+        // Total points includes all picks (finished and unfinished)
+        standing.TotalPoints.Should().Be(3, "because total points includes all picks");
+
+        // CRITICAL: PicksMade, Wins, Draws, Losses should ONLY count FINISHED fixtures
+        standing.PicksMade.Should().Be(1, "because only 1 fixture is FINISHED (not just deadline passed)");
+        standing.Wins.Should().Be(1, "because only the FINISHED fixture resulted in a win");
+        standing.Draws.Should().Be(0);
+        standing.Losses.Should().Be(0, "because unfinished fixtures should not count as losses even with 0 points");
+
+        // Goals should only count from finished fixtures
+        standing.GoalsFor.Should().Be(2, "because only goals from FINISHED fixtures count");
+        standing.GoalsAgainst.Should().Be(1, "because only goals from FINISHED fixtures count");
+        standing.GoalDifference.Should().Be(1);
+    }
 }

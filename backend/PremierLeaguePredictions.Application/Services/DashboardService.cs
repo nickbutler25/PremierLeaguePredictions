@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using PremierLeaguePredictions.Application.DTOs;
 using PremierLeaguePredictions.Application.Interfaces;
+using PremierLeaguePredictions.Core.Constants;
 using PremierLeaguePredictions.Core.Interfaces;
 
 namespace PremierLeaguePredictions.Application.Services;
@@ -60,9 +61,9 @@ public class DashboardService : IDashboardService
 
         foreach (var pick in completedPicks)
         {
-            if (pick.Points == 3) totalWins++;
-            else if (pick.Points == 1) totalDraws++;
-            else if (pick.Points == 0) totalLosses++;
+            if (pick.Points == GameRules.PointsForWin) totalWins++;
+            else if (pick.Points == GameRules.PointsForDraw) totalDraws++;
+            else if (pick.Points == GameRules.PointsForLoss) totalLosses++;
         }
 
         var totalPoints = picksList.Sum(p => p.Points);

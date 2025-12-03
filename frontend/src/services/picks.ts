@@ -6,12 +6,12 @@ const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true';
 
 const realPicksService = {
   getPicks: async (_userId: string): Promise<Pick[]> => {
-    const response = await apiClient.get<ApiResponse<Pick[]>>('/api/picks');
+    const response = await apiClient.get<ApiResponse<Pick[]>>('/api/v1/picks');
     return response.data.data!;
   },
 
   createPick: async (_userId: string, pickData: PickSelection): Promise<Pick> => {
-    const response = await apiClient.post<ApiResponse<Pick>>('/api/picks', pickData);
+    const response = await apiClient.post<ApiResponse<Pick>>('/api/v1/picks', pickData);
     return response.data.data!;
   },
 

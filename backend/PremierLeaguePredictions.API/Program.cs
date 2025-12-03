@@ -40,6 +40,29 @@ builder.Host.UseSerilog((context, config) =>
 // Add services to the container
 builder.Services.AddControllers();
 
+// Configure API Versioning
+builder.Services.AddApiVersioning(options =>
+{
+    // Set default version to 1.0
+    options.DefaultApiVersion = new Asp.Versioning.ApiVersion(1, 0);
+
+    // Assume default version when not specified
+    options.AssumeDefaultVersionWhenUnspecified = true;
+
+    // Report API versions in response headers
+    options.ReportApiVersions = true;
+
+    // Read version from URL segment: /api/v1/controller
+    options.ApiVersionReader = new Asp.Versioning.UrlSegmentApiVersionReader();
+}).AddApiExplorer(options =>
+{
+    // Format the version as 'v'major[.minor]
+    options.GroupNameFormat = "'v'VVV";
+
+    // Substitute API version in route template
+    options.SubstituteApiVersionInUrl = true;
+});
+
 // Add FluentValidation - modern approach without deprecated AspNetCore integration
 builder.Services.AddValidatorsFromAssemblyContaining<CreatePickRequestValidator>();
 
@@ -139,7 +162,25 @@ if (builder.Environment.IsDevelopment() && disableAuth)
     builder.Services.AddSingleton<IAuthorizationHandler, AlwaysAllowAuthorizationHandler>();
 }
 
-builder.Services.AddAuthorization();
+// Configure Authorization Policies
+builder.Services.AddAuthorization(options =>
+{
+    // Basic admin access - read-only operations
+    options.AddPolicy(PremierLeaguePredictions.API.Authorization.AdminPolicies.AdminOnly, policy =>
+        policy.RequireRole("Admin"));
+
+    // Data modification - creating, updating, deleting records
+    options.AddPolicy(PremierLeaguePredictions.API.Authorization.AdminPolicies.DataModification, policy =>
+        policy.RequireRole("Admin"));
+
+    // Critical operations - overriding picks, eliminations, backfilling
+    options.AddPolicy(PremierLeaguePredictions.API.Authorization.AdminPolicies.CriticalOperations, policy =>
+        policy.RequireRole("Admin"));
+
+    // External sync operations
+    options.AddPolicy(PremierLeaguePredictions.API.Authorization.AdminPolicies.ExternalSync, policy =>
+        policy.RequireRole("Admin"));
+});
 
 // Configure CORS
 builder.Services.AddCors(options =>
@@ -181,6 +222,7 @@ builder.Services.AddHealthChecks()
         tags: new[] { "db", "sql", "postgresql" });
 
 // Register application services
+builder.Services.AddHttpContextAccessor(); // Required for AdminActionLogger
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddHttpClient<IGoogleAuthService, GoogleAuthService>();
 builder.Services.AddScoped<IPickService, PickService>();
@@ -197,6 +239,7 @@ builder.Services.AddScoped<IAutoPickService, AutoPickService>();
 builder.Services.AddScoped<IPickReminderService, PickReminderService>();
 builder.Services.AddScoped<IPickRuleService, PickRuleService>();
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
+builder.Services.AddScoped<IAdminActionLogger, AdminActionLogger>();
 builder.Services.AddScoped<INotificationService>(sp =>
 {
     var hubContext = sp.GetRequiredService<IHubContext<PremierLeaguePredictions.API.Hubs.NotificationHub>>();

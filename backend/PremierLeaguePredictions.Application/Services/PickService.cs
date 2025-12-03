@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using PremierLeaguePredictions.Application.DTOs;
 using PremierLeaguePredictions.Application.Interfaces;
+using PremierLeaguePredictions.Core.Constants;
 using PremierLeaguePredictions.Core.Entities;
 using PremierLeaguePredictions.Core.Interfaces;
 
@@ -258,13 +259,13 @@ public class PickService : IPickService
         Guid? excludePickId = null)
     {
         // Determine which half of the season
-        int half = gameweekNumber <= 19 ? 1 : 2;
-        int halfStartWeek = half == 1 ? 1 : 20;
-        int halfEndWeek = half == 1 ? 19 : 38;
+        int half = GameRules.GetHalfForGameweek(gameweekNumber);
+        int halfStartWeek = GameRules.GetHalfStart(half);
+        int halfEndWeek = GameRules.GetHalfEnd(half);
 
         // Get pick rules for this season/half
         var rules = await _pickRuleService.GetPickRulesForSeasonAsync(seasonId);
-        var activeRule = half == 1 ? rules.FirstHalf : rules.SecondHalf;
+        var activeRule = half == GameRules.FirstHalf ? rules.FirstHalf : rules.SecondHalf;
 
         // If no rules exist, allow the pick (fail open for backwards compatibility)
         if (activeRule == null)

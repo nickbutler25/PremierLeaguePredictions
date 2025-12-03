@@ -14,7 +14,7 @@ export interface UserListItem {
 
 export const usersService = {
   async getUsers(): Promise<UserListItem[]> {
-    const response = await apiClient.get<ApiResponse<UserListItem[]>>('/api/users');
+    const response = await apiClient.get<ApiResponse<UserListItem[]>>('/api/v1/users');
     return response.data.data!;
   },
 

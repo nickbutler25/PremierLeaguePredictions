@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PremierLeaguePredictions.Infrastructure.Data;
@@ -8,7 +9,8 @@ using PremierLeaguePredictions.Infrastructure.Services;
 namespace PremierLeaguePredictions.API.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/[controller]")]
 public class AuthController : ControllerBase
 {
     private readonly ApplicationDbContext _context;

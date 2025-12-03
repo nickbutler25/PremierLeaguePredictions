@@ -257,9 +257,7 @@ export function Picks() {
                             ? 'text-green-600 dark:text-green-400'
                             : pick.points === 1
                               ? 'text-yellow-600 dark:text-yellow-400'
-                              : pick.points === 0 && deadlinePassed
-                                ? 'text-red-600 dark:text-red-400'
-                                : ''
+                              : ''
                             }`}>
                             {pick.team?.logoUrl && (
                               <img
@@ -322,19 +320,24 @@ export function Picks() {
                     </TableCell>
                     <TableCell className="text-center font-medium">
                       {pick ? (
-                        <span
-                          className={
-                            pick.points === 3
-                              ? 'text-green-600 dark:text-green-400'
-                              : pick.points === 1
-                                ? 'text-yellow-600 dark:text-yellow-400'
-                                : pick.points === 0 && deadlinePassed
-                                  ? 'text-red-600 dark:text-red-400'
+                        // Check if fixture has been played by looking at whether any goals were scored
+                        // or if points were awarded. If goalsFor and goalsAgainst are both 0 and points is 0,
+                        // the fixture hasn't been played yet.
+                        pick.goalsFor === 0 && pick.goalsAgainst === 0 && pick.points === 0 ? (
+                          '-'
+                        ) : (
+                          <span
+                            className={
+                              pick.points === 3
+                                ? 'text-green-600 dark:text-green-400'
+                                : pick.points === 1
+                                  ? 'text-yellow-600 dark:text-yellow-400'
                                   : ''
-                          }
-                        >
-                          {pick.points}
-                        </span>
+                            }
+                          >
+                            {pick.points}
+                          </span>
+                        )
                       ) : (
                         '-'
                       )}

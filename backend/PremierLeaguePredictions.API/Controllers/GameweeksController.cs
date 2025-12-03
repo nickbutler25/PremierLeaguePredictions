@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
+using Asp.Versioning;
 using PremierLeaguePredictions.Application.DTOs;
 using PremierLeaguePredictions.Application.Interfaces;
 
 namespace PremierLeaguePredictions.API.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/[controller]")]
 public class GameweeksController : ControllerBase
 {
     private readonly IGameweekService _gameweekService;

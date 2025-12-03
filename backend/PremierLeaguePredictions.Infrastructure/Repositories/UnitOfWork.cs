@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using PremierLeaguePredictions.Core.Constants;
 using PremierLeaguePredictions.Core.Entities;
 using PremierLeaguePredictions.Core.Interfaces;
 using PremierLeaguePredictions.Infrastructure.Data;
@@ -89,10 +90,11 @@ public class UnitOfWork : IUnitOfWork
                 AllPicks = u.Picks.Where(p => p.SeasonId == seasonId),
                 CompletedPicks = u.Picks.Where(p =>
                     p.SeasonId == seasonId &&
-                    _context.Gameweeks.Any(g =>
-                        g.SeasonId == p.SeasonId &&
-                        g.WeekNumber == p.GameweekNumber &&
-                        g.Deadline < now)),
+                    _context.Fixtures.Any(f =>
+                        f.SeasonId == p.SeasonId &&
+                        f.GameweekNumber == p.GameweekNumber &&
+                        (f.HomeTeamId == p.TeamId || f.AwayTeamId == p.TeamId) &&
+                        f.Status == "FINISHED")),
                 Elimination = _context.UserEliminations
                     .Where(e => e.UserId == u.Id && e.SeasonId == seasonId)
                     .FirstOrDefault()
@@ -104,9 +106,9 @@ public class UnitOfWork : IUnitOfWork
                 LastName = x.User.LastName,
                 TotalPoints = x.AllPicks.Sum(p => p.Points),
                 CompletedPicksCount = x.CompletedPicks.Count(),
-                Wins = x.CompletedPicks.Count(p => p.Points == 3),
-                Draws = x.CompletedPicks.Count(p => p.Points == 1),
-                Losses = x.CompletedPicks.Count(p => p.Points == 0),
+                Wins = x.CompletedPicks.Count(p => p.Points == GameRules.PointsForWin),
+                Draws = x.CompletedPicks.Count(p => p.Points == GameRules.PointsForDraw),
+                Losses = x.CompletedPicks.Count(p => p.Points == GameRules.PointsForLoss),
                 GoalsFor = x.CompletedPicks.Sum(p => p.GoalsFor),
                 GoalsAgainst = x.CompletedPicks.Sum(p => p.GoalsAgainst),
                 IsEliminated = x.Elimination != null,

@@ -64,28 +64,28 @@ export interface PickRulesResponse {
 export const adminService = {
   // Season management
   async getSeasons() {
-    const response = await apiClient.get<ApiResponse<Season[]>>('/api/admin/seasons');
+    const response = await apiClient.get<ApiResponse<Season[]>>('/api/v1/admin/seasons');
     return response.data.data!;
   },
 
   async getActiveSeason() {
-    const response = await apiClient.get<ApiResponse<Season>>('/api/admin/seasons/active');
+    const response = await apiClient.get<ApiResponse<Season>>('/api/v1/admin/seasons/active');
     return response.data.data!;
   },
 
   async createSeason(request: CreateSeasonRequest) {
-    const response = await apiClient.post<ApiResponse<CreateSeasonResponse>>('/api/admin/seasons', request);
+    const response = await apiClient.post<ApiResponse<CreateSeasonResponse>>('/api/v1/admin/seasons', request);
     return response.data.data!;
   },
 
   // Team management
   async getTeamStatuses() {
-    const response = await apiClient.get<ApiResponse<TeamStatus[]>>('/api/admin/teams/status');
+    const response = await apiClient.get<ApiResponse<TeamStatus[]>>('/api/v1/admin/teams/status');
     return response.data.data!;
   },
 
   async updateTeamStatus(teamId: number, isActive: boolean) {
-    await apiClient.put(`/api/admin/teams/${teamId}/status`, { isActive });
+    await apiClient.put(`/api/v1/admin/teams/${teamId}/status`, { isActive });
   },
 
   // Sync operations
@@ -95,12 +95,12 @@ export const adminService = {
       teamsCreated: number;
       teamsUpdated: number;
       totalActiveTeams: number;
-    }>>('/api/admin/sync/teams');
+    }>>('/api/v1/admin/sync/teams');
     return response.data.data!;
   },
 
   async syncFixtures(season?: number) {
-    const url = season ? `/api/admin/sync/fixtures?season=${season}` : '/api/admin/sync/fixtures';
+    const url = season ? `/api/v1/admin/sync/fixtures?season=${season}` : '/api/v1/admin/sync/fixtures';
     const response = await apiClient.post<ApiResponse<{
       message: string;
       fixturesCreated: number;
@@ -116,7 +116,7 @@ export const adminService = {
       gameweeksProcessed: number;
       picksRecalculated: number;
       message: string;
-    }>>('/api/admin/sync/results');
+    }>>('/api/v1/admin/sync/results');
     return response.data.data!;
   },
 
@@ -127,7 +127,7 @@ export const adminService = {
       picksUpdated: number;
       picksSkipped: number;
       message: string;
-    }>>('/api/admin/picks/backfill', {
+    }>>('/api/v1/admin/picks/backfill', {
       userId,
       picks,
     });
@@ -136,26 +136,26 @@ export const adminService = {
 
   // Pick rules management
   async getPickRules(seasonId: string) {
-    const response = await apiClient.get<ApiResponse<PickRulesResponse>>(`/api/admin/pick-rules/${encodeURIComponent(seasonId)}`);
+    const response = await apiClient.get<ApiResponse<PickRulesResponse>>(`/api/v1/admin/pick-rules/${encodeURIComponent(seasonId)}`);
     return response.data.data!;
   },
 
   async createPickRule(request: CreatePickRuleRequest) {
-    const response = await apiClient.post<ApiResponse<PickRuleDto>>('/api/admin/pick-rules', request);
+    const response = await apiClient.post<ApiResponse<PickRuleDto>>('/api/v1/admin/pick-rules', request);
     return response.data.data!;
   },
 
   async updatePickRule(id: string, request: UpdatePickRuleRequest) {
-    const response = await apiClient.put<ApiResponse<PickRuleDto>>(`/api/admin/pick-rules/${id}`, request);
+    const response = await apiClient.put<ApiResponse<PickRuleDto>>(`/api/v1/admin/pick-rules/${id}`, request);
     return response.data.data!;
   },
 
   async deletePickRule(id: string) {
-    await apiClient.delete(`/api/admin/pick-rules/${id}`);
+    await apiClient.delete(`/api/v1/admin/pick-rules/${id}`);
   },
 
   async initializeDefaultPickRules(seasonId: string) {
-    const response = await apiClient.post<ApiResponse<PickRulesResponse>>(`/api/admin/pick-rules/${encodeURIComponent(seasonId)}/initialize`);
+    const response = await apiClient.post<ApiResponse<PickRulesResponse>>(`/api/v1/admin/pick-rules/${encodeURIComponent(seasonId)}/initialize`);
     return response.data.data!;
   },
 };

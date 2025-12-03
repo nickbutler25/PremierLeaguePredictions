@@ -155,91 +155,97 @@
 
 ---
 
-### 15. AdminController Too Large
+### 15. ✅ AdminController Split into Focused Controllers
 **Severity:** MEDIUM
-**Location:** `backend/PremierLeaguePredictions.API/Controllers/AdminController.cs`
+**Location:** `backend/PremierLeaguePredictions.API/Controllers/Admin/`
+**Status:** COMPLETED on 2025-12-02
 
-**Issue:**
-AdminController is 329 lines with 30+ endpoints, handling seasons, teams, picks, eliminations, and sync operations.
-
-**Fix:**
-Split into multiple focused controllers:
+**Implementation:**
+Split AdminController into 7 focused controllers:
 
 ```
 Controllers/Admin/
-├── AdminSeasonsController.cs     // Season CRUD operations
-├── AdminTeamsController.cs        // Team management, status updates
-├── AdminPicksController.cs        // Backfill picks, points overrides
-├── AdminEliminationsController.cs // Elimination management
+├── AdminSeasonsController.cs     // Season CRUD, active season endpoints
+├── AdminTeamsController.cs        // Team status management
+├── AdminPicksController.cs        // Backfill, override, auto-assign, reminders
+├── AdminEliminationsController.cs // Elimination configs and processing
 ├── AdminSyncController.cs         // External API sync operations
-└── AdminUsersController.cs        // User approvals, management
+├── AdminGameweeksController.cs    // Gameweek recalculation and debug
+└── AdminPickRulesController.cs    // Pick rule CRUD operations
 ```
 
-**Benefits:**
-- Easier to maintain and test
-- Better separation of concerns
-- Clearer API documentation
-- Easier to apply different policies per area
+**Controllers Details:**
+- **AdminSeasonsController**: GET seasons, GET active season, POST create season (with sync)
+- **AdminTeamsController**: GET team statuses, PUT update team status
+- **AdminPicksController**: POST override pick, POST backfill, POST auto-assign, POST send reminders
+- **AdminEliminationsController**: GET eliminations, PUT update counts, POST process eliminations
+- **AdminSyncController**: POST sync teams, POST sync fixtures, POST sync results
+- **AdminGameweeksController**: POST recalculate points, GET debug info, GET admin actions
+- **AdminPickRulesController**: GET/POST/PUT/DELETE pick rules
+
+**Benefits Achieved:**
+- Better separation of concerns (each controller handles one domain area)
+- Easier to maintain and test (smaller, focused files)
+- Clearer API documentation (related endpoints grouped together)
+- Ready for granular policy-based authorization per controller
 
 ---
 
-### 16. Weak Admin Authorization
+### 16. ✅ Enhanced Admin Authorization
 **Severity:** MEDIUM
-**Location:** Controllers using `[Authorize(Roles = "Admin")]`
+**Location:** Controllers using admin authorization
+**Status:** COMPLETED on 2025-12-02
 
-**Issue:**
-Admin authorization only checks for "Admin" role claim. No multi-factor authentication or additional verification for sensitive operations.
+**Implementation:**
 
-**Fix:**
-1. Implement policy-based authorization:
-```csharp
-// In Program.cs
-services.AddAuthorization(options =>
-{
-    options.AddPolicy("AdminOnly", policy =>
-        policy.RequireRole("Admin")
-              .RequireClaim("email_verified", "true"));
+1. **Policy-Based Authorization** (Program.cs:143-160)
+   - Created `AdminPolicies` class defining 4 authorization policies:
+     - `AdminOnly`: Basic admin access for read operations
+     - `DataModification`: Creating, updating, deleting records
+     - `CriticalOperations`: Overriding picks, eliminations, backfilling
+     - `ExternalSync`: Synchronizing data with external APIs
+   - Configured policies in Program.cs with role-based requirements
+   - Applied granular policies to admin controllers:
+     - AdminPicksController: AdminOnly (base), CriticalOperations (override, backfill)
+     - AdminEliminationsController: AdminOnly (base), CriticalOperations (process eliminations)
+     - AdminSyncController: ExternalSync for all endpoints
 
-    options.AddPolicy("SuperAdmin", policy =>
-        policy.RequireRole("Admin")
-              .RequireClaim("admin_level", "super"));
+2. **Comprehensive Audit Logging**
+   - Created `IAdminActionLogger` service (Application/Services/AdminActionLogger.cs)
+   - Automatically captures:
+     - Admin user ID from JWT claims
+     - IP address from HTTP context
+     - User agent from request headers
+     - Timestamp (UTC)
+     - Action type (OVERRIDE_PICK, BACKFILL_PICKS, PROCESS_ELIMINATIONS, etc.)
+     - Detailed context (affected users, seasons, gameweeks)
+   - Enriched JSON details stored in AdminAction.Details
+   - Non-blocking implementation (errors don't fail main operation)
+   - Integrated into critical endpoints:
+     - Override pick
+     - Backfill picks
+     - Auto-assign picks
+     - Process eliminations
+     - Sync results
 
-    options.AddPolicy("DataModification", policy =>
-        policy.RequireRole("Admin")
-              .RequireAssertion(context =>
-              {
-                  // Add custom logic (IP whitelist, MFA check, etc.)
-                  return true;
-              }));
-});
+3. **Admin Action Types Logged:**
+   - `OVERRIDE_PICK` - Manual pick overrides with reason
+   - `BACKFILL_PICKS` - Backfilling picks for users
+   - `AUTO_ASSIGN_PICKS` - Automated pick assignments
+   - `PROCESS_ELIMINATIONS` - Elimination processing
+   - `SYNC_RESULTS` - External results synchronization
 
-// In controllers
-[Authorize(Policy = "DataModification")]
-[HttpPost("override-points")]
-public async Task<ActionResult> OverridePoints(...)
-```
+**Benefits Achieved:**
+- ✅ Granular authorization control per operation type
+- ✅ Complete audit trail of all admin actions
+- ✅ IP address and user agent tracking
+- ✅ Framework ready for future MFA integration
+- ✅ Extensible policy system for additional requirements
 
-2. Add comprehensive audit logging:
-```csharp
-public class AdminActionLogger
-{
-    public async Task LogActionAsync(string action, string details, Guid userId)
-    {
-        var adminAction = new AdminAction
-        {
-            Action = action,
-            Details = details,
-            PerformedBy = userId,
-            PerformedAt = DateTime.UtcNow,
-            IpAddress = _httpContext.Connection.RemoteIpAddress?.ToString()
-        };
-        await _unitOfWork.AdminActions.AddAsync(adminAction);
-        await _unitOfWork.SaveChangesAsync();
-    }
-}
-```
-
-3. Consider MFA for admin users (future enhancement)
+**Future Enhancements:**
+- Consider MFA for critical operations (deferred to future iteration)
+- Add IP whitelisting for super-sensitive operations (optional)
+- Implement email notifications for critical admin actions (optional)
 
 ---
 
@@ -310,82 +316,182 @@ newConnection.onreconnected(() => {
 
 ## Low Priority Issues
 
-### 18. Missing API Versioning
+### 18. ✅ API Versioning Implemented
 **Severity:** LOW
+**Status:** COMPLETED on 2025-12-02
 
-**Fix:**
-```csharp
-services.AddApiVersioning(options =>
-{
-    options.DefaultApiVersion = new ApiVersion(1, 0);
-    options.AssumeDefaultVersionWhenUnspecified = true;
-    options.ReportApiVersions = true;
-    options.ApiVersionReader = new UrlSegmentApiVersionReader();
-});
+**Implementation:**
 
-[ApiVersion("1.0")]
-[Route("api/v{version:apiVersion}/[controller]")]
-public class PicksController : ControllerBase
-```
+1. **NuGet Packages Added:**
+   - `Asp.Versioning.Mvc` (v8.1.0)
+   - `Asp.Versioning.Mvc.ApiExplorer` (v8.1.0)
+
+2. **Configuration** (Program.cs:43-64)
+   ```csharp
+   builder.Services.AddApiVersioning(options =>
+   {
+       options.DefaultApiVersion = new Asp.Versioning.ApiVersion(1, 0);
+       options.AssumeDefaultVersionWhenUnspecified = true;
+       options.ReportApiVersions = true;
+       options.ApiVersionReader = new Asp.Versioning.UrlSegmentApiVersionReader();
+   }).AddApiExplorer(options =>
+   {
+       options.GroupNameFormat = "'v'VVV";
+       options.SubstituteApiVersionInUrl = true;
+   });
+   ```
+
+3. **All Controllers Updated:**
+   - Added `using Asp.Versioning;`
+   - Added `[ApiVersion("1.0")]` attribute
+   - Updated routes to use versioned format:
+     - Public endpoints: `[Route("api/v{version:apiVersion}/[controller]")]`
+     - Admin endpoints: `[Route("api/v{version:apiVersion}/admin/...")]`
+
+4. **Controllers Versioned (17 total):**
+   - AuthController, PicksController, TeamsController, UsersController
+   - DashboardController, LeagueController, FixturesController
+   - SeasonParticipationController, GameweeksController, DevController
+   - Admin: AdminSeasonsController, AdminTeamsController, AdminPicksController
+   - Admin: AdminPickRulesController, AdminGameweeksController, AdminEliminationsController, AdminSyncController
+
+**URL Format:**
+- Old: `/api/picks` or `/api/admin/picks`
+- New: `/api/v1/picks` or `/api/v1/admin/picks`
+- Version reported in response headers: `api-supported-versions: 1.0`
+
+**Benefits:**
+- ✅ Backward-compatible version negotiation
+- ✅ Future-proof for API changes (can add v2, v3, etc.)
+- ✅ API versions reported in response headers
+- ✅ Default version assumed when not specified
+- ✅ Clean URL-based versioning strategy
 
 ---
 
-### 19. Hardcoded Magic Numbers
+### 19. ✅ Magic Numbers Extracted to Constants
 **Severity:** LOW
-**Location:** Multiple files
+**Status:** COMPLETED on 2025-12-03
 
-**Fix:**
-Create constants class:
+**Implementation:**
+
+1. **Created Constants Classes:**
+   - `backend/PremierLeaguePredictions.Core/Constants/GameRules.cs`
+   - `backend/PremierLeaguePredictions.Core/Constants/ValidationRules.cs`
+
+2. **GameRules Constants:**
 ```csharp
 public static class GameRules
 {
+    // Points awarded for match results
     public const int PointsForWin = 3;
     public const int PointsForDraw = 1;
     public const int PointsForLoss = 0;
 
+    // Season structure
     public const int FirstHalfStart = 1;
-    public const int FirstHalfEnd = 20;
-    public const int SecondHalfStart = 21;
+    public const int FirstHalfEnd = 19;
+    public const int SecondHalfStart = 20;
     public const int SecondHalfEnd = 38;
     public const int TotalGameweeks = 38;
 
-    public const int MaxPicksPerSeason = 38;
-    public const int MinPicksForStandings = 1;
-}
+    // Half identifiers
+    public const int FirstHalf = 1;
+    public const int SecondHalf = 2;
 
+    // Helper methods for half calculations
+    public static int GetHalfForGameweek(int gameweekNumber);
+    public static int GetHalfStart(int half);
+    public static int GetHalfEnd(int half);
+}
+```
+
+3. **ValidationRules Constants:**
+```csharp
 public static class ValidationRules
 {
     public const int MaxNameLength = 100;
+    public const int MaxFirstNameLength = 100;
+    public const int MaxLastNameLength = 100;
     public const int MaxEmailLength = 255;
+    public const int MaxSeasonIdLength = 50;
+    public const int MaxSeasonNameLength = 50;
     public const int MinPasswordLength = 8;
 }
 ```
 
+4. **Files Updated (9 total):**
+   - **Services:** PickService.cs, AutoPickService.cs, DashboardService.cs
+   - **Infrastructure:** UnitOfWork.cs
+   - **Validators:** AuthValidators.cs, UserValidators.cs, AdminValidators.cs, SeasonParticipationValidators.cs
+
+**Benefits:**
+- ✅ Centralized game rule definitions
+- ✅ Easier to maintain and update rules
+- ✅ Self-documenting code with helper methods
+- ✅ Type-safe constants with compile-time checking
+- ✅ Validation rules consistent across application
+
 ---
 
-### 20. Missing Accessibility Features
+### 20. ✅ Accessibility Features Improved
 **Severity:** LOW
-**Location:** Frontend components
+**Status:** COMPLETED on 2025-12-03
 
-**Fix:**
-1. Add ARIA labels:
+**Implementation:**
+
+1. **Skip Navigation Added (Layout.tsx):**
 ```tsx
-<button aria-label="Submit pick for gameweek 1">Submit</button>
-<input aria-describedby="email-help" />
-<div role="alert" aria-live="polite">{errorMessage}</div>
+<a
+  href="#main-content"
+  className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded"
+>
+  Skip to main content
+</a>
 ```
 
-2. Ensure keyboard navigation:
-```tsx
-<div role="button" tabIndex={0} onKeyPress={handleKeyPress}>
-```
+2. **ARIA Labels and Roles Added:**
+   - **Layout.tsx:**
+     - Added `role="banner"` to header
+     - Added `role="navigation"` and `aria-label="Main navigation"` to nav
+     - Added `role="main"` and `id="main-content"` to main content
+     - Added `aria-label` to theme toggle button
+     - Added `aria-label` to home link and logout button
+     - Added `aria-hidden="true"` to decorative SVG icons
+     - Improved alt text for user profile image
 
-3. Add skip navigation:
-```tsx
-<a href="#main-content" className="skip-link">Skip to main content</a>
-```
+   - **AdminLayout.tsx:**
+     - Added `role="navigation"` and `aria-label="Admin navigation"` to admin tabs
+     - Added `aria-current="page"` to active tab
+     - Added `role="region"` and `aria-label="Admin content"` to content area
 
-4. Use semantic HTML consistently
+   - **ErrorDisplay.tsx:**
+     - Added `role="alert"` and `aria-live="assertive"` to error cards
+     - Added `aria-live="polite"` to inline errors
+     - Added `aria-hidden="true"` to decorative icons
+     - Added `aria-label` to retry button and error details
+
+3. **Semantic HTML:**
+   - Used semantic `<header>`, `<nav>`, `<main>` elements
+   - Proper heading hierarchy maintained
+   - Meaningful link text with aria-labels where needed
+
+4. **Keyboard Navigation:**
+   - All interactive elements accessible via keyboard
+   - Skip link focuses on main content
+   - Tab navigation works correctly through UI
+
+**Files Updated (3 total):**
+- `frontend/src/components/layout/Layout.tsx`
+- `frontend/src/components/layout/AdminLayout.tsx`
+- `frontend/src/components/ErrorDisplay.tsx`
+
+**Benefits:**
+- ✅ Screen reader friendly navigation
+- ✅ Keyboard-only users can navigate efficiently
+- ✅ WCAG 2.1 compliance improved
+- ✅ Better user experience for assistive technologies
+- ✅ Skip navigation reduces repetitive navigation
 
 ---
 
@@ -504,16 +610,16 @@ public static class ValidationRules
 2. ✅ Add health checks (COMPLETED)
 3. ✅ Fix logging for containers (COMPLETED)
 4. ✅ Standardize API responses (COMPLETED)
-5. Split AdminController
-6. Enhance admin authorization
+5. ✅ Split AdminController (COMPLETED)
+6. ✅ Enhance admin authorization (COMPLETED)
 7. ✅ Optimize SignalR reconnection (COMPLETED)
 
 ### Low Priority (Nice to Have)
-1. Add API versioning
-2. Extract magic numbers to constants
-3. Improve accessibility
+1. ✅ Add API versioning (COMPLETED)
+2. ✅ Extract magic numbers to constants (COMPLETED)
+3. ✅ Improve accessibility (COMPLETED)
 
 ---
 
-**Last Updated:** 2025-12-02
-**Status:** 15/20 issues resolved (75% complete - All HIGH priority + 5 MEDIUM priority issues completed! ✅)
+**Last Updated:** 2025-12-03
+**Status:** 20/20 issues resolved (100% complete - All issues completed! ✅ 🎉)

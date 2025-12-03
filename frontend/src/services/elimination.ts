@@ -31,19 +31,19 @@ export interface ProcessEliminationsResponse {
 export const eliminationService = {
   // Get all eliminations for a season
   async getSeasonEliminations(seasonId: string) {
-    const response = await apiClient.get<ApiResponse<UserElimination[]>>(`/api/admin/eliminations/season/${encodeURIComponent(seasonId)}`);
+    const response = await apiClient.get<ApiResponse<UserElimination[]>>(`/api/v1/admin/eliminations/season/${encodeURIComponent(seasonId)}`);
     return response.data.data!;
   },
 
   // Get eliminations for a specific gameweek
   async getGameweekEliminations(seasonId: string, gameweekNumber: number) {
-    const response = await apiClient.get<ApiResponse<UserElimination[]>>(`/api/admin/eliminations/gameweek/${encodeURIComponent(seasonId)}/${gameweekNumber}`);
+    const response = await apiClient.get<ApiResponse<UserElimination[]>>(`/api/v1/admin/eliminations/gameweek/${encodeURIComponent(seasonId)}/${gameweekNumber}`);
     return response.data.data!;
   },
 
   // Get elimination configuration for all gameweeks in a season
   async getEliminationConfigs(seasonId: string) {
-    const response = await apiClient.get<ApiResponse<EliminationConfig[]>>(`/api/admin/eliminations/configs/${encodeURIComponent(seasonId)}`);
+    const response = await apiClient.get<ApiResponse<EliminationConfig[]>>(`/api/v1/admin/eliminations/configs/${encodeURIComponent(seasonId)}`);
     return response.data.data!;
   },
 
@@ -56,7 +56,7 @@ export const eliminationService = {
 
   // Bulk update elimination counts for multiple gameweeks
   async bulkUpdateEliminationCounts(gameweekEliminationCounts: Record<string, number>) {
-    await apiClient.post('/api/admin/eliminations/bulk-update', {
+    await apiClient.post('/api/v1/admin/eliminations/bulk-update', {
       gameweekEliminationCounts,
     });
   },
@@ -64,7 +64,7 @@ export const eliminationService = {
   // Process eliminations for a gameweek
   async processGameweekEliminations(seasonId: string, gameweekNumber: number) {
     const response = await apiClient.post<ApiResponse<ProcessEliminationsResponse>>(
-      `/api/admin/eliminations/process/${encodeURIComponent(seasonId)}/${gameweekNumber}`
+      `/api/v1/admin/eliminations/process/${encodeURIComponent(seasonId)}/${gameweekNumber}`
     );
     return response.data.data!;
   },

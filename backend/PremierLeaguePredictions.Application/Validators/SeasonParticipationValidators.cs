@@ -1,5 +1,6 @@
 using FluentValidation;
 using PremierLeaguePredictions.Application.DTOs;
+using PremierLeaguePredictions.Core.Constants;
 
 namespace PremierLeaguePredictions.Application.Validators;
 
@@ -9,7 +10,7 @@ public class CreateSeasonParticipationRequestValidator : AbstractValidator<Creat
     {
         RuleFor(x => x.SeasonId)
             .NotEmpty().WithMessage("Season ID is required")
-            .MaximumLength(50).WithMessage("Season ID must not exceed 50 characters");
+            .MaximumLength(ValidationRules.MaxSeasonIdLength).WithMessage($"Season ID must not exceed {ValidationRules.MaxSeasonIdLength} characters");
     }
 }
 

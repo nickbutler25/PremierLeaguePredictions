@@ -1,5 +1,6 @@
 using FluentValidation;
 using PremierLeaguePredictions.Application.DTOs;
+using PremierLeaguePredictions.Core.Constants;
 
 namespace PremierLeaguePredictions.Application.Validators;
 
@@ -10,13 +11,13 @@ public class UpdateUserRequestValidator : AbstractValidator<UpdateUserRequest>
         When(x => !string.IsNullOrEmpty(x.FirstName), () =>
         {
             RuleFor(x => x.FirstName)
-                .MaximumLength(100).WithMessage("First name must not exceed 100 characters");
+                .MaximumLength(ValidationRules.MaxFirstNameLength).WithMessage($"First name must not exceed {ValidationRules.MaxFirstNameLength} characters");
         });
 
         When(x => !string.IsNullOrEmpty(x.LastName), () =>
         {
             RuleFor(x => x.LastName)
-                .MaximumLength(100).WithMessage("Last name must not exceed 100 characters");
+                .MaximumLength(ValidationRules.MaxLastNameLength).WithMessage($"Last name must not exceed {ValidationRules.MaxLastNameLength} characters");
         });
     }
 }

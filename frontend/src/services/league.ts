@@ -6,7 +6,7 @@ const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true';
 
 const realLeagueService = {
   getStandings: async (): Promise<LeagueStandings> => {
-    const response = await apiClient.get<ApiResponse<LeagueStandings>>('/api/league/standings');
+    const response = await apiClient.get<ApiResponse<LeagueStandings>>('/api/v1/league/standings');
     return response.data.data!;
   },
 };

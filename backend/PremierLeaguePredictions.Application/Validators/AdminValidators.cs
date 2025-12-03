@@ -1,5 +1,6 @@
 using FluentValidation;
 using PremierLeaguePredictions.Application.DTOs;
+using PremierLeaguePredictions.Core.Constants;
 
 namespace PremierLeaguePredictions.Application.Validators;
 
@@ -9,7 +10,7 @@ public class CreateSeasonRequestValidator : AbstractValidator<CreateSeasonReques
     {
         RuleFor(x => x.Name)
             .NotEmpty().WithMessage("Season name is required")
-            .MaximumLength(50).WithMessage("Season name must not exceed 50 characters");
+            .MaximumLength(ValidationRules.MaxSeasonNameLength).WithMessage($"Season name must not exceed {ValidationRules.MaxSeasonNameLength} characters");
 
         RuleFor(x => x.StartDate)
             .NotEmpty().WithMessage("Start date is required");
@@ -30,7 +31,7 @@ public class BackfillPickRequestValidator : AbstractValidator<BackfillPickReques
     {
         RuleFor(x => x.GameweekNumber)
             .GreaterThan(0).WithMessage("Gameweek number must be greater than 0")
-            .LessThanOrEqualTo(38).WithMessage("Gameweek number cannot exceed 38");
+            .LessThanOrEqualTo(GameRules.TotalGameweeks).WithMessage($"Gameweek number cannot exceed {GameRules.TotalGameweeks}");
 
         RuleFor(x => x.TeamId)
             .NotEmpty().WithMessage("Team ID is required");
