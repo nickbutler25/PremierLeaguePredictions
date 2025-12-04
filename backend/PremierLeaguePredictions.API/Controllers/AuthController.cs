@@ -113,6 +113,7 @@ public class AuthController : ControllerBase
                 HttpOnly = true,
                 Secure = true, // Requires HTTPS
                 SameSite = SameSiteMode.Lax, // Lax works better with Safari/iOS while still providing security
+                Domain = GetCookieDomain(), // Set domain to allow subdomain sharing
                 Expires = DateTimeOffset.UtcNow.AddDays(1)
             };
             Response.Cookies.Append("auth_token", token, cookieOptions);
@@ -185,6 +186,7 @@ public class AuthController : ControllerBase
                 HttpOnly = true,
                 Secure = true, // Requires HTTPS
                 SameSite = SameSiteMode.Lax, // Lax works better with Safari/iOS while still providing security
+                Domain = GetCookieDomain(), // Set domain to allow subdomain sharing
                 Expires = DateTimeOffset.UtcNow.AddDays(1)
             };
             Response.Cookies.Append("auth_token", token, cookieOptions);
@@ -217,8 +219,37 @@ public class AuthController : ControllerBase
     [HttpPost("logout")]
     public IActionResult Logout()
     {
-        // Clear the auth cookie
-        Response.Cookies.Delete("auth_token");
+        // Clear the auth cookie with same options as when it was set
+        var cookieOptions = new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = true,
+            SameSite = SameSiteMode.Lax,
+            Domain = GetCookieDomain(),
+            Expires = DateTimeOffset.UtcNow.AddDays(-1) // Expire in the past
+        };
+        Response.Cookies.Append("auth_token", "", cookieOptions);
         return Ok(ApiResponse.SuccessResult("Logged out successfully"));
+    }
+
+    private string? GetCookieDomain()
+    {
+        // Get the host from the request
+        var host = Request.Host.Host;
+
+        // For localhost, don't set domain
+        if (host == "localhost" || host == "127.0.0.1")
+            return null;
+
+        // For production, extract root domain to share cookies across subdomains
+        // e.g., api.plpredictions.com -> .plpredictions.com
+        var parts = host.Split('.');
+        if (parts.Length >= 2)
+        {
+            // Return the root domain with leading dot to allow subdomains
+            return $".{parts[^2]}.{parts[^1]}";
+        }
+
+        return null;
     }
 }
