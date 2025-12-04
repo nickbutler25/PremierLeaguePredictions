@@ -19,8 +19,10 @@ class ApiClient {
       (response) => response,
       (error: AxiosError) => {
         if (error.response?.status === 401) {
-          // Redirect to login on unauthorized
-          window.location.href = '/login';
+          // Redirect to login on unauthorized, but only if not already on login page
+          if (!window.location.pathname.startsWith('/login')) {
+            window.location.href = '/login';
+          }
         }
         return Promise.reject(error);
       }
