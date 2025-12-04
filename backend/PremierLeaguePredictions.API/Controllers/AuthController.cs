@@ -112,7 +112,7 @@ public class AuthController : ControllerBase
             {
                 HttpOnly = true,
                 Secure = true, // Requires HTTPS
-                SameSite = SameSiteMode.None, // None required for cross-origin (different subdomains)
+                SameSite = SameSiteMode.Lax, // Lax works better with Safari/iOS while still providing security
                 Expires = DateTimeOffset.UtcNow.AddDays(1)
             };
             Response.Cookies.Append("auth_token", token, cookieOptions);
@@ -184,7 +184,7 @@ public class AuthController : ControllerBase
             {
                 HttpOnly = true,
                 Secure = true, // Requires HTTPS
-                SameSite = SameSiteMode.None, // None required for cross-origin (different subdomains)
+                SameSite = SameSiteMode.Lax, // Lax works better with Safari/iOS while still providing security
                 Expires = DateTimeOffset.UtcNow.AddDays(1)
             };
             Response.Cookies.Append("auth_token", token, cookieOptions);
