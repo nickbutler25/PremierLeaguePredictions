@@ -64,7 +64,7 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 
   if (!user?.isAdmin) {
     console.log('User is not admin, redirecting to dashboard');
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;
@@ -77,7 +77,7 @@ function AppRoutes() {
     <Routes>
       <Route
         path="/login"
-        element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />}
+        element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />}
       />
       <Route
         path="/pending-approval"
@@ -89,6 +89,10 @@ function AppRoutes() {
       />
       <Route
         path="/"
+        element={<Navigate to="/dashboard" replace />}
+      />
+      <Route
+        path="/dashboard"
         element={
           <ApprovalCheckRoute>
             <Layout>
@@ -169,7 +173,7 @@ function AppRoutes() {
           </AdminRoute>
         }
       />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
 }

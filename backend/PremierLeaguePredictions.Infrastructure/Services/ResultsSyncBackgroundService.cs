@@ -78,17 +78,18 @@ public class ResultsSyncBackgroundService : BackgroundService
         }
 
         // Check if there are any games currently in progress or just finished
+        // Premier League games typically last ~2 hours, but can go longer with injury time/delays
         var currentlyPlayingOrRecent = fixturesList
-            .Where(f => f.KickoffTime <= now && f.KickoffTime >= now.AddHours(-2.5)) // Games that started in last 2.5 hours
+            .Where(f => f.KickoffTime <= now && f.KickoffTime >= now.AddHours(-3.5)) // Games that started in last 3.5 hours
             .Where(f => f.Status != "FINISHED" && f.Status != "CANCELLED" && f.Status != "POSTPONED")
             .ToList();
 
         if (currentlyPlayingOrRecent.Any())
         {
-            // There are games in progress, sync in 10 minutes to check for updates
-            _logger.LogInformation("Found {Count} games currently in progress, will sync in 10 minutes",
+            // There are games in progress, sync in 2 minutes to check for updates
+            _logger.LogInformation("Found {Count} games currently in progress, will sync in 2 minutes",
                 currentlyPlayingOrRecent.Count);
-            return now.AddMinutes(10);
+            return now.AddMinutes(2);
         }
 
         // Find the next fixture that will finish

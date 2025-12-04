@@ -52,7 +52,7 @@ export interface Fixture {
   kickoffTime: string;
   homeScore?: number;
   awayScore?: number;
-  status: 'SCHEDULED' | 'TIMED' | 'IN_PLAY' | 'FINISHED' | 'POSTPONED' | 'CANCELLED';
+  status: 'SCHEDULED' | 'TIMED' | 'IN_PLAY' | 'PAUSED' | 'FINISHED' | 'POSTPONED' | 'CANCELLED';
   externalApiId?: number;
 }
 

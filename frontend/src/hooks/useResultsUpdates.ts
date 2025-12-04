@@ -30,7 +30,7 @@ export function useResultsUpdates() {
       queryClient.invalidateQueries({ queryKey: ['fixtures'] });
       queryClient.invalidateQueries({ queryKey: ['gameweeks'] });
       queryClient.invalidateQueries({ queryKey: ['picks'] });
-      queryClient.invalidateQueries({ queryKey: ['league'] });
+      queryClient.invalidateQueries({ queryKey: ['league-standings'] });
     };
 
     // Register handler

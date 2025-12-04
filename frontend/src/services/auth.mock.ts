@@ -44,4 +44,10 @@ export const mockAuthService = {
     console.log('[MOCK AUTH] Logout called');
     await delay(200);
   },
+
+  getCurrentUser: async () => {
+    console.log('[MOCK AUTH] Get current user called');
+    await delay(200);
+    return mockUser;
+  },
 };

@@ -16,6 +16,7 @@ export function DashboardPage() {
     queryKey: ['dashboard', user?.id],
     queryFn: () => dashboardService.getDashboard(user?.id || ''),
     enabled: !!user?.id,
+    refetchInterval: 120000, // Refetch every 2 minutes to show live points during matches
   });
 
   if (isLoading || !user) {

@@ -32,6 +32,7 @@ const mockAuthContextValue = {
   token: 'mock-token',
   isAuthenticated: true,
   isAdmin: false,
+  isLoading: false,
   login: vi.fn(),
   logout: vi.fn(),
   updateUser: vi.fn()

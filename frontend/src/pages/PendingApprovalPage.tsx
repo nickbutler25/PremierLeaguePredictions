@@ -74,7 +74,7 @@ export function PendingApprovalPage() {
 
         // Redirect to dashboard after a short delay
         setTimeout(() => {
-          navigate('/');
+          navigate('/dashboard');
         }, 1500);
       } else {
         toast({

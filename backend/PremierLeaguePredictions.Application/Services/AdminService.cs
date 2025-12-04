@@ -314,9 +314,10 @@ public class AdminService : IAdminService
 
     private void CalculatePickPoints(Pick pick, List<Fixture> gameweekFixtures)
     {
+        // Include FINISHED, IN_PLAY, and PAUSED fixtures to show live points
         var teamFixtures = gameweekFixtures.Where(f =>
             (f.HomeTeamId == pick.TeamId || f.AwayTeamId == pick.TeamId) &&
-            f.Status == "FINISHED");
+            (f.Status == "FINISHED" || f.Status == "IN_PLAY" || f.Status == "PAUSED"));
 
         int points = 0;
         int goalsFor = 0;

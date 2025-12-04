@@ -94,7 +94,7 @@ public class UnitOfWork : IUnitOfWork
                         f.SeasonId == p.SeasonId &&
                         f.GameweekNumber == p.GameweekNumber &&
                         (f.HomeTeamId == p.TeamId || f.AwayTeamId == p.TeamId) &&
-                        f.Status == "FINISHED")),
+                        (f.Status == "FINISHED" || f.Status == "IN_PLAY" || f.Status == "PAUSED"))),
                 Elimination = _context.UserEliminations
                     .Where(e => e.UserId == u.Id && e.SeasonId == seasonId)
                     .FirstOrDefault()

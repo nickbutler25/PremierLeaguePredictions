@@ -17,6 +17,7 @@ export function LeagueStandings() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['league-standings'],
     queryFn: () => leagueService.getStandings(),
+    refetchInterval: 120000, // Refetch every 2 minutes to show live points during matches
   });
 
   if (isLoading) {

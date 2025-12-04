@@ -132,15 +132,15 @@ public class ApiEndpointTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Theory]
-    [InlineData("/api/v1/auth/login", HttpMethod.Post)]
-    [InlineData("/api/v1/auth/logout", HttpMethod.Post)]
-    [InlineData("/api/v1/picks", HttpMethod.Get)]
-    [InlineData("/api/v1/picks", HttpMethod.Post)]
-    [InlineData("/api/v1/dashboard", HttpMethod.Get)]
-    public async Task AuthenticatedEndpoints_ShouldBeAccessible_AtV1Path(string endpoint, HttpMethod method)
+    [InlineData("/api/v1/auth/login", "POST")]
+    [InlineData("/api/v1/auth/logout", "POST")]
+    [InlineData("/api/v1/picks", "GET")]
+    [InlineData("/api/v1/picks", "POST")]
+    [InlineData("/api/v1/dashboard", "GET")]
+    public async Task AuthenticatedEndpoints_ShouldBeAccessible_AtV1Path(string endpoint, string method)
     {
         // Act
-        var request = new HttpRequestMessage(method, endpoint);
+        var request = new HttpRequestMessage(new HttpMethod(method), endpoint);
         var response = await _client.SendAsync(request);
 
         // Assert - Should not be 404 (will likely be 401 Unauthorized without auth)
@@ -149,14 +149,14 @@ public class ApiEndpointTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Theory]
-    [InlineData("/api/v1/seasonparticipation/request", HttpMethod.Post)]
-    [InlineData("/api/v1/seasonparticipation/approve", HttpMethod.Post)]
-    [InlineData("/api/v1/seasonparticipation/pending", HttpMethod.Get)]
-    [InlineData("/api/v1/seasonparticipation/my-participations", HttpMethod.Get)]
-    public async Task SeasonParticipationEndpoints_ShouldBeAccessible_AtV1Path(string endpoint, HttpMethod method)
+    [InlineData("/api/v1/seasonparticipation/request", "POST")]
+    [InlineData("/api/v1/seasonparticipation/approve", "POST")]
+    [InlineData("/api/v1/seasonparticipation/pending", "GET")]
+    [InlineData("/api/v1/seasonparticipation/my-participations", "GET")]
+    public async Task SeasonParticipationEndpoints_ShouldBeAccessible_AtV1Path(string endpoint, string method)
     {
         // Act
-        var request = new HttpRequestMessage(method, endpoint);
+        var request = new HttpRequestMessage(new HttpMethod(method), endpoint);
         var response = await _client.SendAsync(request);
 
         // Assert
@@ -165,14 +165,14 @@ public class ApiEndpointTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Theory]
-    [InlineData("/api/v1/admin/sync/teams", HttpMethod.Post)]
-    [InlineData("/api/v1/admin/sync/fixtures", HttpMethod.Post)]
-    [InlineData("/api/v1/admin/sync/results", HttpMethod.Post)]
-    [InlineData("/api/v1/admin/picks/backfill", HttpMethod.Post)]
-    public async Task AdminSyncEndpoints_ShouldBeAccessible_AtV1Path(string endpoint, HttpMethod method)
+    [InlineData("/api/v1/admin/sync/teams", "POST")]
+    [InlineData("/api/v1/admin/sync/fixtures", "POST")]
+    [InlineData("/api/v1/admin/sync/results", "POST")]
+    [InlineData("/api/v1/admin/picks/backfill", "POST")]
+    public async Task AdminSyncEndpoints_ShouldBeAccessible_AtV1Path(string endpoint, string method)
     {
         // Act
-        var request = new HttpRequestMessage(method, endpoint);
+        var request = new HttpRequestMessage(new HttpMethod(method), endpoint);
         var response = await _client.SendAsync(request);
 
         // Assert
@@ -181,11 +181,11 @@ public class ApiEndpointTests : IClassFixture<TestWebApplicationFactory>
     }
 
     [Theory]
-    [InlineData("/api/v1/admin/eliminations/bulk-update", HttpMethod.Post)]
-    public async Task EliminationEndpoints_ShouldBeAccessible_AtV1Path(string endpoint, HttpMethod method)
+    [InlineData("/api/v1/admin/eliminations/bulk-update", "POST")]
+    public async Task EliminationEndpoints_ShouldBeAccessible_AtV1Path(string endpoint, string method)
     {
         // Act
-        var request = new HttpRequestMessage(method, endpoint);
+        var request = new HttpRequestMessage(new HttpMethod(method), endpoint);
         var response = await _client.SendAsync(request);
 
         // Assert

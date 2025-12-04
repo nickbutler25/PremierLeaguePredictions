@@ -208,6 +208,13 @@ export function Fixtures() {
                             {fixture.homeScore} - {fixture.awayScore}
                           </div>
                         </div>
+                      ) : fixture.status === 'PAUSED' ? (
+                        <div className="text-xs">
+                          <div className="text-orange-600 dark:text-orange-400 font-semibold">HT</div>
+                          <div className="font-bold">
+                            {fixture.homeScore} - {fixture.awayScore}
+                          </div>
+                        </div>
                       ) : (
                         <div className="text-xs text-muted-foreground">
                           <div>{formatKickoffDate(fixture.kickoffTime)}</div>

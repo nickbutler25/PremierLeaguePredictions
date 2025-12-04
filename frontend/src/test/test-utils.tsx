@@ -21,6 +21,7 @@ function TestAuthProvider({ user = null, token = null, children }: AuthProviderP
     logout: vi.fn(),
     isAuthenticated: !!user && !!token,
     isAdmin: user?.isAdmin ?? false,
+    isLoading: false,
   };
 
   return <AuthContext.Provider value={authValue}>{children}</AuthContext.Provider>;
