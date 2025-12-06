@@ -1,4 +1,5 @@
 using System.Text;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
@@ -161,7 +162,9 @@ builder.Services.AddAuthentication(options =>
             return Task.CompletedTask;
         }
     };
-});
+})
+.AddScheme<AuthenticationSchemeOptions, PremierLeaguePredictions.API.Authorization.ApiKeyAuthenticationHandler>(
+    "ApiKey", options => { });
 
 // Disable authorization in development mode if configured
 var disableAuth = builder.Configuration.GetValue<bool>("DisableAuthorizationInDevelopment");
@@ -186,9 +189,10 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy(PremierLeaguePredictions.API.Authorization.AdminPolicies.CriticalOperations, policy =>
         policy.RequireRole("Admin"));
 
-    // External sync operations
+    // External sync operations - allow both JWT (Admin users) and API Key
     options.AddPolicy(PremierLeaguePredictions.API.Authorization.AdminPolicies.ExternalSync, policy =>
-        policy.RequireRole("Admin"));
+        policy.RequireRole("Admin")
+              .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme, "ApiKey"));
 });
 
 // Configure CORS

@@ -1,8 +1,10 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { AxiosError } from 'axios';
 import { dashboardService } from '@/services/dashboard';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { haptics } from '@/utils/haptics';
 import { Summary } from "@/components/dashboard/Summary";
 import { Picks } from "@/components/dashboard/Picks";
 import { Fixtures } from "@/components/dashboard/Fixtures";
@@ -11,12 +13,24 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function DashboardPage() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['dashboard', user?.id],
     queryFn: () => dashboardService.getDashboard(user?.id || ''),
     enabled: !!user?.id,
     refetchInterval: 120000, // Refetch every 2 minutes to show live points during matches
+  });
+
+  // Pull-to-refresh functionality
+  const { isPulling, pullDistance } = usePullToRefresh({
+    onRefresh: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      await queryClient.invalidateQueries({ queryKey: ['picks'] });
+      await queryClient.invalidateQueries({ queryKey: ['league-standings'] });
+      haptics.success();
+    },
+    enabled: !isLoading,
   });
 
   if (isLoading || !user) {
@@ -111,6 +125,18 @@ export function DashboardPage() {
 
   return (
     <div className="container mx-auto p-4 space-y-4">
+      {/* Pull-to-Refresh Indicator */}
+      {isPulling && (
+        <div
+          className="fixed top-0 left-0 right-0 flex items-center justify-center bg-primary/10 transition-all duration-200 z-50"
+          style={{ height: `${pullDistance}px` }}
+        >
+          <div className="text-primary font-medium animate-pulse">
+            {pullDistance >= 80 ? 'Release to refresh' : 'Pull to refresh'}
+          </div>
+        </div>
+      )}
+
       {/* Summary Header */}
       <Summary />
 

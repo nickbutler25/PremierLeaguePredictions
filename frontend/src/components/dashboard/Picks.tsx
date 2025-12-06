@@ -6,6 +6,7 @@ import { gameweeksService } from '@/services/gameweeks';
 import { leagueService } from '@/services/league';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSeasonApproval } from '@/hooks/useSeasonApproval';
+import { haptics } from '@/utils/haptics';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -77,11 +78,13 @@ export function Picks() {
     mutationFn: ({ gameweekNumber, teamId, seasonId }: { gameweekNumber: number; teamId: number; seasonId: string }) =>
       picksService.createPick(user?.id || '', { seasonId, gameweekNumber, teamId }),
     onSuccess: () => {
+      haptics.success();
       queryClient.invalidateQueries({ queryKey: ['picks', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['dashboard', user?.id] });
       setSelectedGameweek(null);
     },
     onError: (error: any) => {
+      haptics.error();
       // Display error message from the backend validation
       const errorMessage = error.response?.data?.message || error.message || 'Failed to create pick';
       alert(errorMessage); // You might want to use a toast notification instead
@@ -93,8 +96,12 @@ export function Picks() {
     mutationFn: (pickId: string) =>
       picksService.deletePick(user?.id || '', pickId),
     onSuccess: () => {
+      haptics.medium();
       queryClient.invalidateQueries({ queryKey: ['picks', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['dashboard', user?.id] });
+    },
+    onError: () => {
+      haptics.error();
     },
   });
 
