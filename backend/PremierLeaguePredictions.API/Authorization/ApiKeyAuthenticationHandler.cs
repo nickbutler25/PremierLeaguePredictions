@@ -26,30 +26,38 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<AuthenticationS
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
+        Logger.LogDebug("API Key authentication handler invoked for path: {Path}", Request.Path);
+
         // Check if the API key header exists
         if (!Request.Headers.TryGetValue(ApiKeyHeaderName, out var apiKeyHeaderValues))
         {
+            Logger.LogDebug("No X-API-Key header found, returning NoResult");
             return Task.FromResult(AuthenticateResult.NoResult());
         }
 
         var providedApiKey = apiKeyHeaderValues.FirstOrDefault();
         if (string.IsNullOrWhiteSpace(providedApiKey))
         {
+            Logger.LogWarning("X-API-Key header present but empty");
             return Task.FromResult(AuthenticateResult.NoResult());
         }
+
+        Logger.LogDebug("X-API-Key header found with length: {Length}", providedApiKey.Length);
 
         // Get the valid API key from configuration
         var validApiKey = _configuration["ExternalSync:ApiKey"];
         if (string.IsNullOrWhiteSpace(validApiKey))
         {
-            Logger.LogWarning("ExternalSync:ApiKey not configured in appsettings");
+            Logger.LogError("ExternalSync:ApiKey not configured - check environment variables");
             return Task.FromResult(AuthenticateResult.Fail("API Key authentication not configured"));
         }
+
+        Logger.LogDebug("Configuration API key length: {Length}", validApiKey.Length);
 
         // Validate the API key
         if (providedApiKey != validApiKey)
         {
-            Logger.LogWarning("Invalid API key provided from {IP}", Request.HttpContext.Connection.RemoteIpAddress);
+            Logger.LogWarning("Invalid API key provided from {IP}. Key mismatch.", Request.HttpContext.Connection.RemoteIpAddress);
             return Task.FromResult(AuthenticateResult.Fail("Invalid API Key"));
         }
 
@@ -65,7 +73,7 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<AuthenticationS
         var principal = new ClaimsPrincipal(identity);
         var ticket = new AuthenticationTicket(principal, Scheme.Name);
 
-        Logger.LogInformation("API Key authentication successful for ExternalSync");
+        Logger.LogInformation("API Key authentication successful for ExternalSync from {IP}", Request.HttpContext.Connection.RemoteIpAddress);
 
         return Task.FromResult(AuthenticateResult.Success(ticket));
     }

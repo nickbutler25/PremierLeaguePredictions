@@ -113,9 +113,22 @@ if (string.IsNullOrWhiteSpace(audience))
 
 builder.Services.AddAuthentication(options =>
 {
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+    // Use a custom default scheme that will be set per-request based on headers
+    options.DefaultAuthenticateScheme = "SmartScheme";
+    options.DefaultChallengeScheme = "SmartScheme";
+})
+.AddPolicyScheme("SmartScheme", "Smart authentication scheme", options =>
+{
+    options.ForwardDefaultSelector = context =>
+    {
+        // If the request has an X-API-Key header, use ApiKey authentication
+        if (context.Request.Headers.ContainsKey("X-API-Key"))
+        {
+            return "ApiKey";
+        }
+        // Otherwise, use JWT Bearer authentication
+        return JwtBearerDefaults.AuthenticationScheme;
+    };
 })
 .AddJwtBearer(options =>
 {
@@ -190,9 +203,9 @@ builder.Services.AddAuthorization(options =>
         policy.RequireRole("Admin"));
 
     // External sync operations - allow both JWT (Admin users) and API Key
+    // SmartScheme automatically routes to the correct authentication method
     options.AddPolicy(PremierLeaguePredictions.API.Authorization.AdminPolicies.ExternalSync, policy =>
-        policy.RequireRole("Admin")
-              .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme, "ApiKey"));
+        policy.RequireRole("Admin"));
 });
 
 // Configure CORS
