@@ -6,6 +6,8 @@ namespace PremierLeaguePredictions.Application.DTOs;
 public class SchedulePlan
 {
     public List<ScheduledJob> Jobs { get; set; } = new();
+    public DateTime StartDate { get; set; } = DateTime.UtcNow;
+    public string WeekNumber => $"{StartDate.Year}-W{System.Globalization.ISOWeek.GetWeekOfYear(StartDate):D2}";
 
     public void AddJob(DateTime scheduledTime, string jobType, string? gameweekId = null)
     {
@@ -110,8 +112,8 @@ public class ScheduledJob
 /// </summary>
 public class ScheduleGenerationResponse
 {
-    public string Message { get; set; } = string.Empty;
-    public int JobsCreated { get; set; }
-    public string? WorkflowFilePath { get; set; }
-    public List<string> ScheduledJobTypes { get; set; } = new();
+    public bool Success { get; set; }
+    public string? Message { get; set; }
+    public string? WorkflowFile { get; set; }
+    public int JobCount { get; set; }
 }

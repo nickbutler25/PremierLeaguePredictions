@@ -1,124 +1,105 @@
-# Live Scores External Sync Setup
+# Live Scores Setup - GitHub Actions Scheduler
 
-This document explains how to set up external triggering for live score updates using GitHub Actions.
+This document explains how live score updates are handled using the dynamic GitHub Actions scheduler.
 
 ## Overview
 
-**Problem**: Render's free tier spins down your app after 15 minutes of inactivity, stopping the internal background service that syncs live scores.
+**Problem**: Render's free tier spins down your app after 15 minutes of inactivity, making continuous score updates challenging.
 
-**Solution**: Use GitHub Actions to ping your API every 5 minutes during match times, ensuring scores update even when the app is sleeping.
+**Solution**: Use a **dynamic GitHub Actions scheduler** that generates weekly job schedules based on actual fixture times, ensuring scores update during matches without wasting resources.
 
 ## Architecture
 
-### Dual-Trigger System:
-1. **Internal Background Service** (`ResultsSyncBackgroundService`)
-   - Runs automatically when the app is active
-   - Syncs every 2 minutes during live matches
-   - Perfect for active usage periods
+### Dynamic Scheduling System:
+1. **Master Scheduler** (`.github/workflows/master-scheduler.yml`)
+   - Runs every Monday at 9 AM UTC
+   - Queries gameweeks for the next 7 days
+   - Generates workflow files with precise match-time schedules
+   - Groups fixtures by 15-minute kickoff windows
 
-2. **External GitHub Actions** (`.github/workflows/sync-live-scores.yml`)
-   - Runs every 5 minutes during typical match times
+2. **Generated Weekly Jobs** (`.github/workflows/weekly-jobs-YYYY-WW.yml`)
+   - Created automatically by the master scheduler
+   - Syncs scores every 2 minutes during actual match windows
    - Wakes up the Render app if it's sleeping
-   - Ensures continuous updates even when idle
+   - Automatically cleaned up after the week ends
 
 ## Setup Instructions
 
-### Step 1: Generate a Secure API Key
+For complete setup instructions, see [DEPLOYMENT.md](DEPLOYMENT.md#github-actions-scheduler-setup).
 
-Generate a random, secure API key:
+### Quick Setup Summary
 
-```bash
-# On Linux/Mac:
-openssl rand -hex 32
+1. **Create GitHub Personal Access Token**
+   - Go to [GitHub Settings > Tokens](https://github.com/settings/tokens)
+   - Grant `repo` and `workflow` scopes
+   - Copy the token
 
-# On Windows (PowerShell):
--join ((65..90) + (97..122) + (48..57) | Get-Random -Count 32 | ForEach-Object {[char]$_})
-```
+2. **Add Token to Render Environment**
+   ```
+   GitHub__PersonalAccessToken=ghp_your_token_here
+   ```
 
-### Step 2: Add API Key to Render Environment Variables
+3. **Add API Key to GitHub Secrets**
+   ```
+   Name:  EXTERNAL_SYNC_API_KEY
+   Value: [Your API key]
+   ```
 
-1. Go to your Render dashboard
-2. Select your backend service
-3. Go to "Environment" tab
-4. Add a new environment variable:
-   - **Key**: `ExternalSync__ApiKey`
-   - **Value**: The API key you generated above
-5. Save and redeploy
-
-**Note**: Use double underscore `__` for nested configuration in Render (this maps to `ExternalSync:ApiKey` in appsettings.json)
-
-### Step 3: Add API Key to GitHub Secrets
-
-1. Go to your GitHub repository
-2. Navigate to: **Settings** → **Secrets and variables** → **Actions**
-3. Click **New repository secret**
-4. Add:
-   - **Name**: `EXTERNAL_SYNC_API_KEY`
-   - **Secret**: The same API key from Step 1
-5. Click **Add secret**
-
-### Step 4: Verify the Workflow File Exists
-
-The workflow file should already be in your repository at:
-```
-.github/workflows/sync-live-scores.yml
-```
-
-This file defines when and how often to sync scores.
-
-### Step 5: Test the Setup
-
-#### Option A: Manual Test via GitHub Actions UI
-1. Go to **Actions** tab in GitHub
-2. Select **Sync Live Scores** workflow
-3. Click **Run workflow**
-4. Check the workflow run logs to confirm success
-
-#### Option B: Test via curl (locally)
-```bash
-curl -X POST https://api.eplpredict.com/api/v1/admin/sync/results \
-  -H "X-API-Key: YOUR_API_KEY_HERE" \
-  -H "Content-Type: application/json"
-```
-
-### Step 6: Monitor the Workflow
-
-- The workflow runs automatically during match times
-- Check **Actions** tab in GitHub to see execution history
-- Each run shows HTTP status and response from your API
+4. **Verify Master Scheduler**
+   - Check `.github/workflows/master-scheduler.yml` exists
+   - It runs every Monday at 9 AM UTC
+   - Manually trigger: Actions > Master Scheduler > Run workflow
 
 ## Schedule Details
 
-The GitHub Action runs:
-- **Saturdays**: Every 5 minutes from 12:00 PM - 11:00 PM UTC
-- **Sundays**: Every 5 minutes from 12:00 PM - 9:00 PM UTC
-- **Midweek (Tue/Wed/Thu)**: Every 5 minutes from 6:00 PM - 11:00 PM UTC
+### How Schedules Are Generated
 
-### Why these times?
-- Most Premier League matches kick off at 3:00 PM GMT (Saturday)
-- Evening matches typically 5:30 PM or 8:00 PM GMT
-- Midweek matches usually 7:45 PM or 8:00 PM GMT
-- UTC schedule accounts for GMT/BST timezone differences
+The system **automatically generates precise schedules** based on actual fixture times:
 
-### Customizing the Schedule
+1. **Monday 9 AM UTC**: Master scheduler analyzes upcoming gameweeks
+2. **Fixture Grouping**: Groups matches by 15-minute kickoff windows
+3. **YAML Generation**: Creates workflow with exact cron expressions
+4. **Auto-Cleanup**: Deletes previous week's workflow file
 
-Edit `.github/workflows/sync-live-scores.yml` and modify the `cron` schedules:
+### Example Generated Schedule
 
+For a weekend with fixtures at:
+- Saturday 15:00 GMT (5 matches)
+- Saturday 17:30 GMT (1 match)
+- Saturday 20:00 GMT (1 match)
+- Sunday 14:00 GMT (3 matches)
+
+The scheduler creates:
 ```yaml
 schedule:
-  # Format: '*/5 START-END * * DAY'
-  # */5 = every 5 minutes
-  # START-END = hour range (UTC, 24-hour format)
-  # DAY = 0=Sunday, 6=Saturday
-  - cron: '*/5 12-23 * * 6'  # Saturday example
+  - cron: '*/2 15-17 7 12 *'   # Saturday 3-5 PM (5 matches)
+  - cron: '*/2 17-19 7 12 *'   # Saturday 5:30-7 PM (1 match)
+  - cron: '*/2 20-22 7 12 *'   # Saturday 8-10 PM (1 match)
+  - cron: '*/2 14-16 8 12 *'   # Sunday 2-4 PM (3 matches)
 ```
 
-**Cron syntax**: `minute hour day month weekday`
+**Benefits:**
+- **No wasted resources** - Only syncs during actual matches
+- **Precise timing** - Matches exact kickoff times
+- **Adaptive** - Adjusts for postponements, rescheduling
+- **Efficient** - Grouping reduces job count
 
 ## How It Works
 
-### Request Flow:
-1. GitHub Actions sends POST request to `/api/v1/admin/sync/results`
+### Schedule Generation Flow:
+1. **Monday 9 AM UTC**: Master scheduler calls `/api/v1/admin/schedule/generate`
+2. `CronSchedulerService.GenerateWeeklyScheduleAsync()` executes:
+   - Queries database for gameweeks in next 7 days
+   - Groups fixtures by 15-minute kickoff windows
+   - Creates `SchedulePlan` with job times
+3. `GitHubWorkflowService.GenerateAndCommitWorkflowAsync()` executes:
+   - Converts schedule plan to GitHub Actions YAML
+   - Commits `weekly-jobs-YYYY-WW.yml` via GitHub API
+   - Deletes previous week's workflow file
+4. GitHub Actions automatically runs jobs at scheduled times
+
+### Score Sync Flow:
+1. GitHub Actions sends POST request to `/api/v1/dev/fixtures/sync-results`
 2. Request includes `X-API-Key` header
 3. `ApiKeyAuthenticationHandler` validates the API key
 4. If valid, grants Admin role and allows access
@@ -200,10 +181,13 @@ If you outgrow the free tier or need more control:
 
 ## Summary
 
-✅ **Internal service** handles updates when app is active
-✅ **GitHub Actions** ensures updates continue when app is sleeping
-✅ **Admin button** allows manual triggering anytime
-✅ **Free tier friendly** - no additional costs
-✅ **Secure** - API key authentication
+✅ **Dynamic scheduling** - Jobs generated based on actual fixture times
+✅ **Resource efficient** - Only runs during matches, reminders, deadlines
+✅ **Self-managing** - Auto-generates and cleans up workflows
+✅ **Free tier friendly** - Minimal GitHub Actions usage (~45-240 min/month)
+✅ **Reliable** - Works even when Render app is sleeping
+✅ **Secure** - API key authentication for all endpoints
 
-Your live scores will now update reliably, even on Render's free tier!
+Your live scores, reminders, and auto-picks will now run reliably with zero ongoing maintenance!
+
+For detailed troubleshooting and setup, see [DEPLOYMENT.md](DEPLOYMENT.md#github-actions-scheduler-setup).

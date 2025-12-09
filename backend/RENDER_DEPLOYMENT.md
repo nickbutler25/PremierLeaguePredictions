@@ -74,6 +74,10 @@ This guide explains how to deploy the Premier League Predictions API using Rende
    Google__ClientId=[Your Google OAuth Client ID]
    FootballData__ApiKey=[Your Football Data API Key]
    AllowedOrigins__0=http://localhost:5173
+   ApiBaseUrl=https://premierleague-api.onrender.com
+   GitHub__Owner=[Your GitHub username]
+   GitHub__Repository=PremierLeaguePredictions
+   GitHub__PersonalAccessToken=[Will be added in step 5]
    ```
 
    **Important Notes**:
@@ -114,6 +118,56 @@ After deploying the frontend to Vercel, go back to your Render API service:
 1. Go to Environment tab
 2. Update `AllowedOrigins__0` with your Vercel URL
 3. Save changes (service will redeploy)
+
+#### 5. Configure GitHub Actions Scheduler
+
+The application uses GitHub Actions for automated tasks (reminders, auto-picks, score syncing).
+
+**5.1. Create GitHub Personal Access Token**
+
+1. Go to [GitHub Settings > Personal Access Tokens > Tokens (classic)](https://github.com/settings/tokens)
+2. Click "Generate new token (classic)"
+3. Set description: `PremierLeague Scheduler`
+4. Select scopes:
+   - ✅ `repo` (Full control of private repositories)
+   - ✅ `workflow` (Update GitHub Action workflows)
+5. Click "Generate token"
+6. **Copy the token immediately** (you won't see it again)
+
+**5.2. Add Token to Render Environment**
+
+1. Go to your Render API service
+2. Navigate to "Environment" tab
+3. Update `GitHub__PersonalAccessToken` with the token you just created
+4. Save changes (service will redeploy)
+
+**5.3. Add API Key to GitHub Secrets**
+
+1. Go to your GitHub repository
+2. Navigate to Settings > Secrets and variables > Actions
+3. Click "New repository secret"
+4. Add:
+   ```
+   Name:  EXTERNAL_SYNC_API_KEY
+   Value: [Copy from Render Environment: ExternalSyncApiKey]
+   ```
+
+**5.4. Verify Master Scheduler**
+
+1. Check that `.github/workflows/master-scheduler.yml` exists in your repository
+2. Go to GitHub repository > Actions tab
+3. You should see "Master Scheduler" workflow
+4. It will run automatically every Monday at 9 AM UTC
+5. Or manually trigger it: Actions > Master Scheduler > Run workflow
+
+**What the Scheduler Does:**
+- **Every Monday 9 AM UTC**: Generates weekly schedule based on upcoming gameweeks
+- **Throughout the week**: Runs scheduled jobs:
+  - Send reminders (24h, 12h, 3h before deadlines)
+  - Auto-pick for users who didn't submit picks
+  - Sync live scores every 2 minutes during matches
+
+See [DEPLOYMENT.md](../../DEPLOYMENT.md#github-actions-scheduler-setup) for detailed scheduler documentation.
 
 ## Post-Deployment
 
@@ -210,7 +264,7 @@ To upgrade from free tier:
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `ASPNETCORE_ENVIRONMENT` | ASP.NET environment | `Production` |
-| `ConnectionStrings__DefaultConnection` | PostgreSQL connection string | From Render database |
+| `ConnectionStrings__DefaultConnection` | PostgreSQL connection string | From Supabase pooler |
 | `JWT__Secret` | JWT signing secret | Random 32+ char string |
 | `JWT__Issuer` | JWT issuer claim | `PremierLeaguePredictions` |
 | `JWT__Audience` | JWT audience claim | `PremierLeaguePredictions` |
@@ -218,6 +272,10 @@ To upgrade from free tier:
 | `Google__ClientId` | Google OAuth Client ID | From Google Cloud |
 | `FootballData__ApiKey` | Football Data API key | From football-data.org |
 | `AllowedOrigins__0` | CORS allowed origin | Frontend URL |
+| `ApiBaseUrl` | Public API URL | `https://premierleague-api.onrender.com` |
+| `GitHub__Owner` | GitHub username | Your GitHub username |
+| `GitHub__Repository` | Repository name | `PremierLeaguePredictions` |
+| `GitHub__PersonalAccessToken` | GitHub PAT for workflow management | From GitHub settings |
 
 ### Frontend Required Variables (Vercel)
 | Variable | Description | Example |

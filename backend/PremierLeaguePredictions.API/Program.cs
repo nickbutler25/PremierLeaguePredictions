@@ -26,7 +26,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    options.KnownNetworks.Clear();
+    options.KnownIPNetworks.Clear();
     options.KnownProxies.Clear();
 });
 
@@ -277,10 +277,10 @@ builder.Services.AddScoped<IResultsService>(sp =>
     return new ResultsService(unitOfWork, footballDataService, adminService, eliminationService, (IHubContext<Hub>)(object)hubContext, logger);
 });
 
-// Register background services
-builder.Services.AddHostedService<ResultsSyncBackgroundService>();
-builder.Services.AddHostedService<AutoPickAssignmentBackgroundService>();
-builder.Services.AddHostedService<PickReminderBackgroundService>();
+// Register Cron Scheduler services (replaces background services)
+builder.Services.AddScoped<ICronSchedulerService, CronSchedulerService>();
+builder.Services.AddScoped<IGitHubWorkflowService, GitHubWorkflowService>();
+builder.Services.AddHttpClient<GitHubApiClient>();
 
 // Add SignalR
 builder.Services.AddSignalR();

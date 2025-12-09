@@ -5,10 +5,147 @@ ASP.NET Core Web API for the Premier League Predictions application.
 ## Tech Stack
 
 - **ASP.NET Core 9.0** - Web framework
-- **Entity Framework Core 9.0** - ORM
-- **PostgreSQL** - Database
+- **Entity Framework Core 9.0** - ORM and migrations
+- **PostgreSQL** - Relational database
 - **JWT Bearer** - Authentication
 - **Google OAuth** - Social login
+- **FluentValidation** - Request validation
+- **Serilog** - Structured logging
+- **SignalR** - Real-time notifications
+- **GitHub Actions** - Automated task scheduling
+- **Football-Data.org API** - Live fixture and result data
+
+## Architecture Overview
+
+The backend follows **Clean Architecture** principles with clear separation of concerns:
+
+```mermaid
+graph TB
+    subgraph "API Layer"
+        Controllers[Controllers]
+        Middleware[Middleware]
+        Filters[Validation Filters]
+    end
+
+    subgraph "Application Layer"
+        Services[Business Services]
+        DTOs[DTOs]
+        Validators[FluentValidation]
+        Interfaces[Service Interfaces]
+    end
+
+    subgraph "Infrastructure Layer"
+        Repositories[Repositories]
+        DbContext[EF Core DbContext]
+        ExternalAPIs[External API Clients]
+        GitHubService[GitHub Workflow Service]
+        EmailService[Email Service]
+    end
+
+    subgraph "Core Layer"
+        Entities[Domain Entities]
+        CoreInterfaces[Core Interfaces]
+    end
+
+    subgraph "External Systems"
+        DB[(PostgreSQL)]
+        FootballAPI[Football-Data.org]
+        GitHub[GitHub Actions]
+        SMTP[Email SMTP]
+    end
+
+    Controllers --> Services
+    Controllers --> Filters
+    Services --> Interfaces
+    Services --> DTOs
+    Services --> Validators
+    Interfaces --> Repositories
+    Repositories --> DbContext
+    DbContext --> DB
+    Services --> ExternalAPIs
+    ExternalAPIs --> FootballAPI
+    Services --> GitHubService
+    GitHubService --> GitHub
+    Services --> EmailService
+    EmailService --> SMTP
+    Entities --> CoreInterfaces
+    Services --> Entities
+
+    style Controllers fill:#e1f5ff
+    style Services fill:#fff4e1
+    style Entities fill:#e8f5e9
+    style DB fill:#f3e5f5
+    style GitHub fill:#e3f2fd
+```
+
+### Project Layers
+
+1. **PremierLeaguePredictions.API**
+   - Controllers (REST endpoints)
+   - Middleware (exception handling, logging)
+   - Authorization policies
+   - API versioning
+   - Swagger/OpenAPI
+
+2. **PremierLeaguePredictions.Application**
+   - Business logic services
+   - DTOs (Data Transfer Objects)
+   - FluentValidation validators
+   - Service interfaces
+
+3. **PremierLeaguePredictions.Infrastructure**
+   - EF Core repositories
+   - Database context and configurations
+   - External API clients (Football-Data.org, GitHub)
+   - Email service
+   - Task scheduling via GitHub Actions integration
+
+4. **PremierLeaguePredictions.Core**
+   - Domain entities (User, Team, Fixture, Pick, etc.)
+   - Core interfaces (IRepository, IUnitOfWork)
+   - Business rules
+
+### Automated Task Scheduling
+
+The application uses a **dynamic GitHub Actions scheduler** instead of traditional background services:
+
+```mermaid
+sequenceDiagram
+    participant Master as Master Scheduler<br/>(Monday 9 AM UTC)
+    participant API as Admin Schedule API
+    participant Scheduler as CronSchedulerService
+    participant GitHub as GitHubWorkflowService
+    participant Repo as GitHub Repository
+
+    Master->>API: POST /admin/schedule/generate
+    API->>Scheduler: GenerateWeeklyScheduleAsync()
+    Scheduler->>Scheduler: Query gameweeks (next 7 days)
+    Scheduler->>Scheduler: Create SchedulePlan<br/>(reminders, auto-pick, scores)
+    Scheduler-->>API: Return SchedulePlan
+    API->>GitHub: GenerateAndCommitWorkflowAsync(plan)
+    GitHub->>GitHub: Convert plan to YAML
+    GitHub->>Repo: Commit weekly-jobs-YYYY-WW.yml
+    GitHub->>Repo: Delete previous week's file
+    GitHub-->>API: Return success
+    API-->>Master: 200 OK
+
+    Note over Repo: Workflow runs at scheduled times
+    Repo->>API: POST /admin/schedule/reminders
+    Repo->>API: POST /admin/schedule/auto-pick
+    Repo->>API: POST /dev/fixtures/sync-results
+```
+
+**Key Components:**
+- `CronSchedulerService` - Analyzes gameweeks and generates schedule plans
+- `GitHubWorkflowService` - Converts schedule plans to GitHub Actions YAML
+- `GitHubApiClient` - Manages workflow files via GitHub REST API
+- `AdminScheduleController` - API endpoints for schedule generation
+
+**Benefits:**
+- No 24/7 background processes consuming resources
+- Jobs run even if API is down
+- Precise cron timing (no polling drift)
+- Full visibility in GitHub Actions tab
 
 ## Prerequisites
 
@@ -261,6 +398,29 @@ Get your Google Client ID from [Google Cloud Console](https://console.cloud.goog
 4. Add authorized origins (e.g., `http://localhost:5173`)
 5. Copy the Client ID to `appsettings.json`
 
+### GitHub Actions Scheduler
+
+Configure GitHub integration for automated task scheduling:
+
+```json
+{
+  "ApiBaseUrl": "https://api.eplpredict.com",
+  "GitHub": {
+    "Owner": "your-github-username",
+    "Repository": "PremierLeaguePredictions",
+    "PersonalAccessToken": ""  // Set via environment variable
+  }
+}
+```
+
+**Setup:**
+1. Create Personal Access Token at [GitHub Settings](https://github.com/settings/tokens)
+2. Grant `repo` and `workflow` scopes
+3. Set environment variable: `GitHub__PersonalAccessToken=ghp_your_token`
+4. Add API key to repository secrets: `EXTERNAL_SYNC_API_KEY`
+
+See [DEPLOYMENT.md](../DEPLOYMENT.md#github-actions-scheduler-setup) for full setup guide.
+
 ## Database Schema
 
 The database uses PostgreSQL with the following main tables:
@@ -367,14 +527,85 @@ export AllowedOrigins__0="https://your-frontend-domain.com"
 - [ ] Enable logging and monitoring
 - [ ] Use separate Google OAuth client for production
 
+## Testing the Scheduler
+
+### Test Schedule Generation Locally
+
+```bash
+# 1. Start the API
+dotnet run --project PremierLeaguePredictions.API
+
+# 2. Call schedule generation endpoint
+curl -X POST http://localhost:5000/api/v1/admin/schedule/generate \
+  -H "X-API-Key: your-api-key-here"
+
+# Expected response:
+# {
+#   "success": true,
+#   "data": {
+#     "success": true,
+#     "workflowFile": ".github/workflows/weekly-jobs-2025-W49.yml",
+#     "jobCount": 15
+#   }
+# }
+```
+
+### Verify Generated Workflow
+
+```bash
+# Check that workflow file was created
+cat .github/workflows/weekly-jobs-*.yml
+
+# Should contain:
+# - Schedule cron expressions
+# - Jobs for send-reminders, auto-pick, sync-scores
+# - Correct API endpoint URLs
+```
+
+### Test Individual Scheduler Jobs
+
+```bash
+# Test reminder service
+curl -X POST http://localhost:5000/api/v1/admin/schedule/reminders \
+  -H "X-API-Key: your-api-key-here"
+
+# Test auto-pick service
+curl -X POST http://localhost:5000/api/v1/admin/schedule/auto-pick \
+  -H "X-API-Key: your-api-key-here"
+
+# Test score sync
+curl -X POST http://localhost:5000/api/v1/dev/fixtures/sync-results \
+  -H "X-API-Key: your-api-key-here"
+```
+
+### Manual Workflow Trigger
+
+```bash
+# Trigger master scheduler via GitHub CLI
+gh workflow run master-scheduler.yml
+
+# View workflow runs
+gh run list --workflow=master-scheduler.yml
+
+# View specific run logs
+gh run view <run-id> --log
+```
+
 ## Testing
 
 ```bash
-# Run tests
+# Run all tests
 dotnet test
 
 # Run with code coverage
 dotnet test /p:CollectCoverage=true
+
+# Run specific test project
+cd PremierLeaguePredictions.Tests
+dotnet test
+
+# Run integration tests only
+dotnet test --filter "Category=Integration"
 ```
 
 ## License

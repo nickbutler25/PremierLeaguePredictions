@@ -27,6 +27,7 @@ Premier League Predictions is a competitive prediction game where users select o
 - **Google OAuth** - Single sign-on integration
 - **Repository Pattern** - Unit of Work for clean data access
 - **football-data.org API** - Live Premier League fixture and result data
+- **GitHub Actions** - Dynamic cron job scheduling for reminders and score sync
 - **Render** - API hosting (Docker)
 - **Supabase** - Database hosting (PostgreSQL)
 
@@ -71,15 +72,75 @@ Statistics tracked:
 - **Backfill Picks** - Enter historical picks for past gameweeks
 - **User Management** - View and manage league participants
 
+### Automated Task Scheduling
+
+The application uses a **dynamic GitHub Actions scheduler** instead of traditional background services. This provides:
+- **Resource efficiency** - Jobs only run when needed (no 24/7 polling)
+- **Reliability** - Survives app downtime and restarts
+- **Precision** - Exact cron timing for reminders and score updates
+- **Visibility** - All scheduled jobs visible in GitHub Actions tab
+- **Cost-effective** - Uses ~45 minutes/month of GitHub's 2,000 free minutes
+
+#### How It Works
+
+```mermaid
+sequenceDiagram
+    participant GH as GitHub Actions
+    participant API as Premier League API
+    participant DB as Database
+    participant Users as Users
+
+    Note over GH: Every Monday 9 AM UTC
+    GH->>API: POST /admin/schedule/generate
+    API->>DB: Query gameweeks for next 7 days
+    DB-->>API: Gameweek data
+    API->>API: Generate schedule plan<br/>(reminders, auto-pick, score sync)
+    API->>GH: Commit weekly-jobs-YYYY-WW.yml
+
+    Note over GH: Scheduled times throughout week
+    GH->>API: POST /admin/schedule/reminders<br/>(24h, 12h, 3h before deadlines)
+    API->>Users: Send reminder emails
+
+    GH->>API: POST /admin/schedule/auto-pick<br/>(at gameweek deadline)
+    API->>DB: Assign auto-picks for missed predictions
+
+    GH->>API: POST /dev/fixtures/sync-results<br/>(every 2 min during matches)
+    API->>DB: Update live scores and calculate points
+```
+
+#### Scheduled Jobs
+- **Reminders**: Sent 24h, 12h, and 3h before each gameweek deadline
+- **Auto-Pick**: Assigns random teams to users who missed the deadline
+- **Live Score Sync**: Updates scores every 2 minutes during match windows (grouped by 15-minute kickoff intervals)
+
+All schedules are generated dynamically based on actual fixture dates from Football-Data.org.
+
 ## Project Structure
 
 ```
 PremierLeaguePredictions/
+├── .github/
+│   └── workflows/
+│       ├── master-scheduler.yml    # Weekly cron job generator (Mon 9 AM UTC)
+│       └── weekly-jobs-*.yml       # Auto-generated weekly job schedules
 ├── backend/
-│   ├── PremierLeaguePredictions.API/            # Web API controllers, middleware, filters
-│   ├── PremierLeaguePredictions.Application/    # Business logic, services, DTOs
+│   ├── PremierLeaguePredictions.API/
+│   │   ├── Controllers/
+│   │   │   └── Admin/
+│   │   │       └── AdminScheduleController.cs  # Schedule generation endpoints
+│   │   └── ...                     # Web API controllers, middleware, filters
+│   ├── PremierLeaguePredictions.Application/
+│   │   ├── DTOs/
+│   │   │   └── SchedulePlan.cs     # Schedule planning DTOs
+│   │   ├── Services/
+│   │   │   └── CronSchedulerService.cs  # Core scheduling logic
+│   │   └── ...                     # Business logic, services, DTOs
 │   ├── PremierLeaguePredictions.Core/           # Domain entities, interfaces
-│   ├── PremierLeaguePredictions.Infrastructure/ # EF Core, repositories, external APIs
+│   ├── PremierLeaguePredictions.Infrastructure/
+│   │   ├── Services/
+│   │   │   ├── GitHubWorkflowService.cs  # YAML workflow generation
+│   │   │   └── GitHubApiClient.cs        # GitHub REST API client
+│   │   └── ...                     # EF Core, repositories, external APIs
 │   ├── PremierLeaguePredictions.Tests/          # Unit and integration tests
 │   ├── Dockerfile                               # Docker container configuration
 │   └── RENDER_DEPLOYMENT.md                     # Deployment guide for Render
