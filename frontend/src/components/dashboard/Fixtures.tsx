@@ -1,17 +1,14 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { fixturesService } from '@/services/fixtures';
 import { picksService } from '@/services/picks';
 import { dashboardService } from '@/services/dashboard';
-import { adminService } from '@/services/admin';
 import { useAuth } from '@/contexts/AuthContext';
-import { haptics } from '@/utils/haptics';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useState } from 'react';
 import type { Fixture } from '@/types';
 
 export function Fixtures() {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
   const [selectedGameweek, setSelectedGameweek] = useState<number | null>(null);
 
   // Fetch data
@@ -27,31 +24,12 @@ export function Fixtures() {
   });
 
   const { data: dashboard } = useQuery({
-    queryKey: ['dashboard', user?.id],
-    queryFn: () => dashboardService.getDashboard(user?.id || ''),
-    enabled: !!user?.id,
+    queryKey: ['dashboard'],
+    queryFn: () => dashboardService.getDashboard(''),
   });
 
   const currentGameweek = dashboard?.upcomingGameweeks?.[0]?.weekNumber || 1;
   const displayGameweek = selectedGameweek || currentGameweek;
-
-  // Sync results mutation (admin only)
-  const syncResultsMutation = useMutation({
-    mutationFn: () => adminService.syncResults(),
-    onSuccess: (data) => {
-      haptics.success();
-      // Invalidate all relevant queries to refresh the UI
-      queryClient.invalidateQueries({ queryKey: ['fixtures'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      queryClient.invalidateQueries({ queryKey: ['picks'] });
-      queryClient.invalidateQueries({ queryKey: ['league-standings'] });
-      alert(data.message || 'Scores refreshed successfully!');
-    },
-    onError: () => {
-      haptics.error();
-      alert('Failed to refresh scores. Please try again.');
-    },
-  });
 
   // Create a map of picks by gameweek number
   const picksByGameweek = new Map<number, typeof picks[0]>();
@@ -141,26 +119,12 @@ export function Fixtures() {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-start justify-between">
-          <div>
-            <CardTitle>Fixtures</CardTitle>
-            <CardDescription>
-              <span className="text-green-600 dark:text-green-400">●</span> Your pick{' '}
-              <span className="text-red-600 dark:text-red-400">●</span> Already picked{' '}
-              <span className="text-gray-400 dark:text-gray-500">●</span> Future pick
-            </CardDescription>
-          </div>
-          {user?.isAdmin && (
-            <button
-              onClick={() => syncResultsMutation.mutate()}
-              disabled={syncResultsMutation.isPending}
-              className="px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              title="Manually refresh live scores"
-            >
-              {syncResultsMutation.isPending ? '⟳ Syncing...' : '⟳ Refresh Scores'}
-            </button>
-          )}
-        </div>
+        <CardTitle>Fixtures</CardTitle>
+        <CardDescription>
+          <span className="text-green-600 dark:text-green-400">●</span> Your pick{' '}
+          <span className="text-red-600 dark:text-red-400">●</span> Already picked{' '}
+          <span className="text-gray-400 dark:text-gray-500">●</span> Future pick
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {/* Gameweek Navigation */}
