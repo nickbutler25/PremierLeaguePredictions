@@ -220,18 +220,15 @@ export function Picks() {
     <Card>
       <CardHeader>
         <CardTitle>Your Picks</CardTitle>
-        <CardDescription>
-          {getRuleDescription()}
-        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="rounded-md border max-h-[600px] overflow-y-auto">
           <Table>
             <TableHeader className="sticky top-0 bg-background z-10">
               <TableRow>
-                <TableHead className="w-24">GW</TableHead>
-                <TableHead>Team</TableHead>
-                <TableHead className="text-center w-16">Pts</TableHead>
+                <TableHead className="w-16 sm:w-24 text-xs sm:text-sm">GW</TableHead>
+                <TableHead className="text-xs sm:text-sm">Team</TableHead>
+                <TableHead className="text-center w-12 sm:w-16 text-xs sm:text-sm">Pts</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -251,16 +248,16 @@ export function Picks() {
                     key={gw}
                     className={gw === currentGameweek ? 'bg-blue-50 dark:bg-blue-950/30' : ''}
                   >
-                    <TableCell className="font-medium">
+                    <TableCell className="font-medium text-xs sm:text-sm">
                       {gw}
                       {gw === currentGameweek && (
                         <span className="ml-1 text-xs text-blue-600 dark:text-blue-400">•</span>
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="text-xs sm:text-sm">
                       {pick ? (
-                        <div className="flex items-center justify-between gap-2">
-                          <div className={`flex items-center gap-2 ${pick.points === 3
+                        <div className="flex items-center justify-between gap-1 sm:gap-2">
+                          <div className={`flex items-center gap-1.5 sm:gap-2 min-w-0 ${pick.points === 3
                             ? 'text-green-600 dark:text-green-400'
                             : pick.points === 1
                               ? 'text-yellow-600 dark:text-yellow-400'
@@ -270,16 +267,16 @@ export function Picks() {
                               <img
                                 src={pick.team.logoUrl}
                                 alt={pick.team.name}
-                                className="w-5 h-5"
+                                className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0"
                               />
                             )}
-                            <span>{pick.team?.name}</span>
+                            <span className="truncate">{pick.team?.name}</span>
                           </div>
                           {canRemove && (
                             <button
                               onClick={() => deletePickMutation.mutate(pick.id)}
                               disabled={deletePickMutation.isPending}
-                              className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 text-xs px-2 py-1 hover:bg-red-50 dark:hover:bg-red-950/30 rounded"
+                              className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 text-xs px-1.5 sm:px-2 py-1 hover:bg-red-50 dark:hover:bg-red-950/30 rounded flex-shrink-0"
                               title="Remove pick"
                             >
                               ✕
@@ -289,7 +286,7 @@ export function Picks() {
                       ) : canSelect ? (
                         isEditing ? (
                           <select
-                            className="w-full border rounded px-2 py-1 text-sm"
+                            className="w-full border rounded px-1.5 sm:px-2 py-1 text-xs sm:text-sm"
                             onChange={(e) => handleTeamSelect(gw, e.target.value)}
                             defaultValue=""
                             disabled={createPickMutation.isPending}
@@ -306,7 +303,7 @@ export function Picks() {
                         ) : (
                           <button
                             onClick={() => setSelectedGameweek(gw)}
-                            className="text-blue-600 dark:text-blue-400 hover:underline text-sm"
+                            className="text-blue-600 dark:text-blue-400 hover:underline text-xs sm:text-sm"
                           >
                             {availableTeams.length > 0
                               ? 'Select team...'
@@ -314,18 +311,19 @@ export function Picks() {
                           </button>
                         )
                       ) : deadlinePassed ? (
-                        <span className="text-gray-400 dark:text-gray-500 text-sm italic flex items-center gap-1">
-                          🔒 Deadline Passed
+                        <span className="text-gray-400 dark:text-gray-500 text-xs sm:text-sm italic flex items-center gap-1">
+                          <span className="hidden sm:inline">🔒 Deadline Passed</span>
+                          <span className="sm:hidden">🔒 Locked</span>
                         </span>
                       ) : isEliminated ? (
-                        <span className="text-gray-400 dark:text-gray-500 text-sm italic">🚫 Eliminated</span>
+                        <span className="text-gray-400 dark:text-gray-500 text-xs sm:text-sm italic">🚫 <span className="hidden sm:inline">Eliminated</span></span>
                       ) : isSecondHalfLocked ? (
-                        <span className="text-gray-400 dark:text-gray-500 text-sm italic">Locked (2nd Half)</span>
+                        <span className="text-gray-400 dark:text-gray-500 text-xs sm:text-sm italic"><span className="hidden sm:inline">Locked (2nd Half)</span><span className="sm:hidden">Locked</span></span>
                       ) : (
-                        <span className="text-gray-400 dark:text-gray-500 text-sm italic">-</span>
+                        <span className="text-gray-400 dark:text-gray-500 text-xs sm:text-sm italic">-</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-center font-medium">
+                    <TableCell className="text-center font-medium text-xs sm:text-sm">
                       {pick ? (
                         // Check if fixture has been played by looking at whether any goals were scored
                         // or if points were awarded. If goalsFor and goalsAgainst are both 0 and points is 0,
@@ -355,28 +353,32 @@ export function Picks() {
             </TableBody>
           </Table>
         </div>
-        <div className="mt-4 text-xs text-muted-foreground space-y-1">
+        <div className="mt-4 text-xs sm:text-sm text-muted-foreground space-y-1">
           <p>• Current gameweek highlighted in blue</p>
-          <p>• Picks cannot be changed after the gameweek deadline passes 🔒</p>
+          <p>• Picks cannot be changed after deadline 🔒</p>
           {currentGameweek <= 19 ? (
             // First half - only show first half rules
             pickRules?.firstHalf && (
               <>
-                <p>• First half (GW 1-19): Each team can be picked up to {pickRules.firstHalf.maxTimesTeamCanBePicked} time{pickRules.firstHalf.maxTimesTeamCanBePicked > 1 ? 's' : ''}</p>
-                <p>• First half (GW 1-19): Each opposition can be targeted up to {pickRules.firstHalf.maxTimesOppositionCanBeTargeted} time{pickRules.firstHalf.maxTimesOppositionCanBeTargeted > 1 ? 's' : ''}</p>
-                <p>• Second half picks locked until gameweek 20</p>
+                <p className="hidden sm:block">• First half (GW 1-19): Each team can be picked up to {pickRules.firstHalf.maxTimesTeamCanBePicked} time{pickRules.firstHalf.maxTimesTeamCanBePicked > 1 ? 's' : ''}</p>
+                <p className="sm:hidden">• Each team max {pickRules.firstHalf.maxTimesTeamCanBePicked}x (1st half)</p>
+                <p className="hidden sm:block">• First half (GW 1-19): Each opposition can be targeted up to {pickRules.firstHalf.maxTimesOppositionCanBeTargeted} time{pickRules.firstHalf.maxTimesOppositionCanBeTargeted > 1 ? 's' : ''}</p>
+                <p className="sm:hidden">• Each opposition max {pickRules.firstHalf.maxTimesOppositionCanBeTargeted}x (1st half)</p>
+                <p>• Second half picks locked until GW 20</p>
               </>
             )
           ) : (
             // Second half - only show second half rules
             pickRules?.secondHalf && (
               <>
-                <p>• Second half (GW 20-38): Each team can be picked up to {pickRules.secondHalf.maxTimesTeamCanBePicked} time{pickRules.secondHalf.maxTimesTeamCanBePicked > 1 ? 's' : ''}</p>
-                <p>• Second half (GW 20-38): Each opposition can be targeted up to {pickRules.secondHalf.maxTimesOppositionCanBeTargeted} time{pickRules.secondHalf.maxTimesOppositionCanBeTargeted > 1 ? 's' : ''}</p>
+                <p className="hidden sm:block">• Second half (GW 20-38): Each team can be picked up to {pickRules.secondHalf.maxTimesTeamCanBePicked} time{pickRules.secondHalf.maxTimesTeamCanBePicked > 1 ? 's' : ''}</p>
+                <p className="sm:hidden">• Each team max {pickRules.secondHalf.maxTimesTeamCanBePicked}x (2nd half)</p>
+                <p className="hidden sm:block">• Second half (GW 20-38): Each opposition can be targeted up to {pickRules.secondHalf.maxTimesOppositionCanBeTargeted} time{pickRules.secondHalf.maxTimesOppositionCanBeTargeted > 1 ? 's' : ''}</p>
+                <p className="sm:hidden">• Each opposition max {pickRules.secondHalf.maxTimesOppositionCanBeTargeted}x (2nd half)</p>
               </>
             )
           )}
-          {isEliminated && <p className="text-red-600 dark:text-red-400">• You have been eliminated and cannot make new picks 🚫</p>}
+          {isEliminated && <p className="text-red-600 dark:text-red-400">• You are eliminated 🚫</p>}
         </div>
       </CardContent>
     </Card>

@@ -124,7 +124,7 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="container mx-auto p-4 space-y-4">
+    <div className="container mx-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
       {/* Pull-to-Refresh Indicator */}
       {isPulling && (
         <div

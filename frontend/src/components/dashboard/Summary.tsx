@@ -45,6 +45,18 @@ export function Summary() {
   const currentUserStanding = leagueData?.standings.find(s => s.userId === user?.id);
   const isEliminated = currentUserStanding?.isEliminated || false;
   const eliminatedInGameweek = currentUserStanding?.eliminatedInGameweek;
+
+  // Calculate active players count
+  const activePlayers = leagueData?.standings.filter(s => !s.isEliminated).length || 0;
+  const userPosition = currentUserStanding?.position;
+
+  // Helper function to add ordinal suffix (1st, 2nd, 3rd, etc.)
+  const getOrdinal = (n: number): string => {
+    const s = ['th', 'st', 'nd', 'rd'];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  };
+
   const nextGameweek = upcomingGameweeks.length > 0 ? upcomingGameweeks[0] : null;
   const isInProgress = nextGameweek?.status === 'InProgress';
   const formattedDeadline = nextGameweek
@@ -135,6 +147,20 @@ export function Summary() {
 
         <Card className="py-2">
           <CardHeader className="pb-2 pt-3">
+            <CardTitle className="text-xs font-medium">League Position</CardTitle>
+          </CardHeader>
+          <CardContent className="pb-3">
+            <div className="text-lg font-bold">
+              {userPosition ? getOrdinal(userPosition) : '--'}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {activePlayers > 0 ? `of ${activePlayers}` : 'No standings'}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="py-2">
+          <CardHeader className="pb-2 pt-3">
             <CardTitle className="text-xs font-medium">Your Points</CardTitle>
           </CardHeader>
           <CardContent className="pb-3">
@@ -154,18 +180,6 @@ export function Summary() {
               {userStats.totalWins}-{userStats.totalDraws}-{userStats.totalLosses}
             </div>
             <p className="text-xs text-muted-foreground">W-D-L</p>
-          </CardContent>
-        </Card>
-
-        <Card className="py-2">
-          <CardHeader className="pb-2 pt-3">
-            <CardTitle className="text-xs font-medium">Welcome</CardTitle>
-          </CardHeader>
-          <CardContent className="pb-3">
-            <div className="text-lg font-bold">
-              {userStats.firstName}
-            </div>
-            <p className="text-xs text-muted-foreground">Keep pushing!</p>
           </CardContent>
         </Card>
       </div>

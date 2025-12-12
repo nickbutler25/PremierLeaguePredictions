@@ -35,13 +35,13 @@ export function Layout({ children }: LayoutProps) {
         Skip to main content
       </a>
       <header className="border-b" role="banner">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center space-x-8">
+        <div className="container mx-auto px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between">
+          <div className="flex items-center space-x-4 sm:space-x-8">
             <Link to="/dashboard" className="flex items-center" aria-label="Home">
               <img
-                src="/pl-banner-logo-light.png"
+                src={theme === 'dark' ? '/pl-banner-logo-dark.png' : '/pl-banner-logo-light.png'}
                 alt="Premier League Predictions"
-                className="h-10 w-auto"
+                className="h-8 sm:h-10 w-auto"
               />
             </Link>
             {isAdmin && (
@@ -52,7 +52,7 @@ export function Layout({ children }: LayoutProps) {
               </nav>
             )}
           </div>
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-4">
             <Button
               variant="outline"
               size="sm"
@@ -78,14 +78,14 @@ export function Layout({ children }: LayoutProps) {
                     <img
                       src={user.photoUrl}
                       alt={`${user.firstName} ${user.lastName}'s profile picture`}
-                      className="w-8 h-8 rounded-full"
+                      className="w-7 h-7 sm:w-8 sm:h-8 rounded-full"
                     />
                   )}
-                  <span className="text-sm font-medium hidden sm:inline" aria-label="Current user">
+                  <span className="text-xs sm:text-sm font-medium hidden sm:inline" aria-label="Current user">
                     {user.firstName} {user.lastName}
                   </span>
                 </div>
-                <Button variant="outline" size="sm" onClick={handleLogout} aria-label="Logout">
+                <Button variant="outline" size="sm" onClick={handleLogout} aria-label="Logout" className="text-xs sm:text-sm px-2 sm:px-3">
                   Logout
                 </Button>
               </>

@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Splash Screen Generator - EPL Predictions</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+
+    .controls {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .controls h1 {
+      margin-bottom: 20px;
+      color: #333;
+    }
+
+    .control-group {
+      margin-bottom: 15px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+      color: #666;
+      font-weight: 500;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    button {
+      background: #38003c;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-right: 10px;
+      margin-top: 10px;
+    }
+
+    button:hover {
+      background: #2a0029;
+    }
+
+    #preview-container {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 400px;
+    }
+
+    #splash-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      background: #38003c;
+      color: white;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .safe-area-top {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 47px;
+      background: rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      opacity: 0.5;
+    }
+
+    .safe-area-bottom {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 34px;
+      background: rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      opacity: 0.5;
+    }
+
+    .content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 47px 0 34px 0;
+    }
+
+    #logo-preview {
+      max-width: 256px;
+      max-height: 256px;
+      margin-bottom: 24px;
+    }
+
+    #app-name {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    #tagline {
+      font-size: 16px;
+      opacity: 0.8;
+    }
+
+    .instructions {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 4px;
+      padding: 15px;
+      margin-top: 20px;
+    }
+
+    .instructions h3 {
+      margin-bottom: 10px;
+      color: #856404;
+    }
+
+    .instructions ol {
+      margin-left: 20px;
+      color: #856404;
+    }
+
+    .instructions li {
+      margin-bottom: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="controls">
+    <h1>📱 iOS Splash Screen Generator</h1>
+
+    <div class="control-group">
+      <label>Device Size:</label>
+      <select id="device-size" onchange="updateSize()">
+        <optgroup label="iPhone 16 Series (2024)">
+          <option value="1320,2868">iPhone 16 Pro Max (1320 x 2868)</option>
+          <option value="1206,2622">iPhone 16 Pro (1206 x 2622)</option>
+          <option value="1290,2796">iPhone 16 Plus (1290 x 2796)</option>
+          <option value="1179,2556">iPhone 16 (1179 x 2556)</option>
+        </optgroup>
+        <optgroup label="iPhone 15 Series (2023)">
+          <option value="1290,2796">iPhone 15 Pro Max (1290 x 2796)</option>
+          <option value="1179,2556">iPhone 15 Pro (1179 x 2556)</option>
+          <option value="1290,2796">iPhone 15 Plus (1290 x 2796)</option>
+          <option value="1179,2556">iPhone 15 (1179 x 2556)</option>
+        </optgroup>
+        <optgroup label="iPhone 14 Series (2022)">
+          <option value="1290,2796">iPhone 14 Pro Max (1290 x 2796)</option>
+          <option value="1179,2556">iPhone 14 Pro (1179 x 2556)</option>
+          <option value="1290,2796">iPhone 14 Plus (1290 x 2796)</option>
+          <option value="1170,2532" selected>iPhone 14 (1170 x 2532)</option>
+        </optgroup>
+        <optgroup label="iPhone 13 Series (2021)">
+          <option value="1284,2778">iPhone 13 Pro Max (1284 x 2778)</option>
+          <option value="1170,2532">iPhone 13 Pro (1170 x 2532)</option>
+          <option value="1170,2532">iPhone 13 (1170 x 2532)</option>
+          <option value="1080,2340">iPhone 13 mini (1080 x 2340)</option>
+        </optgroup>
+        <optgroup label="iPhone 12 Series (2020)">
+          <option value="1284,2778">iPhone 12 Pro Max (1284 x 2778)</option>
+          <option value="1170,2532">iPhone 12 Pro (1170 x 2532)</option>
+          <option value="1170,2532">iPhone 12 (1170 x 2532)</option>
+          <option value="1080,2340">iPhone 12 mini (1080 x 2340)</option>
+        </optgroup>
+        <optgroup label="iPhone 11 Series (2019)">
+          <option value="1242,2688">iPhone 11 Pro Max (1242 x 2688)</option>
+          <option value="1125,2436">iPhone 11 Pro (1125 x 2436)</option>
+          <option value="828,1792">iPhone 11 (828 x 1792)</option>
+        </optgroup>
+        <optgroup label="iPhone XS/XR/X (2017-2018)">
+          <option value="1242,2688">iPhone XS Max (1242 x 2688)</option>
+          <option value="1125,2436">iPhone XS/X (1125 x 2436)</option>
+          <option value="828,1792">iPhone XR (828 x 1792)</option>
+        </optgroup>
+        <optgroup label="iPhone SE (2022/2020)">
+          <option value="750,1334">iPhone SE (750 x 1334)</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label>Background Color:</label>
+      <input type="color" id="bg-color" value="#38003c" onchange="updateStyles()">
+    </div>
+
+    <div class="control-group">
+      <label>App Name:</label>
+      <input type="text" id="app-name-input" value="EPL Predict" onchange="updateContent()">
+    </div>
+
+    <div class="control-group">
+      <label>Tagline (optional):</label>
+      <input type="text" id="tagline-input" value="Premier League Predictions" onchange="updateContent()">
+    </div>
+
+    <div class="control-group">
+      <label>Logo Image:</label>
+      <input type="file" id="logo-upload" accept="image/*" onchange="updateLogo()">
+    </div>
+
+    <div class="control-group">
+      <label>Logo Size (px):</label>
+      <input type="number" id="logo-size" value="256" min="100" max="500" onchange="updateLogoSize()">
+    </div>
+
+    <button onclick="downloadSplash()">📥 Download Splash Screen</button>
+    <button onclick="showInstructions()">📖 Show Instructions</button>
+
+    <div class="instructions" id="instructions" style="display: none;">
+      <h3>How to Create Splash Screens:</h3>
+      <ol>
+        <li>Upload your logo using the "Logo Image" field above</li>
+        <li>Adjust the logo size, background color, and text as needed</li>
+        <li>Select each device size from the dropdown</li>
+        <li>Click "Download Splash Screen" for each size</li>
+        <li>Files will auto-download with correct names (e.g., <code>splash-iphone-16-pro-max.png</code>)</li>
+        <li>Place all files in <code>frontend/public/</code></li>
+        <li>Deploy and test on your iPhone!</li>
+      </ol>
+      <p style="margin-top: 15px;"><strong>Priority Sizes (Most users):</strong></p>
+      <ul>
+        <li>iPhone 16 Pro Max (1320 x 2868)</li>
+        <li>iPhone 16 Pro (1206 x 2622)</li>
+        <li>iPhone 15/14 (1170 x 2532)</li>
+        <li>iPhone 14 Pro Max (1290 x 2796)</li>
+        <li>iPhone 13 Pro Max (1284 x 2778)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div id="preview-container">
+    <div id="splash-screen">
+      <div class="safe-area-top">Safe Area (Status Bar)</div>
+      <div class="content">
+        <img id="logo-preview" src="/pl-banner-logo-light.png" alt="Logo">
+        <div id="app-name">EPL Predict</div>
+        <div id="tagline">Premier League Predictions</div>
+      </div>
+      <div class="safe-area-bottom">Safe Area (Home Indicator)</div>
+    </div>
+  </div>
+
+  <script>
+    // Initialize
+    updateSize();
+
+    function updateSize() {
+      const select = document.getElementById('device-size');
+      const [width, height] = select.value.split(',').map(Number);
+      const splash = document.getElementById('splash-screen');
+
+      // Scale to fit preview (max 400px height)
+      const scale = Math.min(400 / height, 0.3);
+      splash.style.width = `${width * scale}px`;
+      splash.style.height = `${height * scale}px`;
+
+      // Store actual dimensions for download
+      splash.dataset.width = width;
+      splash.dataset.height = height;
+    }
+
+    function updateStyles() {
+      const bgColor = document.getElementById('bg-color').value;
+      document.getElementById('splash-screen').style.background = bgColor;
+    }
+
+    function updateContent() {
+      const appName = document.getElementById('app-name-input').value;
+      const tagline = document.getElementById('tagline-input').value;
+
+      document.getElementById('app-name').textContent = appName;
+      document.getElementById('tagline').textContent = tagline;
+      document.getElementById('tagline').style.display = tagline ? 'block' : 'none';
+    }
+
+    function updateLogo() {
+      const file = document.getElementById('logo-upload').files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          document.getElementById('logo-preview').src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function updateLogoSize() {
+      const size = document.getElementById('logo-size').value;
+      const logo = document.getElementById('logo-preview');
+      logo.style.maxWidth = `${size}px`;
+      logo.style.maxHeight = `${size}px`;
+    }
+
+    function showInstructions() {
+      const instructions = document.getElementById('instructions');
+      instructions.style.display = instructions.style.display === 'none' ? 'block' : 'none';
+    }
+
+    async function downloadSplash() {
+      const splash = document.getElementById('splash-screen');
+      const width = parseInt(splash.dataset.width);
+      const height = parseInt(splash.dataset.height);
+
+      // Create canvas
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+
+      // Fill background
+      ctx.fillStyle = document.getElementById('bg-color').value;
+      ctx.fillRect(0, 0, width, height);
+
+      // Draw logo
+      const logo = document.getElementById('logo-preview');
+      const logoSize = parseInt(document.getElementById('logo-size').value);
+      const logoX = (width - logoSize) / 2;
+      const logoY = (height - logoSize) / 2 - 50;
+
+      await new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          ctx.drawImage(img, logoX, logoY, logoSize, logoSize);
+          resolve();
+        };
+        img.src = logo.src;
+      });
+
+      // Draw app name
+      const appName = document.getElementById('app-name-input').value;
+      if (appName) {
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 64px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
+        ctx.textAlign = 'center';
+        ctx.fillText(appName, width / 2, logoY + logoSize + 80);
+      }
+
+      // Draw tagline
+      const tagline = document.getElementById('tagline-input').value;
+      if (tagline) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.font = '32px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
+        ctx.textAlign = 'center';
+        ctx.fillText(tagline, width / 2, logoY + logoSize + 130);
+      }
+
+      // Download
+      const select = document.getElementById('device-size');
+      const deviceName = select.options[select.selectedIndex].text.split(' (')[0];
+
+      canvas.toBlob((blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `splash-${deviceName.toLowerCase().replace(/\s+/g, '-')}.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+    }
+  </script>
+</body>
+</html>

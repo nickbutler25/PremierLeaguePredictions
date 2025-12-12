@@ -215,23 +215,23 @@ export function Fixtures() {
                   key={fixture.id}
                   className="border rounded-lg p-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     {/* Home Team */}
-                    <div className={`flex items-center gap-2 flex-1 ${homeColor}`}>
+                    <div className={`flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0 ${homeColor}`}>
                       {fixture.homeTeam?.logoUrl && (
                         <img
                           src={fixture.homeTeam.logoUrl}
                           alt={fixture.homeTeam.name}
-                          className="w-6 h-6"
+                          className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0"
                         />
                       )}
-                      <span className="text-sm font-medium">
+                      <span className="text-xs sm:text-sm font-medium truncate">
                         {fixture.homeTeam?.name}
                       </span>
                     </div>
 
                     {/* Score or Time */}
-                    <div className="px-4 text-center min-w-[80px]">
+                    <div className="px-2 sm:px-4 text-center min-w-[70px] sm:min-w-[80px] flex-shrink-0">
                       {fixture.status === 'FINISHED' ? (
                         <div className="font-bold text-sm">
                           {fixture.homeScore} - {fixture.awayScore}
@@ -252,22 +252,22 @@ export function Fixtures() {
                         </div>
                       ) : (
                         <div className="text-xs text-muted-foreground">
-                          <div>{formatKickoffDate(fixture.kickoffTime)}</div>
+                          <div className="hidden sm:block">{formatKickoffDate(fixture.kickoffTime)}</div>
                           <div className="font-medium">{formatKickoffTime(fixture.kickoffTime)}</div>
                         </div>
                       )}
                     </div>
 
                     {/* Away Team */}
-                    <div className={`flex items-center gap-2 flex-1 justify-end ${awayColor}`}>
-                      <span className="text-sm font-medium text-right">
+                    <div className={`flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0 justify-end ${awayColor}`}>
+                      <span className="text-xs sm:text-sm font-medium text-right truncate">
                         {fixture.awayTeam?.name}
                       </span>
                       {fixture.awayTeam?.logoUrl && (
                         <img
                           src={fixture.awayTeam.logoUrl}
                           alt={fixture.awayTeam.name}
-                          className="w-6 h-6"
+                          className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0"
                         />
                       )}
                     </div>
