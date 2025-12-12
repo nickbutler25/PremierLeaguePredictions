@@ -1,8 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { useResultsUpdates } from "@/hooks/useResultsUpdates";
 import { useAutoPickNotifications } from "@/hooks/useAutoPickNotifications";
+import { useResultsUpdates } from "@/hooks/useResultsUpdates";
 import { useSeasonCreatedNotification } from "@/hooks/useSeasonCreatedNotification";
 import type { ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -39,7 +39,7 @@ export function Layout({ children }: LayoutProps) {
           <div className="flex items-center space-x-8">
             <Link to="/dashboard" className="flex items-center" aria-label="Home">
               <img
-                src="/pl-logo-alt.png"
+                src="/pl-banner-logo-light.png"
                 alt="Premier League Predictions"
                 className="h-10 w-auto"
               />

@@ -30,4 +30,12 @@ services:
         sync: false
       - key: ExternalSync__ApiKey
         sync: false
+      - key: ApiBaseUrl
+        value: https://api.eplpredict.com
+      - key: GitHub__Owner
+        value: nickbutler25
+      - key: GitHub__Repository
+        value: PremierLeaguePredictions
+      - key: GitHub__PersonalAccessToken
+        sync: false
     healthCheckPath: /health

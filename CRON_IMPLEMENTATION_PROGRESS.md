@@ -96,9 +96,10 @@ All implementation and documentation complete. System is ready for production de
 ## Setup Requirements (After Implementation)
 
 ### 1. Create GitHub Personal Access Token
-1. Go to: https://github.com/settings/tokens/new
-2. Grant permissions: `repo` and `workflow`
-3. Generate token and copy it
+1. Go to: https://github.com/settings/tokens (Tokens classic)
+2. Click "Generate new token (classic)"
+3. Grant scope: `workflow` (this includes necessary repository access)
+4. Generate token and copy it immediately
 
 ### 2. Add to Render Environment Variables
 - Key: `GitHub__PersonalAccessToken`

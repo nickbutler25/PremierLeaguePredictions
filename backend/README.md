@@ -414,8 +414,8 @@ Configure GitHub integration for automated task scheduling:
 ```
 
 **Setup:**
-1. Create Personal Access Token at [GitHub Settings](https://github.com/settings/tokens)
-2. Grant `repo` and `workflow` scopes
+1. Create Personal Access Token at [GitHub Settings](https://github.com/settings/tokens) (Tokens classic)
+2. Grant `workflow` scope (includes necessary repository access)
 3. Set environment variable: `GitHub__PersonalAccessToken=ghp_your_token`
 4. Add API key to repository secrets: `EXTERNAL_SYNC_API_KEY`
 

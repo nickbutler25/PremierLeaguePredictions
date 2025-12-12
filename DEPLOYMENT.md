@@ -19,21 +19,36 @@ The application uses **GitHub Actions** to schedule automated tasks (reminders, 
 
 ### Prerequisites
 
-1. **GitHub Personal Access Token** with `repo` and `workflow` permissions
+1. **GitHub Personal Access Token** with `workflow` scope (or fine-grained token with Contents + Workflows permissions)
 2. **API Key** for external sync operations (already exists as `EXTERNAL_SYNC_API_KEY`)
 
 ### Setup Steps
 
 #### 1. Create GitHub Personal Access Token
 
+**Option A: Classic Token (Recommended - Simpler)**
+
 1. Go to [GitHub Settings > Personal Access Tokens > Tokens (classic)](https://github.com/settings/tokens)
 2. Click "Generate new token (classic)"
 3. Set description: `PremierLeague Scheduler`
-4. Select scopes:
-   - ✅ `repo` (Full control of private repositories)
+4. Set expiration: Choose your preferred expiration (90 days, 1 year, or no expiration)
+5. Select scopes:
    - ✅ `workflow` (Update GitHub Action workflows)
-5. Click "Generate token"
-6. **Copy the token immediately** (you won't see it again)
+   - Note: Selecting `workflow` automatically includes necessary repository access
+6. Click "Generate token"
+7. **Copy the token immediately** (you won't see it again)
+
+**Option B: Fine-grained Token (More Secure - More Complex)**
+
+1. Go to [GitHub Settings > Personal Access Tokens > Fine-grained tokens](https://github.com/settings/personal-access-tokens/new)
+2. Set token name: `PremierLeague Scheduler`
+3. Set expiration: Choose your preferred expiration
+4. Repository access: Select "Only select repositories" → Choose `PremierLeaguePredictions`
+5. Repository permissions:
+   - **Contents**: Read and write
+   - **Workflows**: Read and write
+6. Click "Generate token"
+7. **Copy the token immediately** (you won't see it again)
 
 #### 2. Add Token to Render Environment Variables
 
@@ -620,7 +635,7 @@ gh workflow run master-scheduler.yml
 **Possible Causes:**
 1. **Invalid Personal Access Token**
    - Check token hasn't expired
-   - Verify token has `repo` and `workflow` scopes
+   - Verify token has `workflow` scope (classic) or Contents + Workflows permissions (fine-grained)
    - Regenerate token if needed
 
 2. **Missing Environment Variable**
@@ -783,7 +798,7 @@ curl -X POST http://localhost:5000/api/v1/admin/schedule/generate \
 
 | Error | Cause | Solution |
 |-------|-------|----------|
-| `Resource not accessible by integration` | Token lacks required scopes | Regenerate token with `repo` + `workflow` |
+| `Resource not accessible by integration` | Token lacks required scopes | Regenerate token with `workflow` scope or Contents + Workflows permissions |
 | `Reference does not exist` | Branch name mismatch | Check `ref` in API calls matches actual branch |
 | `Workflow does not exist` | File path wrong | Verify `.github/workflows/` path |
 | `Rate limit exceeded` | Too many API calls | Wait or upgrade GitHub plan |

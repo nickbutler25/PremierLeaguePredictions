@@ -30,9 +30,10 @@ For complete setup instructions, see [DEPLOYMENT.md](DEPLOYMENT.md#github-action
 ### Quick Setup Summary
 
 1. **Create GitHub Personal Access Token**
-   - Go to [GitHub Settings > Tokens](https://github.com/settings/tokens)
-   - Grant `repo` and `workflow` scopes
-   - Copy the token
+   - Go to [GitHub Settings > Tokens (classic)](https://github.com/settings/tokens)
+   - Click "Generate new token (classic)"
+   - Grant `workflow` scope (includes necessary repository access)
+   - Copy the token immediately
 
 2. **Add Token to Render Environment**
    ```
