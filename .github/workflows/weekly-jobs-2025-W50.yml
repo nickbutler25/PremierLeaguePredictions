@@ -9,7 +9,6 @@ on:
     - cron: '*/2 20-22 13 12 *'
     - cron: '*/2 20-22 15 12 *'
     - cron: '0 11 13 12 *'
-    - cron: '0 14 12 12 *'
     - cron: '0 14 13 12 *'
     - cron: '0 2 13 12 *'
   workflow_dispatch:
@@ -18,7 +17,7 @@ jobs:
   send-reminders:
     name: Send Pick Reminders
     runs-on: ubuntu-latest
-    if: github.event.schedule == '0 14 12 12 *' || github.event.schedule == '0 2 13 12 *' || github.event.schedule == '0 11 13 12 *'
+    if: github.event.schedule == '0 2 13 12 *' || github.event.schedule == '0 11 13 12 *'
     steps:
       - name: Call Reminder API
         run: |
