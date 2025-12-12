@@ -7,7 +7,7 @@ import { leagueService } from '@/services/league';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSeasonApproval } from '@/hooks/useSeasonApproval';
 import { haptics } from '@/utils/haptics';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -197,24 +197,6 @@ export function Picks() {
 
   // Generate all 38 gameweeks
   const gameweeks = Array.from({ length: 38 }, (_, i) => i + 1);
-
-  // Get rule description
-  const getRuleDescription = () => {
-    if (!pickRules?.firstHalf && !pickRules?.secondHalf) {
-      return 'Pick rules not configured - please contact an administrator';
-    }
-
-    const firstHalfRule = pickRules.firstHalf;
-    const secondHalfRule = pickRules.secondHalf;
-
-    if (firstHalfRule && secondHalfRule &&
-      firstHalfRule.maxTimesTeamCanBePicked === secondHalfRule.maxTimesTeamCanBePicked &&
-      firstHalfRule.maxTimesOppositionCanBeTargeted === secondHalfRule.maxTimesOppositionCanBeTargeted) {
-      return `Each team can be picked ${firstHalfRule.maxTimesTeamCanBePicked} time${firstHalfRule.maxTimesTeamCanBePicked > 1 ? 's' : ''} per half`;
-    }
-
-    return `First half: teams ${firstHalfRule?.maxTimesTeamCanBePicked}x | Second half: teams ${secondHalfRule?.maxTimesTeamCanBePicked}x`;
-  };
 
   return (
     <Card>
