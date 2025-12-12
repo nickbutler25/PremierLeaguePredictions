@@ -139,7 +139,7 @@ public class GitHubWorkflowService : IGitHubWorkflowService
             sb.AppendLine("    steps:");
             sb.AppendLine("      - name: Call Reminder API");
             sb.AppendLine("        run: |");
-            sb.AppendLine($"          curl -X POST {_apiBaseUrl}/api/v1/admin/reminders \\");
+            sb.AppendLine($"          curl --fail -X POST {_apiBaseUrl}/api/v1/admin/schedule/reminders \\");
             sb.AppendLine("            -H \"X-API-Key: ${{ secrets.EXTERNAL_SYNC_API_KEY }}\" \\");
             sb.AppendLine("            -H \"Content-Type: application/json\"");
             sb.AppendLine();
@@ -159,7 +159,7 @@ public class GitHubWorkflowService : IGitHubWorkflowService
             sb.AppendLine("    steps:");
             sb.AppendLine("      - name: Call Auto-Pick API");
             sb.AppendLine("        run: |");
-            sb.AppendLine($"          curl -X POST {_apiBaseUrl}/api/v1/admin/auto-pick \\");
+            sb.AppendLine($"          curl --fail -X POST {_apiBaseUrl}/api/v1/admin/schedule/auto-pick \\");
             sb.AppendLine("            -H \"X-API-Key: ${{ secrets.EXTERNAL_SYNC_API_KEY }}\" \\");
             sb.AppendLine("            -H \"Content-Type: application/json\"");
             sb.AppendLine();
@@ -179,7 +179,7 @@ public class GitHubWorkflowService : IGitHubWorkflowService
             sb.AppendLine("    steps:");
             sb.AppendLine("      - name: Call Results Sync API");
             sb.AppendLine("        run: |");
-            sb.AppendLine($"          curl -X POST {_apiBaseUrl}/api/v1/admin/sync-results \\");
+            sb.AppendLine($"          curl --fail -X POST {_apiBaseUrl}/api/v1/admin/sync/results \\");
             sb.AppendLine("            -H \"X-API-Key: ${{ secrets.EXTERNAL_SYNC_API_KEY }}\" \\");
             sb.AppendLine("            -H \"Content-Type: application/json\"");
         }
