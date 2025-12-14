@@ -9,7 +9,6 @@ on:
     - cron: '*/2 20-22 13 12 *'
     - cron: '*/2 20-22 15 12 *'
     - cron: '0 11 13 12 *'
-    - cron: '0 14 12 12 *'
     - cron: '0 14 13 12 *'
     - cron: '0 2 13 12 *'
   workflow_dispatch:
@@ -18,11 +17,11 @@ jobs:
   send-reminders:
     name: Send Pick Reminders
     runs-on: ubuntu-latest
-    if: github.event.schedule == '0 14 12 12 *' || github.event.schedule == '0 2 13 12 *' || github.event.schedule == '0 11 13 12 *'
+    if: github.event.schedule == '0 2 13 12 *' || github.event.schedule == '0 11 13 12 *'
     steps:
       - name: Call Reminder API
         run: |
-          curl -X POST https://api.eplpredict.com/api/v1/admin/reminders \
+          curl --fail -X POST https://api.eplpredict.com/api/v1/admin/schedule/reminders \
             -H "X-API-Key: ${{ secrets.EXTERNAL_SYNC_API_KEY }}" \
             -H "Content-Type: application/json"
 
@@ -33,7 +32,7 @@ jobs:
     steps:
       - name: Call Auto-Pick API
         run: |
-          curl -X POST https://api.eplpredict.com/api/v1/admin/auto-pick \
+          curl --fail -X POST https://api.eplpredict.com/api/v1/admin/schedule/auto-pick \
             -H "X-API-Key: ${{ secrets.EXTERNAL_SYNC_API_KEY }}" \
             -H "Content-Type: application/json"
 
@@ -44,6 +43,6 @@ jobs:
     steps:
       - name: Call Results Sync API
         run: |
-          curl -X POST https://api.eplpredict.com/api/v1/admin/sync-results \
+          curl --fail -X POST https://api.eplpredict.com/api/v1/admin/sync/results \
             -H "X-API-Key: ${{ secrets.EXTERNAL_SYNC_API_KEY }}" \
             -H "Content-Type: application/json"
