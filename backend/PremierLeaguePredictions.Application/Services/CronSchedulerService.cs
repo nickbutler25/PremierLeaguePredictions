@@ -108,19 +108,39 @@ public class CronSchedulerService : ICronSchedulerService
                 var syncStart = kickoffWindow;
                 var syncEnd = kickoffWindow.AddHours(2);
 
-                // Only schedule if it's in the future
-                if (syncStart > now)
+                // Schedule if:
+                // 1. Match hasn't started yet (syncStart > now), OR
+                // 2. Match is in progress (now is between syncStart and syncEnd)
+                if (syncEnd > now)
                 {
+                    // If match already started, begin syncing from now instead of kickoff
+                    var effectiveSyncStart = syncStart > now ? syncStart : now;
+
                     plan.AddRecurringJob(
-                        syncStart,
+                        effectiveSyncStart,
                         syncEnd,
                         TimeSpan.FromMinutes(2),
                         "sync-scores"
                     );
 
-                    _logger.LogInformation(
-                        "Scheduled live score sync for {Count} match(es) at {KickoffTime} (every 2 min until {EndTime})",
-                        matchCount, kickoffWindow, syncEnd);
+                    if (syncStart <= now)
+                    {
+                        _logger.LogInformation(
+                            "Scheduled live score sync for {Count} in-progress match(es) from now until {EndTime}",
+                            matchCount, syncEnd);
+                    }
+                    else
+                    {
+                        _logger.LogInformation(
+                            "Scheduled live score sync for {Count} match(es) at {KickoffTime} (every 2 min until {EndTime})",
+                            matchCount, kickoffWindow, syncEnd);
+                    }
+                }
+                else
+                {
+                    _logger.LogDebug(
+                        "Skipped {Count} match(es) at {KickoffTime} - sync window has already ended",
+                        matchCount, kickoffWindow);
                 }
             }
         }
