@@ -28,14 +28,15 @@ public class CronSchedulerService : ICronSchedulerService
 
         var plan = new SchedulePlan();
 
-        // Get gameweeks with deadlines in the next 7 days
-        var upcomingGameweeks = await _unitOfWork.Gameweeks.FindAsync(
-            g => g.Deadline >= now && g.Deadline <= nextWeek,
+        // Get gameweeks that have fixtures in the next 7 days OR deadlines in the next 7 days
+        // This ensures we don't miss score syncs for gameweeks where the deadline passed but fixtures are still upcoming
+        var allGameweeks = await _unitOfWork.Gameweeks.FindAsync(
+            g => !g.IsLocked, // Only get gameweeks that aren't finalized yet
             cancellationToken);
 
-        var gameweeksList = upcomingGameweeks.OrderBy(g => g.Deadline).ToList();
+        var gameweeksList = allGameweeks.OrderBy(g => g.Deadline).ToList();
 
-        _logger.LogInformation("Found {Count} upcoming gameweeks", gameweeksList.Count);
+        _logger.LogInformation("Found {Count} unlocked gameweeks to check for upcoming fixtures/deadlines", gameweeksList.Count);
 
         foreach (var gameweek in gameweeksList)
         {
