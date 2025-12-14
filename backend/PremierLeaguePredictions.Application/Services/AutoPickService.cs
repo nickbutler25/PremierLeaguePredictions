@@ -79,7 +79,12 @@ public class AutoPickService : IAutoPickService
         if (!usersNeedingPicks.Any())
         {
             _logger.LogInformation("No users need auto-pick assignments for Gameweek {WeekNumber}", gameweek.WeekNumber);
-            return;
+            return new AutoPickResult
+            {
+                PicksAssigned = 0,
+                PicksFailed = 0,
+                GameweeksProcessed = 1
+            };
         }
 
         _logger.LogInformation("Found {Count} users needing auto-picks for Gameweek {WeekNumber}",
