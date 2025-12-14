@@ -1,0 +1,47 @@
+name: Weekly Jobs - 2025-W50
+
+on:
+  schedule:
+    - cron: '*/2 12-14 20 12 *'
+    - cron: '*/2 15-17 20 12 *'
+    - cron: '*/2 17-19 20 12 *'
+    - cron: '*/2 20-22 20 12 *'
+    - cron: '30 11 19 12 *'
+    - cron: '30 11 20 12 *'
+    - cron: '30 23 19 12 *'
+    - cron: '30 8 20 12 *'
+  workflow_dispatch:
+
+jobs:
+  send-reminders:
+    name: Send Pick Reminders
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '30 11 19 12 *' || github.event.schedule == '30 23 19 12 *' || github.event.schedule == '30 8 20 12 *'
+    steps:
+      - name: Call Reminder API
+        run: |
+          curl --fail -X POST https://api.eplpredict.com/api/v1/admin/schedule/reminders \
+            -H "X-API-Key: ${{ secrets.EXTERNAL_SYNC_API_KEY }}" \
+            -H "Content-Type: application/json"
+
+  auto-pick:
+    name: Run Auto-Pick Assignment
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '30 11 20 12 *'
+    steps:
+      - name: Call Auto-Pick API
+        run: |
+          curl --fail -X POST https://api.eplpredict.com/api/v1/admin/schedule/auto-pick \
+            -H "X-API-Key: ${{ secrets.EXTERNAL_SYNC_API_KEY }}" \
+            -H "Content-Type: application/json"
+
+  sync-scores:
+    name: Sync Live Scores
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '*/2 12-14 20 12 *' || github.event.schedule == '*/2 15-17 20 12 *' || github.event.schedule == '*/2 17-19 20 12 *' || github.event.schedule == '*/2 20-22 20 12 *'
+    steps:
+      - name: Call Results Sync API
+        run: |
+          curl --fail -X POST https://api.eplpredict.com/api/v1/admin/sync/results \
+            -H "X-API-Key: ${{ secrets.EXTERNAL_SYNC_API_KEY }}" \
+            -H "Content-Type: application/json"
