@@ -22,3 +22,24 @@ public class BackfillPicksResponse
     public int PicksSkipped { get; set; }
     public string Message { get; set; } = string.Empty;
 }
+
+public class ReminderResult
+{
+    public int EmailsSent { get; set; }
+    public int EmailsFailed { get; set; }
+    public bool Success => EmailsFailed == 0;
+    public string Message => EmailsFailed == 0
+        ? $"Successfully sent {EmailsSent} reminder email(s)"
+        : $"Sent {EmailsSent} reminder(s), but {EmailsFailed} failed";
+}
+
+public class AutoPickResult
+{
+    public int PicksAssigned { get; set; }
+    public int PicksFailed { get; set; }
+    public int GameweeksProcessed { get; set; }
+    public bool Success => PicksFailed == 0;
+    public string Message => PicksFailed == 0
+        ? $"Successfully assigned {PicksAssigned} auto-pick(s) across {GameweeksProcessed} gameweek(s)"
+        : $"Assigned {PicksAssigned} auto-pick(s), but {PicksFailed} failed";
+}

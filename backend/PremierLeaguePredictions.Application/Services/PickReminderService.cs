@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using PremierLeaguePredictions.Application.DTOs;
 using PremierLeaguePredictions.Application.Interfaces;
 using PremierLeaguePredictions.Core.Interfaces;
 
@@ -23,9 +24,11 @@ public class PickReminderService : IPickReminderService
         _logger = logger;
     }
 
-    public async Task SendPickRemindersAsync(CancellationToken cancellationToken = default)
+    public async Task<ReminderResult> SendPickRemindersAsync(CancellationToken cancellationToken = default)
     {
         var now = DateTime.UtcNow;
+        var totalEmailsSent = 0;
+        var totalEmailsFailed = 0;
 
         _logger.LogInformation("Starting pick reminder check at {Time}", now);
 
@@ -48,16 +51,25 @@ public class PickReminderService : IPickReminderService
                 // This gives us a window to send the reminder even if the background service doesn't run exactly on time
                 if (hoursUntilDeadline <= reminderWindow && hoursUntilDeadline >= (reminderWindow - 0.5))
                 {
-                    await SendRemindersForGameweekAsync(gameweek, reminderWindow, cancellationToken);
+                    var (sent, failed) = await SendRemindersForGameweekAsync(gameweek, reminderWindow, cancellationToken);
+                    totalEmailsSent += sent;
+                    totalEmailsFailed += failed;
                     break; // Only send one reminder per check
                 }
             }
         }
 
-        _logger.LogInformation("Pick reminder check completed");
+        _logger.LogInformation("Pick reminder check completed: {Sent} sent, {Failed} failed",
+            totalEmailsSent, totalEmailsFailed);
+
+        return new ReminderResult
+        {
+            EmailsSent = totalEmailsSent,
+            EmailsFailed = totalEmailsFailed
+        };
     }
 
-    private async Task SendRemindersForGameweekAsync(
+    private async Task<(int sent, int failed)> SendRemindersForGameweekAsync(
         Core.Entities.Gameweek gameweek,
         int hoursBeforeDeadline,
         CancellationToken cancellationToken)
@@ -95,7 +107,7 @@ public class PickReminderService : IPickReminderService
         {
             _logger.LogInformation("No users need reminders for GW{WeekNumber} ({Hours}h)",
                 gameweek.WeekNumber, hoursBeforeDeadline);
-            return;
+            return (0, 0);
         }
 
         _logger.LogInformation("Sending {Count} reminder emails for GW{WeekNumber} ({Hours}h before deadline)",
@@ -137,6 +149,8 @@ public class PickReminderService : IPickReminderService
 
         _logger.LogInformation("Pick reminders for GW{WeekNumber}: {Sent} sent, {Failed} failed",
             gameweek.WeekNumber, emailsSent, emailsFailed);
+
+        return (emailsSent, emailsFailed);
     }
 
     private async Task SendPickReminderEmailAsync(

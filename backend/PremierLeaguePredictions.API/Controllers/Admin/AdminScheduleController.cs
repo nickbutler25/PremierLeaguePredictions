@@ -93,13 +93,24 @@ public class AdminScheduleController : ControllerBase
         {
             _logger.LogInformation("Sending pick reminders");
 
-            await _reminderService.SendPickRemindersAsync(cancellationToken);
+            var result = await _reminderService.SendPickRemindersAsync(cancellationToken);
 
-            _logger.LogInformation("Pick reminders sent successfully");
+            if (result.Success)
+            {
+                _logger.LogInformation("Pick reminders sent successfully: {Sent} sent, {Failed} failed",
+                    result.EmailsSent, result.EmailsFailed);
 
-            return Ok(ApiResponse<object>.SuccessResult(
-                new { timestamp = DateTime.UtcNow },
-                "Pick reminders sent successfully"));
+                return Ok(ApiResponse<object>.SuccessResult(
+                    new { emailsSent = result.EmailsSent, emailsFailed = result.EmailsFailed, timestamp = DateTime.UtcNow },
+                    result.Message));
+            }
+            else
+            {
+                _logger.LogError("Failed to send some pick reminders: {Sent} sent, {Failed} failed",
+                    result.EmailsSent, result.EmailsFailed);
+
+                return StatusCode(500, ApiResponse<object>.FailureResult(result.Message));
+            }
         }
         catch (Exception ex)
         {
@@ -120,13 +131,29 @@ public class AdminScheduleController : ControllerBase
         {
             _logger.LogInformation("Running auto-pick assignment");
 
-            await _autoPickService.AssignAllMissedPicksAsync(cancellationToken);
+            var result = await _autoPickService.AssignAllMissedPicksAsync(cancellationToken);
 
-            _logger.LogInformation("Auto-pick assignment completed successfully");
+            if (result.Success)
+            {
+                _logger.LogInformation("Auto-pick assignment completed: {Assigned} picks assigned, {Failed} failed, {Gameweeks} gameweeks processed",
+                    result.PicksAssigned, result.PicksFailed, result.GameweeksProcessed);
 
-            return Ok(ApiResponse<object>.SuccessResult(
-                new { timestamp = DateTime.UtcNow },
-                "Auto-pick assignment completed successfully"));
+                return Ok(ApiResponse<object>.SuccessResult(
+                    new {
+                        picksAssigned = result.PicksAssigned,
+                        picksFailed = result.PicksFailed,
+                        gameweeksProcessed = result.GameweeksProcessed,
+                        timestamp = DateTime.UtcNow
+                    },
+                    result.Message));
+            }
+            else
+            {
+                _logger.LogError("Failed to assign some auto-picks: {Assigned} assigned, {Failed} failed, {Gameweeks} gameweeks processed",
+                    result.PicksAssigned, result.PicksFailed, result.GameweeksProcessed);
+
+                return StatusCode(500, ApiResponse<object>.FailureResult(result.Message));
+            }
         }
         catch (Exception ex)
         {

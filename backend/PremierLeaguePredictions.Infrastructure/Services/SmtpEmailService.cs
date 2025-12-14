@@ -32,8 +32,15 @@ public class SmtpEmailService : IEmailService
             if (string.IsNullOrEmpty(smtpHost) || string.IsNullOrEmpty(smtpUsername) ||
                 string.IsNullOrEmpty(smtpPassword) || string.IsNullOrEmpty(fromEmail))
             {
-                _logger.LogWarning("Email configuration is incomplete. Email not sent.");
-                return;
+                var missingConfig = new List<string>();
+                if (string.IsNullOrEmpty(smtpHost)) missingConfig.Add("Email:SmtpHost");
+                if (string.IsNullOrEmpty(smtpUsername)) missingConfig.Add("Email:SmtpUsername");
+                if (string.IsNullOrEmpty(smtpPassword)) missingConfig.Add("Email:SmtpPassword");
+                if (string.IsNullOrEmpty(fromEmail)) missingConfig.Add("Email:FromEmail");
+
+                var errorMessage = $"Email configuration is incomplete. Missing: {string.Join(", ", missingConfig)}";
+                _logger.LogError(errorMessage);
+                throw new InvalidOperationException(errorMessage);
             }
 
             using var message = new MailMessage

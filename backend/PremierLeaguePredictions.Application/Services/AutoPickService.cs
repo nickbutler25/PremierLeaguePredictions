@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using PremierLeaguePredictions.Application.DTOs;
 using PremierLeaguePredictions.Application.Interfaces;
 using PremierLeaguePredictions.Core.Constants;
 using PremierLeaguePredictions.Core.Entities;
@@ -22,7 +23,7 @@ public class AutoPickService : IAutoPickService
         _logger = logger;
     }
 
-    public async Task AssignMissedPicksForGameweekAsync(string seasonId, int gameweekNumber, CancellationToken cancellationToken = default)
+    public async Task<AutoPickResult> AssignMissedPicksForGameweekAsync(string seasonId, int gameweekNumber, CancellationToken cancellationToken = default)
     {
         var gameweek = await _unitOfWork.Gameweeks.FirstOrDefaultAsync(g => g.SeasonId == seasonId && g.WeekNumber == gameweekNumber, cancellationToken);
         if (gameweek == null)
@@ -31,12 +32,20 @@ public class AutoPickService : IAutoPickService
             throw new KeyNotFoundException($"Gameweek {seasonId}-{gameweekNumber} not found");
         }
 
-        // Only process if deadline has passed
-        if (gameweek.Deadline >= DateTime.UtcNow)
+        // Only process if deadline has passed and gameweek is still in progress (not locked)
+        var now = DateTime.UtcNow;
+        if (gameweek.Deadline >= now)
         {
             _logger.LogInformation("Gameweek {SeasonId}-{GameweekNumber} deadline has not passed yet (Deadline: {Deadline}, Now: {Now})",
-                seasonId, gameweekNumber, gameweek.Deadline, DateTime.UtcNow);
+                seasonId, gameweekNumber, gameweek.Deadline, now);
             throw new InvalidOperationException($"Gameweek {seasonId}-{gameweekNumber} deadline has not passed yet. Deadline is {gameweek.Deadline:u}");
+        }
+
+        if (gameweek.IsLocked)
+        {
+            _logger.LogInformation("Gameweek {SeasonId}-{GameweekNumber} is already locked and finalized",
+                seasonId, gameweekNumber);
+            throw new InvalidOperationException($"Gameweek {seasonId}-{gameweekNumber} is already locked and cannot have auto-picks assigned");
         }
 
         _logger.LogInformation("Processing auto-pick assignments for Gameweek {WeekNumber}", gameweek.WeekNumber);
@@ -84,86 +93,116 @@ public class AutoPickService : IAutoPickService
 
         // Assign picks for each user
         int assignedCount = 0;
+        int failedCount = 0;
         foreach (var userId in usersNeedingPicks)
         {
-            var assignedTeam = await GetLowestAvailableTeamAsync(
-                userId,
-                gameweek.SeasonId,
-                gameweek.WeekNumber,
-                teamStandings,
-                cancellationToken);
-
-            if (assignedTeam != null)
+            try
             {
-                var pick = new Pick
-                {
-                    Id = Guid.NewGuid(),
-                    UserId = userId,
-                    SeasonId = seasonId,
-                    GameweekNumber = gameweekNumber,
-                    TeamId = assignedTeam.Id,
-                    Points = 0,
-                    GoalsFor = 0,
-                    GoalsAgainst = 0,
-                    IsAutoAssigned = true,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                };
-
-                await _unitOfWork.Picks.AddAsync(pick, cancellationToken);
-                assignedCount++;
-
-                var user = await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken);
-                _logger.LogInformation("Auto-assigned {TeamName} to {UserName} for Gameweek {WeekNumber}",
-                    assignedTeam.Name, user != null ? $"{user.FirstName} {user.LastName}" : "Unknown", gameweek.WeekNumber);
-
-                // Send real-time notification to user
-                await _notificationService.SendAutoPickAssignedNotificationAsync(
+                var assignedTeam = await GetLowestAvailableTeamAsync(
                     userId,
-                    assignedTeam.Name,
-                    gameweek.WeekNumber);
+                    gameweek.SeasonId,
+                    gameweek.WeekNumber,
+                    teamStandings,
+                    cancellationToken);
+
+                if (assignedTeam != null)
+                {
+                    var pick = new Pick
+                    {
+                        Id = Guid.NewGuid(),
+                        UserId = userId,
+                        SeasonId = seasonId,
+                        GameweekNumber = gameweekNumber,
+                        TeamId = assignedTeam.Id,
+                        Points = 0,
+                        GoalsFor = 0,
+                        GoalsAgainst = 0,
+                        IsAutoAssigned = true,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+
+                    await _unitOfWork.Picks.AddAsync(pick, cancellationToken);
+                    assignedCount++;
+
+                    var user = await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken);
+                    _logger.LogInformation("Auto-assigned {TeamName} to {UserName} for Gameweek {WeekNumber}",
+                        assignedTeam.Name, user != null ? $"{user.FirstName} {user.LastName}" : "Unknown", gameweek.WeekNumber);
+
+                    // Send real-time notification to user
+                    await _notificationService.SendAutoPickAssignedNotificationAsync(
+                        userId,
+                        assignedTeam.Name,
+                        gameweek.WeekNumber);
+                }
+                else
+                {
+                    failedCount++;
+                    _logger.LogError("Could not find available team for user {UserId} in Gameweek {WeekNumber}",
+                        userId, gameweek.WeekNumber);
+                }
             }
-            else
+            catch (Exception ex)
             {
-                _logger.LogWarning("Could not find available team for user {UserId} in Gameweek {WeekNumber}",
+                failedCount++;
+                _logger.LogError(ex, "Failed to auto-assign pick for user {UserId} in Gameweek {WeekNumber}",
                     userId, gameweek.WeekNumber);
             }
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Auto-assigned {AssignedCount} picks for Gameweek {WeekNumber}",
-            assignedCount, gameweek.WeekNumber);
+        _logger.LogInformation("Auto-assigned {AssignedCount} picks for Gameweek {WeekNumber}, {FailedCount} failed",
+            assignedCount, gameweek.WeekNumber, failedCount);
+
+        return new AutoPickResult
+        {
+            PicksAssigned = assignedCount,
+            PicksFailed = failedCount,
+            GameweeksProcessed = 1
+        };
     }
 
-    public async Task AssignAllMissedPicksAsync(CancellationToken cancellationToken = default)
+    public async Task<AutoPickResult> AssignAllMissedPicksAsync(CancellationToken cancellationToken = default)
     {
         var now = DateTime.UtcNow;
 
-        // Only process gameweeks where the deadline passed within the last check interval (e.g., 10 minutes)
-        // This prevents backfilling historical gameweeks and only handles recently passed deadlines
-        var recentDeadlineThreshold = now.AddMinutes(-10);
-
-        var gameweeksWithRecentlyPassedDeadlines = await _unitOfWork.Gameweeks.FindAsync(
-            g => g.Deadline < now && g.Deadline >= recentDeadlineThreshold,
+        // Find gameweeks where the deadline has passed but the gameweek is still in progress (not locked)
+        // This allows auto-pick to run at any time during the gameweek after the deadline
+        var activeGameweeksWithPassedDeadlines = await _unitOfWork.Gameweeks.FindAsync(
+            g => g.Deadline < now && !g.IsLocked,
             cancellationToken);
 
-        var gameweeksList = gameweeksWithRecentlyPassedDeadlines.OrderBy(g => g.Deadline).ToList();
+        var gameweeksList = activeGameweeksWithPassedDeadlines.OrderBy(g => g.Deadline).ToList();
+
+        var totalPicksAssigned = 0;
+        var totalPicksFailed = 0;
+        var gameweeksProcessed = 0;
 
         if (gameweeksList.Any())
         {
-            _logger.LogInformation("Processing auto-picks for {Count} gameweeks with recently passed deadlines",
+            _logger.LogInformation("Processing auto-picks for {Count} gameweeks with passed deadlines that are still in progress",
                 gameweeksList.Count);
 
             foreach (var gameweek in gameweeksList)
             {
-                await AssignMissedPicksForGameweekAsync(gameweek.SeasonId, gameweek.WeekNumber, cancellationToken);
+                var result = await AssignMissedPicksForGameweekAsync(gameweek.SeasonId, gameweek.WeekNumber, cancellationToken);
+                totalPicksAssigned += result.PicksAssigned;
+                totalPicksFailed += result.PicksFailed;
+                gameweeksProcessed += result.GameweeksProcessed;
             }
         }
         else
         {
-            _logger.LogDebug("No gameweeks with recently passed deadlines found");
+            _logger.LogInformation("No in-progress gameweeks with passed deadlines found at {Now}", now);
         }
+
+        return new AutoPickResult
+        {
+            PicksAssigned = totalPicksAssigned,
+            PicksFailed = totalPicksFailed,
+            GameweeksProcessed = gameweeksProcessed
+        };
     }
 
     private async Task<List<TeamStanding>> CalculateTeamStandingsAsync(
