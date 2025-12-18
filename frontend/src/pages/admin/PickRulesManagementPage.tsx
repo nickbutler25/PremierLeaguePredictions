@@ -200,7 +200,7 @@ export function PickRulesManagementPage() {
               <CardHeader>
                 <CardTitle>Pick Rules for {selectedSeasonId}</CardTitle>
                 <CardDescription>
-                  Configure different pick rules for the first half (weeks 1-19) and second half (weeks 20-38) of the season
+                  Configure different pick rules for the first half (weeks 1-20) and second half (weeks 21-38) of the season
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -224,7 +224,7 @@ export function PickRulesManagementPage() {
                     {/* First Half Rules */}
                     <div className="border rounded-lg p-4">
                       <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-semibold">First Half (Weeks 1-19)</h3>
+                        <h3 className="text-lg font-semibold">First Half (Weeks 1-20)</h3>
                         {pickRules?.firstHalf ? (
                           <div className="flex gap-2">
                             <Button
@@ -261,12 +261,12 @@ export function PickRulesManagementPage() {
                               id="maxTeamPicks1"
                               type="number"
                               min="1"
-                              max="19"
+                              max="20"
                               value={maxTeamPicks}
                               onChange={(e) => setMaxTeamPicks(parseInt(e.target.value) || 1)}
                             />
                             <p className="text-xs text-muted-foreground">
-                              Range: 1-19 (entire half of season)
+                              Range: 1-20 (entire half of season)
                             </p>
                           </div>
                           <div className="space-y-2">
@@ -275,12 +275,12 @@ export function PickRulesManagementPage() {
                               id="maxOppositionTargets1"
                               type="number"
                               min="1"
-                              max="19"
+                              max="20"
                               value={maxOppositionTargets}
                               onChange={(e) => setMaxOppositionTargets(parseInt(e.target.value) || 1)}
                             />
                             <p className="text-xs text-muted-foreground">
-                              Range: 1-19 (entire half of season)
+                              Range: 1-20 (entire half of season)
                             </p>
                           </div>
                           <div className="flex gap-2">
@@ -312,7 +312,7 @@ export function PickRulesManagementPage() {
                     {/* Second Half Rules */}
                     <div className="border rounded-lg p-4">
                       <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-semibold">Second Half (Weeks 20-38)</h3>
+                        <h3 className="text-lg font-semibold">Second Half (Weeks 21-38)</h3>
                         {pickRules?.secondHalf ? (
                           <div className="flex gap-2">
                             <Button
@@ -349,12 +349,12 @@ export function PickRulesManagementPage() {
                               id="maxTeamPicks2"
                               type="number"
                               min="1"
-                              max="19"
+                              max="18"
                               value={maxTeamPicks}
                               onChange={(e) => setMaxTeamPicks(parseInt(e.target.value) || 1)}
                             />
                             <p className="text-xs text-muted-foreground">
-                              Range: 1-19 (entire half of season)
+                              Range: 1-18 (entire half of season)
                             </p>
                           </div>
                           <div className="space-y-2">
@@ -363,12 +363,12 @@ export function PickRulesManagementPage() {
                               id="maxOppositionTargets2"
                               type="number"
                               min="1"
-                              max="19"
+                              max="18"
                               value={maxOppositionTargets}
                               onChange={(e) => setMaxOppositionTargets(parseInt(e.target.value) || 1)}
                             />
                             <p className="text-xs text-muted-foreground">
-                              Range: 1-19 (entire half of season)
+                              Range: 1-18 (entire half of season)
                             </p>
                           </div>
                           <div className="flex gap-2">
@@ -415,7 +415,7 @@ export function PickRulesManagementPage() {
                 </p>
                 <p className="pt-2 text-muted-foreground">
                   Example: If both are set to 1, users can only pick each team once per half, and can only target each opposition once per half.
-                  Setting to 19 allows picking every week.
+                  Setting to 20 (first half) or 18 (second half) allows picking every week in that half.
                 </p>
               </CardContent>
             </Card>

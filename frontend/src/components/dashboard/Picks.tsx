@@ -138,16 +138,16 @@ export function Picks() {
 
   // Get pick rules for the current half
   const getPickRulesForHalf = (gameweekNumber: number) => {
-    const half = gameweekNumber <= 19 ? 1 : 2;
+    const half = gameweekNumber <= 20 ? 1 : 2;
     return half === 1 ? pickRules?.firstHalf : pickRules?.secondHalf;
   };
 
   // Determine which teams have been used in each half
   const getUsedTeamsForHalf = (gameweekNumber: number): Map<number, number> => {
     const usedTeamsCount = new Map<number, number>();
-    const half = gameweekNumber <= 19 ? 1 : 2;
-    const startGw = half === 1 ? 1 : 20;
-    const endGw = half === 1 ? 19 : 38;
+    const half = gameweekNumber <= 20 ? 1 : 2;
+    const startGw = half === 1 ? 1 : 21;
+    const endGw = half === 1 ? 20 : 38;
 
     for (let gw = startGw; gw <= endGw; gw++) {
       const pick = picksByGameweek.get(gw);
@@ -218,7 +218,7 @@ export function Picks() {
                 const pick = picksByGameweek.get(gw);
                 const deadline = gameweekDeadlinesByNumber.get(gw);
                 const deadlinePassed = deadline ? new Date(deadline) < currentTime : false;
-                const isSecondHalfLocked = gw > 19 && currentGameweek <= 19; // Lock second half during first half
+                const isSecondHalfLocked = gw > 20 && currentGameweek <= 20; // Lock second half during first half
                 const canEdit = !deadlinePassed && !isSecondHalfLocked && !isEliminated;
                 const canRemove = canEdit && pick; // Can remove if editable and has a pick
                 const canSelect = canEdit && !pick; // Can select if editable and no pick
@@ -338,24 +338,24 @@ export function Picks() {
         <div className="mt-4 text-xs sm:text-sm text-muted-foreground space-y-1">
           <p>• Current gameweek highlighted in blue</p>
           <p>• Picks cannot be changed after deadline 🔒</p>
-          {currentGameweek <= 19 ? (
+          {currentGameweek <= 20 ? (
             // First half - only show first half rules
             pickRules?.firstHalf && (
               <>
-                <p className="hidden sm:block">• First half (GW 1-19): Each team can be picked up to {pickRules.firstHalf.maxTimesTeamCanBePicked} time{pickRules.firstHalf.maxTimesTeamCanBePicked > 1 ? 's' : ''}</p>
+                <p className="hidden sm:block">• First half (GW 1-20): Each team can be picked up to {pickRules.firstHalf.maxTimesTeamCanBePicked} time{pickRules.firstHalf.maxTimesTeamCanBePicked > 1 ? 's' : ''}</p>
                 <p className="sm:hidden">• Each team max {pickRules.firstHalf.maxTimesTeamCanBePicked}x (1st half)</p>
-                <p className="hidden sm:block">• First half (GW 1-19): Each opposition can be targeted up to {pickRules.firstHalf.maxTimesOppositionCanBeTargeted} time{pickRules.firstHalf.maxTimesOppositionCanBeTargeted > 1 ? 's' : ''}</p>
+                <p className="hidden sm:block">• First half (GW 1-20): Each opposition can be targeted up to {pickRules.firstHalf.maxTimesOppositionCanBeTargeted} time{pickRules.firstHalf.maxTimesOppositionCanBeTargeted > 1 ? 's' : ''}</p>
                 <p className="sm:hidden">• Each opposition max {pickRules.firstHalf.maxTimesOppositionCanBeTargeted}x (1st half)</p>
-                <p>• Second half picks locked until GW 20</p>
+                <p>• Second half picks locked until GW 21</p>
               </>
             )
           ) : (
             // Second half - only show second half rules
             pickRules?.secondHalf && (
               <>
-                <p className="hidden sm:block">• Second half (GW 20-38): Each team can be picked up to {pickRules.secondHalf.maxTimesTeamCanBePicked} time{pickRules.secondHalf.maxTimesTeamCanBePicked > 1 ? 's' : ''}</p>
+                <p className="hidden sm:block">• Second half (GW 21-38): Each team can be picked up to {pickRules.secondHalf.maxTimesTeamCanBePicked} time{pickRules.secondHalf.maxTimesTeamCanBePicked > 1 ? 's' : ''}</p>
                 <p className="sm:hidden">• Each team max {pickRules.secondHalf.maxTimesTeamCanBePicked}x (2nd half)</p>
-                <p className="hidden sm:block">• Second half (GW 20-38): Each opposition can be targeted up to {pickRules.secondHalf.maxTimesOppositionCanBeTargeted} time{pickRules.secondHalf.maxTimesOppositionCanBeTargeted > 1 ? 's' : ''}</p>
+                <p className="hidden sm:block">• Second half (GW 21-38): Each opposition can be targeted up to {pickRules.secondHalf.maxTimesOppositionCanBeTargeted} time{pickRules.secondHalf.maxTimesOppositionCanBeTargeted > 1 ? 's' : ''}</p>
                 <p className="sm:hidden">• Each opposition max {pickRules.secondHalf.maxTimesOppositionCanBeTargeted}x (2nd half)</p>
               </>
             )
