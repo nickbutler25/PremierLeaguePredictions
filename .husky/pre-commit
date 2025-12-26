@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+
+# Ensure PATH includes Node.js (Windows compatibility)
+export PATH="/c/Program Files/nodejs:$PATH"
+
+# Run lint-staged in the frontend directory
+cd frontend && npx lint-staged

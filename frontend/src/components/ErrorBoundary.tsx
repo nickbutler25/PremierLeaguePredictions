@@ -2,6 +2,7 @@ import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AlertCircle } from 'lucide-react';
+import * as Sentry from '@sentry/react';
 
 interface Props {
   children: ReactNode;
@@ -26,6 +27,16 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Uncaught error:', error, errorInfo);
+
+    // Report to Sentry
+    Sentry.captureException(error, {
+      contexts: {
+        react: {
+          componentStack: errorInfo.componentStack,
+        },
+      },
+    });
+
     this.setState({
       error,
       errorInfo,
@@ -69,9 +80,7 @@ export class ErrorBoundary extends Component<Props, State> {
                   <summary className="cursor-pointer font-medium mb-2">
                     Stack Trace (Development Only)
                   </summary>
-                  <pre className="text-xs overflow-auto">
-                    {this.state.errorInfo.componentStack}
-                  </pre>
+                  <pre className="text-xs overflow-auto">{this.state.errorInfo.componentStack}</pre>
                 </details>
               )}
 

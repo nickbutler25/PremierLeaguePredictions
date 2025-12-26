@@ -1,5 +1,5 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { GoogleLogin } from '@react-oauth/google';
 import type { CredentialResponse } from '@react-oauth/google';
 import { useAuth } from '@/contexts/AuthContext';
@@ -53,18 +53,17 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 p-4">
-      <Card className="w-full max-w-md">
+    <div
+      className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 p-4"
+      data-testid="login-page"
+    >
+      <Card className="w-full max-w-md" data-testid="login-card">
         <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-3xl font-bold">
-            Premier League Predictions
-          </CardTitle>
-          <CardDescription>
-            Sign in to join the competition
-          </CardDescription>
+          <CardTitle className="text-3xl font-bold">Premier League Predictions</CardTitle>
+          <CardDescription>Sign in to join the competition</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex justify-center">
+          <div className="flex justify-center" data-testid="google-login-container">
             <GoogleLogin
               onSuccess={handleGoogleSuccess}
               onError={handleGoogleError}
@@ -76,13 +75,16 @@ export function LoginPage() {
           </div>
 
           {isLoading && (
-            <p className="text-center text-sm text-muted-foreground">
+            <p className="text-center text-sm text-muted-foreground" data-testid="login-loading">
               Logging in...
             </p>
           )}
 
           {error && (
-            <div className="p-3 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-md">
+            <div
+              className="p-3 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-md"
+              data-testid="login-error"
+            >
               {error}
             </div>
           )}
@@ -94,12 +96,11 @@ export function LoginPage() {
                   <span className="w-full border-t" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">
-                    Development Only
-                  </span>
+                  <span className="bg-background px-2 text-muted-foreground">Development Only</span>
                 </div>
               </div>
               <Button
+                data-testid="dev-login-button"
                 onClick={handleDevLogin}
                 disabled={isLoading}
                 variant="outline"

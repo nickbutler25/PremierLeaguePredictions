@@ -1,7 +1,9 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import type { User, AuthResponse } from '@/types';
 import { authService } from '@/services/auth';
+import { setUserContext, clearUserContext } from '@/lib/sentry';
 
 interface AuthContextType {
   user: User | null;
@@ -33,6 +35,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (currentUser) {
           setUser(currentUser);
           setToken('cookie'); // Placeholder to indicate auth state
+          // Set Sentry user context
+          setUserContext(currentUser);
         }
       } catch (error) {
         console.error('Failed to restore authentication:', error);
@@ -50,6 +54,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(authData.user);
     // Note: Token is implicitly available via cookie
     setToken('cookie'); // Placeholder to indicate auth state
+    // Set Sentry user context
+    setUserContext(authData.user);
   };
 
   const logout = async () => {
@@ -61,6 +67,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setToken(null);
       setUser(null);
+      // Clear Sentry user context
+      clearUserContext();
     }
   };
 

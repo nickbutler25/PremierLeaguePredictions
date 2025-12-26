@@ -5,11 +5,11 @@ import { dashboardService } from '@/services/dashboard';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { haptics } from '@/utils/haptics';
-import { Summary } from "@/components/dashboard/Summary";
-import { Picks } from "@/components/dashboard/Picks";
-import { Fixtures } from "@/components/dashboard/Fixtures";
-import { LeagueStandings } from "@/components/league/LeagueStandings";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Summary } from '@/components/dashboard/Summary';
+import { Picks } from '@/components/dashboard/Picks';
+import { Fixtures } from '@/components/dashboard/Fixtures';
+import { LeagueStandings } from '@/components/league/LeagueStandings';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -35,7 +35,7 @@ export function DashboardPage() {
 
   if (isLoading || !user) {
     return (
-      <div className="container mx-auto p-4">
+      <div className="container mx-auto p-4" data-testid="dashboard-loading">
         <Card>
           <CardContent className="p-12">
             <div className="flex flex-col items-center justify-center space-y-4">
@@ -56,7 +56,7 @@ export function DashboardPage() {
 
     if (isNetworkError || isServerError) {
       return (
-        <div className="container mx-auto p-4">
+        <div className="container mx-auto p-4" data-testid="dashboard-error">
           <Card>
             <CardHeader>
               <CardTitle className="text-destructive">Unable to Connect to Server</CardTitle>
@@ -65,7 +65,7 @@ export function DashboardPage() {
               <p className="text-muted-foreground">
                 {isNetworkError
                   ? "We're having trouble connecting to the server. Please check your internet connection and try again."
-                  : "The server is experiencing issues. Please try again in a few moments."}
+                  : 'The server is experiencing issues. Please try again in a few moments.'}
               </p>
               <div className="bg-muted p-4 rounded-lg">
                 <h3 className="font-semibold mb-2">Troubleshooting Steps:</h3>
@@ -77,6 +77,7 @@ export function DashboardPage() {
                 </ul>
               </div>
               <button
+                data-testid="refresh-page-button"
                 onClick={() => window.location.reload()}
                 className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
               >
@@ -94,7 +95,7 @@ export function DashboardPage() {
 
   if (!hasActiveSeason) {
     return (
-      <div className="container mx-auto p-4">
+      <div className="container mx-auto p-4" data-testid="dashboard-no-season">
         <Card>
           <CardHeader>
             <CardTitle>No Active Season</CardTitle>
@@ -105,12 +106,15 @@ export function DashboardPage() {
             </p>
             {user?.isAdmin && (
               <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
-                <h3 className="font-semibold text-blue-800 dark:text-blue-300 mb-2">Admin Action Required</h3>
+                <h3 className="font-semibold text-blue-800 dark:text-blue-300 mb-2">
+                  Admin Action Required
+                </h3>
                 <p className="text-sm text-blue-700 dark:text-blue-400 mb-4">
                   As an admin, you can create a new season and generate gameweeks to get started.
                 </p>
                 <Link
                   to="/admin"
+                  data-testid="admin-panel-link"
                   className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
                 >
                   Go to Admin Panel
@@ -124,10 +128,14 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="container mx-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
+    <div
+      className="container mx-auto p-3 sm:p-4 space-y-3 sm:space-y-4"
+      data-testid="dashboard-content"
+    >
       {/* Pull-to-Refresh Indicator */}
       {isPulling && (
         <div
+          data-testid="pull-to-refresh-indicator"
           className="fixed top-0 left-0 right-0 flex items-center justify-center bg-primary/10 transition-all duration-200 z-50"
           style={{ height: `${pullDistance}px` }}
         >
@@ -141,19 +149,22 @@ export function DashboardPage() {
       <Summary />
 
       {/* Main Content Area: 3 Column Layout */}
-      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+      <div
+        className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+        data-testid="dashboard-grid"
+      >
         {/* Left Column - Picks */}
-        <div>
+        <div data-testid="dashboard-picks-column">
           <Picks />
         </div>
 
         {/* Middle Column - Fixtures */}
-        <div>
+        <div data-testid="dashboard-fixtures-column">
           <Fixtures />
         </div>
 
         {/* Right Column - League Standings */}
-        <div>
+        <div data-testid="dashboard-standings-column">
           <LeagueStandings />
         </div>
       </div>

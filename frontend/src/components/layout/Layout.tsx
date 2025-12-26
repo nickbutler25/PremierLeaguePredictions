@@ -1,11 +1,11 @@
-import { Button } from "@/components/ui/button";
-import { useAuth } from "@/contexts/AuthContext";
-import { useTheme } from "@/contexts/ThemeContext";
-import { useAutoPickNotifications } from "@/hooks/useAutoPickNotifications";
-import { useResultsUpdates } from "@/hooks/useResultsUpdates";
-import { useSeasonCreatedNotification } from "@/hooks/useSeasonCreatedNotification";
-import type { ReactNode } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useAutoPickNotifications } from '@/hooks/useAutoPickNotifications';
+import { useResultsUpdates } from '@/hooks/useResultsUpdates';
+import { useSeasonCreatedNotification } from '@/hooks/useSeasonCreatedNotification';
+import type { ReactNode } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 
 interface LayoutProps {
   children: ReactNode;
@@ -34,10 +34,15 @@ export function Layout({ children }: LayoutProps) {
       >
         Skip to main content
       </a>
-      <header className="border-b" role="banner">
+      <header className="border-b" role="banner" data-testid="main-header">
         <div className="container mx-auto px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between">
           <div className="flex items-center space-x-4 sm:space-x-8">
-            <Link to="/dashboard" className="flex items-center" aria-label="Home">
+            <Link
+              to="/dashboard"
+              className="flex items-center"
+              aria-label="Home"
+              data-testid="logo-link"
+            >
               <img
                 src={theme === 'dark' ? '/pl-banner-logo-dark.png' : '/pl-banner-logo-light.png'}
                 alt="Premier League Predictions"
@@ -45,8 +50,13 @@ export function Layout({ children }: LayoutProps) {
               />
             </Link>
             {isAdmin && (
-              <nav className="hidden md:flex space-x-6" role="navigation" aria-label="Main navigation">
-                <Link to="/admin" className="text-sm hover:text-primary">
+              <nav
+                className="hidden md:flex space-x-6"
+                role="navigation"
+                aria-label="Main navigation"
+                data-testid="main-navigation"
+              >
+                <Link to="/admin" className="text-sm hover:text-primary" data-testid="admin-link">
                   Admin
                 </Link>
               </nav>
@@ -54,6 +64,7 @@ export function Layout({ children }: LayoutProps) {
           </div>
           <div className="flex items-center space-x-2 sm:space-x-4">
             <Button
+              data-testid="theme-toggle-button"
               variant="outline"
               size="sm"
               onClick={toggleTheme}
@@ -62,30 +73,64 @@ export function Layout({ children }: LayoutProps) {
               title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
             >
               {theme === 'light' ? (
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+                  />
                 </svg>
               ) : (
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+                  />
                 </svg>
               )}
             </Button>
             {user && (
               <>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2" data-testid="user-info">
                   {user.photoUrl && (
                     <img
                       src={user.photoUrl}
                       alt={`${user.firstName} ${user.lastName}'s profile picture`}
                       className="w-7 h-7 sm:w-8 sm:h-8 rounded-full"
+                      data-testid="user-avatar"
                     />
                   )}
-                  <span className="text-xs sm:text-sm font-medium hidden sm:inline" aria-label="Current user">
+                  <span
+                    className="text-xs sm:text-sm font-medium hidden sm:inline"
+                    aria-label="Current user"
+                    data-testid="user-name"
+                  >
                     {user.firstName} {user.lastName}
                   </span>
                 </div>
-                <Button variant="outline" size="sm" onClick={handleLogout} aria-label="Logout" className="text-xs sm:text-sm px-2 sm:px-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleLogout}
+                  aria-label="Logout"
+                  className="text-xs sm:text-sm px-2 sm:px-3"
+                  data-testid="logout-button"
+                >
                   Logout
                 </Button>
               </>
@@ -93,7 +138,9 @@ export function Layout({ children }: LayoutProps) {
           </div>
         </div>
       </header>
-      <main id="main-content" role="main">{children}</main>
+      <main id="main-content" role="main">
+        {children}
+      </main>
     </div>
   );
 }
