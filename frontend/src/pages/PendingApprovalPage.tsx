@@ -26,7 +26,11 @@ export function PendingApprovalPage() {
   });
 
   // Get user's participation status for active season
-  const { data: participation, refetch: refetchParticipation, isLoading: isLoadingParticipation } = useQuery({
+  const {
+    data: participation,
+    refetch: refetchParticipation,
+    isLoading: isLoadingParticipation,
+  } = useQuery({
     queryKey: ['participation', activeSeason?.name],
     queryFn: () => seasonParticipationService.getParticipation(activeSeason!.name),
     enabled: !!activeSeason,
@@ -41,9 +45,10 @@ export function PendingApprovalPage() {
       // Invalidate the season approval cache so the route guard rechecks
       queryClient.invalidateQueries({ queryKey: ['season-approval'] });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       // If it's a 409 Conflict (duplicate), just refetch to get the existing participation
-      if (error?.response?.status === 409) {
+      const err = error as { response?: { status?: number } };
+      if (err?.response?.status === 409) {
         refetchParticipation();
         queryClient.invalidateQueries({ queryKey: ['season-approval'] });
       }
@@ -52,14 +57,25 @@ export function PendingApprovalPage() {
 
   // Auto-request participation if not already requested
   useEffect(() => {
-    if (activeSeason && !isLoadingParticipation && !participation && !requestParticipationMutation.isPending && !requestParticipationMutation.isError) {
+    if (
+      activeSeason &&
+      !isLoadingParticipation &&
+      !participation &&
+      !requestParticipationMutation.isPending &&
+      !requestParticipationMutation.isError
+    ) {
       requestParticipationMutation.mutate(activeSeason.name);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSeason, participation, isLoadingParticipation]);
 
   // Listen for SignalR approval updates
   useEffect(() => {
-    const handleApprovalUpdate = (data: { isApproved: boolean; seasonName: string; timestamp: string }) => {
+    const handleApprovalUpdate = (data: {
+      isApproved: boolean;
+      seasonName: string;
+      timestamp: string;
+    }) => {
       console.log('Received approval update:', data);
 
       // Invalidate approval cache immediately
@@ -128,7 +144,7 @@ export function PendingApprovalPage() {
               <CardDescription>
                 {isNetworkError
                   ? "We're having trouble connecting to the server. Please check your internet connection."
-                  : "The server is experiencing issues. Please try again in a few moments."}
+                  : 'The server is experiencing issues. Please try again in a few moments.'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -185,6 +201,7 @@ export function PendingApprovalPage() {
 
   if (participation?.isApproved) {
     // This shouldn't happen as they should be redirected, but just in case
+
     window.location.href = '/';
     return null;
   }
@@ -197,9 +214,7 @@ export function PendingApprovalPage() {
             <Clock className="w-6 h-6 text-blue-500" />
             Approval Pending
           </CardTitle>
-          <CardDescription>
-            Your participation request is awaiting admin approval
-          </CardDescription>
+          <CardDescription>Your participation request is awaiting admin approval</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
@@ -223,7 +238,8 @@ export function PendingApprovalPage() {
                 </p>
                 {participation && (
                   <p className="text-sm text-muted-foreground">
-                    Requested: {new Date(participation.requestedAt).toLocaleDateString('en-GB', {
+                    Requested:{' '}
+                    {new Date(participation.requestedAt).toLocaleDateString('en-GB', {
                       day: '2-digit',
                       month: 'short',
                       year: 'numeric',
@@ -246,7 +262,9 @@ export function PendingApprovalPage() {
               <span>Waiting for admin approval</span>
             </div>
             <div className="flex items-center gap-2 text-sm">
-              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+              <div
+                className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-gray-400'}`}
+              ></div>
               <span className="text-muted-foreground">
                 {isConnected ? 'Real-time updates active' : 'Connecting...'}
               </span>
@@ -269,11 +287,7 @@ export function PendingApprovalPage() {
           </div>
 
           <div className="pt-4 border-t space-y-2">
-            <Button
-              onClick={() => refetchParticipation()}
-              variant="default"
-              className="w-full"
-            >
+            <Button onClick={() => refetchParticipation()} variant="default" className="w-full">
               Check Approval Status
             </Button>
             <Button onClick={handleLogout} variant="outline" className="w-full">

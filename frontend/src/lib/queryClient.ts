@@ -9,14 +9,19 @@ export const queryClient = new QueryClient({
       retry: 1,
     },
     mutations: {
-      onError: (error: any) => {
-        const message = error?.response?.data?.message ||
-                       error?.response?.data?.title ||
-                       error?.message ||
-                       'An unexpected error occurred';
+      onError: (error: unknown) => {
+        const err = error as {
+          response?: { data?: { message?: string; title?: string }; status?: number };
+          message?: string;
+        };
+        const message =
+          err?.response?.data?.message ||
+          err?.response?.data?.title ||
+          err?.message ||
+          'An unexpected error occurred';
 
         // Don't show toast for 409 Conflict errors (duplicates are often expected)
-        if (error?.response?.status !== 409) {
+        if (err?.response?.status !== 409) {
           toast({
             title: 'Operation Failed',
             description: message,

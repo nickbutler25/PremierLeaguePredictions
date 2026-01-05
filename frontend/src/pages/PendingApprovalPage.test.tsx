@@ -38,6 +38,7 @@ describe('PendingApprovalPage - No Active Season', () => {
 
   it('should show "No Active Season" message when there is no active season', async () => {
     // Arrange
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(adminService.getActiveSeason).mockResolvedValue(null as any);
 
     // Act
@@ -67,6 +68,7 @@ describe('PendingApprovalPage - No Active Season', () => {
     };
 
     vi.mocked(adminService.getActiveSeason).mockResolvedValue(mockSeason);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(seasonParticipationService.getParticipation).mockResolvedValue(null as any);
     vi.mocked(seasonParticipationService.requestParticipation).mockResolvedValue({
       id: 'participation-id',
@@ -81,9 +83,7 @@ describe('PendingApprovalPage - No Active Season', () => {
 
     // Assert
     await waitFor(() => {
-      expect(seasonParticipationService.requestParticipation).toHaveBeenCalledWith(
-        mockSeason.name
-      );
+      expect(seasonParticipationService.requestParticipation).toHaveBeenCalledWith(mockSeason.name);
     });
   });
 
@@ -101,6 +101,7 @@ describe('PendingApprovalPage - No Active Season', () => {
     };
 
     vi.mocked(adminService.getActiveSeason).mockResolvedValue(mockSeason);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(seasonParticipationService.getParticipation).mockResolvedValue(null as any);
     vi.mocked(seasonParticipationService.requestParticipation).mockImplementation(
       () =>
@@ -124,9 +125,7 @@ describe('PendingApprovalPage - No Active Season', () => {
 
     // Assert
     await waitFor(() => {
-      expect(
-        screen.getByText('Submitting your participation request...')
-      ).toBeInTheDocument();
+      expect(screen.getByText('Submitting your participation request...')).toBeInTheDocument();
     });
   });
 
@@ -152,9 +151,7 @@ describe('PendingApprovalPage - No Active Season', () => {
     };
 
     vi.mocked(adminService.getActiveSeason).mockResolvedValue(mockSeason);
-    vi.mocked(seasonParticipationService.getParticipation).mockResolvedValue(
-      mockParticipation
-    );
+    vi.mocked(seasonParticipationService.getParticipation).mockResolvedValue(mockParticipation);
 
     // Act
     render(<PendingApprovalPage />, { user: mockUser, token: mockToken });
@@ -193,9 +190,7 @@ describe('PendingApprovalPage - No Active Season', () => {
     };
 
     vi.mocked(adminService.getActiveSeason).mockResolvedValue(mockSeason);
-    vi.mocked(seasonParticipationService.getParticipation).mockResolvedValue(
-      mockParticipation
-    );
+    vi.mocked(seasonParticipationService.getParticipation).mockResolvedValue(mockParticipation);
 
     // Act
     render(<PendingApprovalPage />, { user: mockUser, token: mockToken });
@@ -206,9 +201,11 @@ describe('PendingApprovalPage - No Active Season', () => {
     });
 
     expect(screen.getByText(mockUser.email)).toBeInTheDocument();
-    expect(screen.getByText((_content, element) => {
-      return element?.textContent === `Season: ${mockSeason.name}`;
-    })).toBeInTheDocument();
+    expect(
+      screen.getByText((_content, element) => {
+        return element?.textContent === `Season: ${mockSeason.name}`;
+      })
+    ).toBeInTheDocument();
   });
 
   it('should show payment warning for unpaid users', async () => {
@@ -234,9 +231,7 @@ describe('PendingApprovalPage - No Active Season', () => {
     };
 
     vi.mocked(adminService.getActiveSeason).mockResolvedValue(mockSeason);
-    vi.mocked(seasonParticipationService.getParticipation).mockResolvedValue(
-      mockParticipation
-    );
+    vi.mocked(seasonParticipationService.getParticipation).mockResolvedValue(mockParticipation);
 
     // Act
     render(<PendingApprovalPage />, { user: unpaidUser, token: mockToken });
@@ -272,9 +267,7 @@ describe('PendingApprovalPage - No Active Season', () => {
     };
 
     vi.mocked(adminService.getActiveSeason).mockResolvedValue(mockSeason);
-    vi.mocked(seasonParticipationService.getParticipation).mockResolvedValue(
-      mockParticipation
-    );
+    vi.mocked(seasonParticipationService.getParticipation).mockResolvedValue(mockParticipation);
 
     // Act
     render(<PendingApprovalPage />, { user: paidUser, token: mockToken });
