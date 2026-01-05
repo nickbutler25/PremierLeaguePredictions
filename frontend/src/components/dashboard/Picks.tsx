@@ -132,11 +132,9 @@ export function Picks() {
 
   const currentGameweek = dashboard?.upcomingGameweeks?.[0]?.weekNumber || 1;
 
-  // Create a map of week numbers to gameweek IDs and deadlines
-  const gameweekIdsByNumber = new Map<number, string>();
+  // Create a map of week numbers to gameweek deadlines
   const gameweekDeadlinesByNumber = new Map<number, string>();
-  allGameweeks.forEach((gw: { weekNumber: number; id: string; deadline: string }) => {
-    gameweekIdsByNumber.set(gw.weekNumber, gw.id);
+  allGameweeks.forEach((gw) => {
     gameweekDeadlinesByNumber.set(gw.weekNumber, gw.deadline);
   });
 
@@ -201,9 +199,7 @@ export function Picks() {
     }
 
     setSelectedGameweek(null); // Close dropdown immediately
-    const gameweek = allGameweeks.find(
-      (gw: { weekNumber: number; seasonId: string }) => gw.weekNumber === gameweekNumber
-    );
+    const gameweek = allGameweeks.find((gw) => gw.weekNumber === gameweekNumber);
     const seasonId = gameweek?.seasonId || activeSeason?.name || '2024/2025';
 
     createPickMutation.mutate({ gameweekNumber, teamId, seasonId });

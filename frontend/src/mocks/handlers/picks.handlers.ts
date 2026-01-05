@@ -46,18 +46,23 @@ export const picksHandlers = [
 
   // Create pick
   http.post(`${API_BASE}/users/:userId/picks`, async ({ request }) => {
-    const body = (await request.json()) as unknown;
+    const body = (await request.json()) as {
+      userId?: string;
+      gameweekNumber?: number;
+      teamId?: number;
+      seasonId?: string;
+    };
 
     return HttpResponse.json(
       {
         success: true,
         data: {
           id: 'new-pick-id',
-          userId: body.userId,
-          gameweekNumber: body.gameweekNumber,
-          teamId: body.teamId,
+          userId: body.userId || 'user-1',
+          gameweekNumber: body.gameweekNumber || 1,
+          teamId: body.teamId || 1,
           team: {
-            id: body.teamId,
+            id: body.teamId || 1,
             name: 'Mock Team',
             logoUrl: 'https://example.com/team.png',
           },

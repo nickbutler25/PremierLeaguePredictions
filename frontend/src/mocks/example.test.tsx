@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { test, expect, describe } from 'vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { server } from './server';
 import { http, HttpResponse } from 'msw';
 import axios from 'axios';
@@ -137,7 +137,3 @@ describe('MSW Example Tests', () => {
     });
   });
 });
-
-// Import React and useQuery
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
