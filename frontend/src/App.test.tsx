@@ -38,7 +38,6 @@ describe('ApprovalCheckRoute - No Active Season', () => {
       isActive: true,
       isArchived: false,
       createdAt: '2025-01-01',
-
     });
 
     vi.mocked(seasonParticipationService.checkParticipation).mockResolvedValue(false);
@@ -99,6 +98,7 @@ describe('useSeasonApproval Hook', () => {
 
   it('should return needsApproval=true when there is no active season', async () => {
     // Arrange
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(adminService.getActiveSeason).mockResolvedValue(null as any);
 
     // This would be a hook test using @testing-library/react-hooks

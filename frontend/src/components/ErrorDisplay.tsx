@@ -22,11 +22,16 @@ export function ErrorDisplay({
 
     // Handle Axios errors
     if (typeof err === 'object' && err !== null && 'response' in err) {
-      const axiosError = err as any;
-      return axiosError.response?.data?.message ||
-             axiosError.response?.data?.title ||
-             axiosError.message ||
-             message;
+      const axiosError = err as {
+        response?: { data?: { message?: string; title?: string } };
+        message?: string;
+      };
+      return (
+        axiosError.response?.data?.message ||
+        axiosError.response?.data?.title ||
+        axiosError.message ||
+        message
+      );
     }
 
     // Handle standard errors
@@ -56,10 +61,11 @@ export function ErrorDisplay({
       <CardContent className="space-y-4">
         {showDetails && error ? (
           <details className="bg-muted rounded-lg p-3">
-            <summary className="cursor-pointer text-sm font-medium mb-2">
-              Technical Details
-            </summary>
-            <pre className="text-xs overflow-auto bg-background p-2 rounded" aria-label="Error details">
+            <summary className="cursor-pointer text-sm font-medium mb-2">Technical Details</summary>
+            <pre
+              className="text-xs overflow-auto bg-background p-2 rounded"
+              aria-label="Error details"
+            >
               {(() => {
                 try {
                   return JSON.stringify(error, null, 2);
@@ -92,7 +98,11 @@ export function InlineError({ message, error, className = '' }: InlineErrorProps
   const errorMessage = error instanceof Error ? error.message : message || 'An error occurred';
 
   return (
-    <div className={`flex items-center gap-2 text-destructive text-sm ${className}`} role="alert" aria-live="polite">
+    <div
+      className={`flex items-center gap-2 text-destructive text-sm ${className}`}
+      role="alert"
+      aria-live="polite"
+    >
       <AlertCircle className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
       <span>{errorMessage}</span>
     </div>
