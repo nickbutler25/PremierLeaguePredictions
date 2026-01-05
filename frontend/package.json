@@ -79,7 +79,7 @@
     "*.{ts,tsx}": [
       "eslint --fix",
       "prettier --write",
-      "bash -c 'tsc --noEmit'"
+      "bash -c 'npx tsc -b'"
     ],
     "*.{js,jsx}": [
       "eslint --fix",
