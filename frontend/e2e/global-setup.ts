@@ -49,20 +49,28 @@ async function globalSetup(config: FullConfig) {
     const devButtonCount = await devButton.count();
 
     if (devButtonCount > 0) {
-      console.log('Dev login button found, logging in...');
+      console.log('Dev login button found, attempting login...');
 
-      // Click dev login button
-      await devButton.click();
+      try {
+        // Click dev login button
+        await devButton.click();
 
-      // Wait for navigation to dashboard
-      await page.waitForURL('**/dashboard', { timeout: 30000 });
+        // Wait for navigation to dashboard with shorter timeout
+        await page.waitForURL('**/dashboard', { timeout: 10000 });
 
-      console.log('Successfully logged in, saving auth state...');
+        console.log('Successfully logged in, saving auth state...');
 
-      // Save the authenticated state
-      await context.storageState({ path: authFile });
+        // Save the authenticated state
+        await context.storageState({ path: authFile });
 
-      console.log('Auth state saved to:', authFile);
+        console.log('Auth state saved to:', authFile);
+      } catch (loginError) {
+        console.warn('Login failed:', loginError.message);
+        console.warn('Backend may not be running. Tests will run without authentication.');
+
+        // Create an empty auth file so tests don't crash
+        await context.storageState({ path: authFile });
+      }
     } else {
       console.warn('Dev login button not found. Tests requiring auth may fail.');
       console.warn('Make sure the backend is running with dev mode enabled.');
