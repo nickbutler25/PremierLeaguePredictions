@@ -44,36 +44,42 @@ async function globalSetup(config: FullConfig) {
       }
     }
 
-    // Check if dev login button exists
-    const devButton = page.getByTestId('dev-login-button');
-    const devButtonCount = await devButton.count();
+    // Attempt API-based authentication (bypasses UI)
+    try {
+      console.log('Attempting direct API login...');
 
-    if (devButtonCount > 0) {
-      console.log('Dev login button found, attempting login...');
+      // Call the dev login endpoint directly
+      const response = await page.request.post(`${baseURL}/api/v1/dev/login-as-admin`);
 
-      try {
-        // Click dev login button
-        await devButton.click();
+      if (response.ok()) {
+        const authData = await response.json();
+        console.log('API login successful, setting up auth state...');
 
-        // Wait for navigation to dashboard with shorter timeout
-        await page.waitForURL('**/dashboard', { timeout: 10000 });
+        // Navigate to any page to set up the context
+        await page.goto(`${baseURL}/login`);
 
-        console.log('Successfully logged in, saving auth state...');
+        // Set the auth data in localStorage
+        await page.evaluate((data) => {
+          if (data.data && data.data.token) {
+            localStorage.setItem('token', data.data.token);
+            localStorage.setItem('user', JSON.stringify(data.data.user));
+          }
+        }, authData);
 
         // Save the authenticated state
         await context.storageState({ path: authFile });
-
-        console.log('Auth state saved to:', authFile);
-      } catch (loginError) {
-        console.warn('Login failed:', loginError.message);
-        console.warn('Backend may not be running. Tests will run without authentication.');
+        console.log('Auth state saved successfully to:', authFile);
+      } else {
+        console.warn('API login failed with status:', response.status());
+        console.warn('Response:', await response.text());
+        console.warn('Tests will run without authentication.');
 
         // Create an empty auth file so tests don't crash
         await context.storageState({ path: authFile });
       }
-    } else {
-      console.warn('Dev login button not found. Tests requiring auth may fail.');
-      console.warn('Make sure the backend is running with dev mode enabled.');
+    } catch (loginError) {
+      console.warn('API login failed:', loginError.message);
+      console.warn('Backend may not be running. Tests will run without authentication.');
 
       // Create an empty auth file so tests don't crash
       await context.storageState({ path: authFile });
