@@ -52,7 +52,9 @@ describe('EliminationManagementPage', () => {
       // Assert
       await waitFor(() => {
         expect(screen.getByText('Elimination Management')).toBeInTheDocument();
-        expect(screen.getByText('Configure player eliminations for each gameweek')).toBeInTheDocument();
+        expect(
+          screen.getByText('Configure player eliminations for each gameweek')
+        ).toBeInTheDocument();
         expect(screen.getByText('Elimination Summary')).toBeInTheDocument();
       });
     });
@@ -61,10 +63,12 @@ describe('EliminationManagementPage', () => {
       // Arrange
       vi.mocked(adminService.getActiveSeason).mockResolvedValue(mockActiveSeason);
       // Make configs loading take time
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let resolveConfigs: (value: any) => void;
       const configsPromise = new Promise((resolve) => {
         resolveConfigs = resolve;
       });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       vi.mocked(eliminationService.getEliminationConfigs).mockReturnValue(configsPromise as any);
       vi.mocked(eliminationService.getSeasonEliminations).mockResolvedValue([]);
 
@@ -85,6 +89,7 @@ describe('EliminationManagementPage', () => {
 
     it('should show alert when no active season exists', async () => {
       // Arrange
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       vi.mocked(adminService.getActiveSeason).mockResolvedValue(null as any);
 
       // Act
@@ -92,7 +97,9 @@ describe('EliminationManagementPage', () => {
 
       // Assert
       await waitFor(() => {
-        expect(screen.getByText('No active season found. Please create a season first.')).toBeInTheDocument();
+        expect(
+          screen.getByText('No active season found. Please create a season first.')
+        ).toBeInTheDocument();
       });
     });
   });

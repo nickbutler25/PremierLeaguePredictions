@@ -20,7 +20,7 @@ const realAuthService = {
     try {
       const response = await apiClient.get<ApiResponse<User>>('/api/v1/users/me');
       return response.data.data!;
-    } catch (error) {
+    } catch {
       // If unauthorized or any error, return null
       return null;
     }

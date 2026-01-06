@@ -20,7 +20,11 @@ export default function EliminationManagementPage() {
   });
 
   // Fetch elimination configs
-  const { data: configs = [], isLoading: configsLoading, error: configsError } = useQuery({
+  const {
+    data: configs = [],
+    isLoading: configsLoading,
+    error: configsError,
+  } = useQuery({
     queryKey: ['eliminationConfigs', activeSeason?.name],
     queryFn: async () => {
       console.log('EliminationManagement: Fetching configs for season:', activeSeason?.name);
@@ -32,7 +36,14 @@ export default function EliminationManagementPage() {
   });
 
   // Log configs whenever they change
-  console.log('EliminationManagement: configs=', configs, 'loading=', configsLoading, 'error=', configsError);
+  console.log(
+    'EliminationManagement: configs=',
+    configs,
+    'loading=',
+    configsLoading,
+    'error=',
+    configsError
+  );
 
   // Fetch season eliminations
   const { data: eliminations = [] } = useQuery({
@@ -53,10 +64,11 @@ export default function EliminationManagementPage() {
       queryClient.invalidateQueries({ queryKey: ['eliminationConfigs'] });
       setEliminationCounts({});
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      const err = error as { response?: { data?: { message?: string } } };
       toast({
         title: 'Error',
-        description: error.response?.data?.message || 'Failed to update elimination count',
+        description: err.response?.data?.message || 'Failed to update elimination count',
         variant: 'destructive',
       });
     },
@@ -74,15 +86,15 @@ export default function EliminationManagementPage() {
       queryClient.invalidateQueries({ queryKey: ['eliminationConfigs'] });
       setEliminationCounts({});
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      const err = error as { response?: { data?: { message?: string } } };
       toast({
         title: 'Error',
-        description: error.response?.data?.message || 'Failed to update elimination counts',
+        description: err.response?.data?.message || 'Failed to update elimination counts',
         variant: 'destructive',
       });
     },
   });
-
 
   const handleCountChange = (gameweekId: string, value: string) => {
     const count = parseInt(value) || 0;
@@ -97,7 +109,6 @@ export default function EliminationManagementPage() {
       bulkUpdateMutation.mutate(eliminationCounts);
     }
   };
-
 
   if (configsLoading) {
     return (
@@ -122,17 +133,22 @@ export default function EliminationManagementPage() {
   const secondHalf = configs.filter((c) => c.weekNumber > 20);
 
   const totalEliminated = eliminations.length;
-  const eliminationsByGameweek = eliminations.reduce((acc, e) => {
-    acc[e.gameweekNumber] = (acc[e.gameweekNumber] || 0) + 1;
-    return acc;
-  }, {} as Record<number, number>);
+  const eliminationsByGameweek = eliminations.reduce(
+    (acc, e) => {
+      acc[e.gameweekNumber] = (acc[e.gameweekNumber] || 0) + 1;
+      return acc;
+    },
+    {} as Record<number, number>
+  );
 
   return (
     <div className="space-y-6">
       {/* Page Header */}
       <div>
         <h1 className="text-3xl font-bold">Elimination Management</h1>
-        <p className="text-muted-foreground mt-2">Configure player eliminations for each gameweek</p>
+        <p className="text-muted-foreground mt-2">
+          Configure player eliminations for each gameweek
+        </p>
       </div>
 
       <div className="flex items-center justify-end">
@@ -180,7 +196,8 @@ export default function EliminationManagementPage() {
         <CardHeader>
           <CardTitle>First Half (GW 1-20)</CardTitle>
           <CardDescription>
-            Configure eliminations for the first half of the season. Eliminations are processed automatically after each gameweek finishes.
+            Configure eliminations for the first half of the season. Eliminations are processed
+            automatically after each gameweek finishes.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -193,7 +210,9 @@ export default function EliminationManagementPage() {
                 <div
                   key={config.gameweekId}
                   className={`border rounded-lg p-4 ${
-                    hasEliminations ? 'bg-green-50 dark:bg-green-950/20 border-green-300 dark:border-green-800' : ''
+                    hasEliminations
+                      ? 'bg-green-50 dark:bg-green-950/20 border-green-300 dark:border-green-800'
+                      : ''
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
@@ -237,7 +256,8 @@ export default function EliminationManagementPage() {
         <CardHeader>
           <CardTitle>Second Half (GW 21-38)</CardTitle>
           <CardDescription>
-            Configure eliminations for the second half of the season. Eliminations are processed automatically after each gameweek finishes.
+            Configure eliminations for the second half of the season. Eliminations are processed
+            automatically after each gameweek finishes.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -250,7 +270,9 @@ export default function EliminationManagementPage() {
                 <div
                   key={config.gameweekId}
                   className={`border rounded-lg p-4 ${
-                    hasEliminations ? 'bg-green-50 dark:bg-green-950/20 border-green-300 dark:border-green-800' : ''
+                    hasEliminations
+                      ? 'bg-green-50 dark:bg-green-950/20 border-green-300 dark:border-green-800'
+                      : ''
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
@@ -306,7 +328,8 @@ export default function EliminationManagementPage() {
                   <div>
                     <p className="font-semibold">{elimination.userName}</p>
                     <p className="text-sm text-muted-foreground">
-                      GW{elimination.gameweekNumber} • Position {elimination.position} • {elimination.totalPoints} points
+                      GW{elimination.gameweekNumber} • Position {elimination.position} •{' '}
+                      {elimination.totalPoints} points
                     </p>
                   </div>
                   <div className="text-right text-sm text-muted-foreground">

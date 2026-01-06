@@ -155,7 +155,7 @@ describe('SeasonManagementPage - Create New Season', () => {
       // Assert
       await waitFor(() => {
         const select = screen.getByLabelText(/select season/i) as HTMLSelectElement;
-        const optionValues = Array.from(select.options).map(opt => opt.value);
+        const optionValues = Array.from(select.options).map((opt) => opt.value);
         expect(optionValues).not.toContain('2024/2025');
       });
     });
@@ -239,10 +239,12 @@ describe('SeasonManagementPage - Create New Season', () => {
 
     it('should show loading state while creating season', async () => {
       // Arrange
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let resolveCreate: (value: any) => void;
       const createPromise = new Promise((resolve) => {
         resolveCreate = resolve;
       });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       vi.mocked(adminService.createSeason).mockReturnValue(createPromise as any);
 
       const user = userEvent.setup();
@@ -386,7 +388,9 @@ describe('SeasonManagementPage - Create New Season', () => {
       // Assert
       await waitFor(() => {
         expect(screen.getByText('Steps after creating a season:')).toBeInTheDocument();
-        expect(screen.getAllByText(/sync teams from the football data api/i).length).toBeGreaterThan(0);
+        expect(
+          screen.getAllByText(/sync teams from the football data api/i).length
+        ).toBeGreaterThan(0);
         expect(screen.getAllByText(/mark relegated teams as inactive/i).length).toBeGreaterThan(0);
         expect(screen.getByText(/sync fixtures for the new season/i)).toBeInTheDocument();
       });

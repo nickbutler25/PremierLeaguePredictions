@@ -22,7 +22,12 @@ export function SeasonApprovalsPage() {
   const queryClient = useQueryClient();
   const [selectedSeasonId, setSelectedSeasonId] = useState<string | undefined>(undefined);
 
-  const { data: seasons = [], isError: seasonsError, error: seasonsErrorObj, refetch: refetchSeasons } = useQuery({
+  const {
+    data: seasons = [],
+    isError: seasonsError,
+    error: seasonsErrorObj,
+    refetch: refetchSeasons,
+  } = useQuery({
     queryKey: ['admin', 'seasons'],
     queryFn: () => adminService.getSeasons(),
   });
@@ -32,15 +37,20 @@ export function SeasonApprovalsPage() {
     isLoading: loadingApprovals,
     isError: approvalsError,
     error: approvalsErrorObj,
-    refetch: refetchApprovals
+    refetch: refetchApprovals,
   } = useQuery({
     queryKey: ['season-approvals', selectedSeasonId],
     queryFn: () => seasonParticipationService.getPendingApprovals(selectedSeasonId),
   });
 
   const approveMutation = useMutation({
-    mutationFn: ({ participationId, isApproved }: { participationId: string; isApproved: boolean }) =>
-      seasonParticipationService.approveParticipation(participationId, isApproved),
+    mutationFn: ({
+      participationId,
+      isApproved,
+    }: {
+      participationId: string;
+      isApproved: boolean;
+    }) => seasonParticipationService.approveParticipation(participationId, isApproved),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['season-approvals'] });
       queryClient.invalidateQueries({ queryKey: ['active-season'] });
@@ -52,10 +62,11 @@ export function SeasonApprovalsPage() {
         description: `User participation has been ${variables.isApproved ? 'approved' : 'rejected'}.`,
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      const err = error as { response?: { data?: { message?: string } } };
       toast({
         title: 'Error',
-        description: error.response?.data?.message || 'Failed to process approval',
+        description: err.response?.data?.message || 'Failed to process approval',
         variant: 'destructive',
       });
     },
@@ -83,7 +94,7 @@ export function SeasonApprovalsPage() {
     });
   };
 
-  const activeSeason = seasons.find(s => s.isActive);
+  const activeSeason = seasons.find((s) => s.isActive);
 
   return (
     <div>
@@ -173,11 +184,11 @@ export function SeasonApprovalsPage() {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {approval.email}
-                      </TableCell>
+                      <TableCell className="text-muted-foreground">{approval.email}</TableCell>
                       <TableCell>
-                        <Badge variant={approval.seasonId === activeSeason?.id ? 'default' : 'outline'}>
+                        <Badge
+                          variant={approval.seasonId === activeSeason?.id ? 'default' : 'outline'}
+                        >
                           {approval.seasonName}
                         </Badge>
                       </TableCell>
@@ -225,7 +236,8 @@ export function SeasonApprovalsPage() {
           {/* Summary */}
           {pendingApprovals.length > 0 && (
             <div className="mt-4 text-sm text-muted-foreground">
-              Showing {pendingApprovals.length} pending approval{pendingApprovals.length !== 1 ? 's' : ''}
+              Showing {pendingApprovals.length} pending approval
+              {pendingApprovals.length !== 1 ? 's' : ''}
             </div>
           )}
         </CardContent>

@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import type { ReactElement, ReactNode } from 'react';
 import { render } from '@testing-library/react';
 import type { RenderOptions } from '@testing-library/react';
@@ -58,10 +59,7 @@ interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {
   token?: string | null;
 }
 
-const customRender = (
-  ui: ReactElement,
-  options?: CustomRenderOptions
-) => {
+const customRender = (ui: ReactElement, options?: CustomRenderOptions) => {
   const { user, token, ...renderOptions } = options || {};
 
   return render(ui, {

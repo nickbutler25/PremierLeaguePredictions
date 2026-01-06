@@ -5,7 +5,7 @@ import type { Pick, PickSelection, ApiResponse } from '@/types';
 const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true';
 
 const realPicksService = {
-  getPicks: async (_userId: string): Promise<Pick[]> => {
+  getPicks: async (): Promise<Pick[]> => {
     const response = await apiClient.get<ApiResponse<Pick[]>>('/api/v1/picks');
     return response.data.data!;
   },
