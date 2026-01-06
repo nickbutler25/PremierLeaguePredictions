@@ -2,20 +2,8 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Dashboard', () => {
   test.beforeEach(async ({ page }) => {
-    // Login first
-    await page.goto('/login');
-
-    // Use dev login if available
-    const devButton = page.getByTestId('dev-login-button');
-    const devButtonCount = await devButton.count();
-
-    if (devButtonCount > 0) {
-      await devButton.click();
-      await page.waitForURL('/dashboard');
-    } else {
-      // Skip tests if dev login is not available
-      test.skip();
-    }
+    // Navigate directly to dashboard (auth state is loaded from global setup)
+    await page.goto('/dashboard');
   });
 
   test('should display dashboard with all main sections', async ({ page }) => {
@@ -91,10 +79,7 @@ test.describe('Dashboard', () => {
     // Click theme toggle
     await themeToggle.click();
 
-    // Wait a bit for theme to change
-    await page.waitForTimeout(500);
-
-    // Check that theme changed
+    // Check that theme changed (wait for class to update)
     const newClass = await htmlElement.getAttribute('class');
     const newTheme = newClass?.includes('dark') ? 'dark' : 'light';
 

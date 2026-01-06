@@ -1,6 +1,9 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Login Flow', () => {
+  // Use a separate context without stored auth state for login tests
+  test.use({ storageState: { cookies: [], origins: [] } });
+
   test.beforeEach(async ({ page }) => {
     await page.goto('/login');
   });

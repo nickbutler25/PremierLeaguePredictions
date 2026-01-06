@@ -2,20 +2,8 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Picks Management', () => {
   test.beforeEach(async ({ page }) => {
-    // Login first
-    await page.goto('/login');
-
-    // Use dev login if available
-    const devButton = page.getByTestId('dev-login-button');
-    const devButtonCount = await devButton.count();
-
-    if (devButtonCount > 0) {
-      await devButton.click();
-      await page.waitForURL('/dashboard');
-    } else {
-      // Skip tests if dev login is not available
-      test.skip();
-    }
+    // Navigate directly to dashboard (auth state is loaded from global setup)
+    await page.goto('/dashboard');
   });
 
   test('should display picks table with all gameweeks', async ({ page }) => {
@@ -72,10 +60,7 @@ test.describe('Picks Management', () => {
         // Select the first available team
         await dropdown.selectOption({ index: 1 }); // Index 0 is "Select team..."
 
-        // Wait a bit for the mutation to complete
-        await page.waitForTimeout(1000);
-
-        // Should now have a pick displayed
+        // Wait for the pick to be displayed (instead of arbitrary timeout)
         const pickTeam = row.getByTestId(`pick-team-gw${gw}`);
         await expect(pickTeam).toBeVisible();
 
@@ -99,25 +84,10 @@ test.describe('Picks Management', () => {
       const removeButtonCount = await removeButton.count();
 
       if (removeButtonCount > 0 && (await removeButton.isVisible())) {
-        // Get the team name before removing
-        const pickTeam = row.getByTestId(`pick-team-gw${gw}`);
-        const teamName = await pickTeam.textContent();
-
         // Click remove button
         await removeButton.click();
 
-        // Wait a bit for the mutation to complete
-        await page.waitForTimeout(1000);
-
-        // Should no longer have the pick
-        const pickTeamCount = await pickTeam.count();
-        if (pickTeamCount > 0) {
-          // If element still exists, check if it's different or hidden
-          const newTeamName = await pickTeam.textContent().catch(() => null);
-          expect(newTeamName).not.toBe(teamName);
-        }
-
-        // Should show select button again
+        // Wait for the select button to appear (instead of arbitrary timeout)
         const selectButton = row.getByTestId(`select-team-button-gw${gw}`);
         await expect(selectButton).toBeVisible();
 

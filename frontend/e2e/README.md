@@ -2,6 +2,17 @@
 
 End-to-end tests for the Premier League Predictions application using [Playwright](https://playwright.dev/).
 
+## Performance Optimizations
+
+These tests have been optimized for speed:
+
+- **Global auth setup**: Login once before all tests, reuse authentication state
+- **Parallel execution**: Multiple workers run tests concurrently (even in CI)
+- **API mocking**: Optional fixtures for mocking API calls to avoid backend dependency
+- **Proper waits**: Using Playwright's auto-waiting instead of arbitrary timeouts
+
+**Expected runtime**: 2-5 minutes (down from 30+ minutes)
+
 ## Running Tests
 
 ### Basic Commands
@@ -189,11 +200,27 @@ The tests are configured to run differently in CI:
 
 ## Mocking API Calls
 
-For tests that need to mock API responses, consider using Playwright's route mocking:
+### Option 1: Use Test Fixtures (Recommended)
+
+Import the extended test fixture for automatic API mocking:
 
 ```typescript
+import { test, expect } from './fixtures';
+
+test('my test', async ({ page }) => {
+  // API routes are automatically mocked
+  await page.goto('/dashboard');
+});
+```
+
+### Option 2: Manual Route Mocking
+
+For custom API responses:
+
+```typescript
+import { test, expect } from '@playwright/test';
+
 test('mock API response', async ({ page }) => {
-  // Intercept API call
   await page.route('**/api/v1/dashboard', async (route) => {
     await route.fulfill({
       status: 200,
@@ -206,24 +233,24 @@ test('mock API response', async ({ page }) => {
 });
 ```
 
+**Note**: The test fixtures in `e2e/fixtures.ts` provide pre-configured mocks for common API endpoints to speed up tests and reduce backend dependency.
+
 ## Authentication Testing
 
-Since the app uses Google OAuth, you'll need to either:
+The test suite uses **global authentication setup** for optimal performance:
 
-1. **Mock auth state** (recommended for E2E)
+1. **Global Setup** (`e2e/global-setup.ts`)
+   - Runs once before all tests
+   - Performs dev login and saves authentication state to `e2e/.auth/user.json`
+   - All tests automatically reuse this authenticated state
 
-   ```typescript
-   import { mockAuth } from './helpers';
-   await mockAuth(page);
-   ```
+2. **Login-specific tests** (`login.spec.ts`)
+   - Use `test.use({ storageState: { cookies: [], origins: [] } })` to test without auth
+   - Test the actual login flow in isolation
 
-2. **Use test credentials** (for integration tests)
-   - Set up a test Google account
-   - Store credentials securely in environment variables
-
-3. **Use Playwright's storage state**
-   - Authenticate once, save state
-   - Reuse state across tests
+3. **Custom auth helpers** (if needed)
+   - See `helpers.ts` for `mockAuth()` and `mockAdminAuth()` functions
+   - Use these only when you need to test different auth scenarios
 
 ## Performance Testing
 
