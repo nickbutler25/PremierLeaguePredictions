@@ -64,18 +64,40 @@ async function globalSetup(config: FullConfig) {
       if (response.ok()) {
         const authData = await response.json();
         console.log('API login successful, setting up auth state...');
-        console.log('Auth response:', JSON.stringify(authData, null, 2));
 
-        // The httpOnly cookie should now be set in the context
-        // Navigate to the dashboard to ensure the page has access to cookies
-        await page.goto(`${baseURL}/dashboard`);
+        // Extract token from response
+        const token = authData.data?.token;
+        if (!token) {
+          console.error('No token in response:', authData);
+          throw new Error('Auth response missing token');
+        }
 
-        // Wait a moment for the app to process the auth state
-        await page.waitForTimeout(1000);
+        console.log('Token received, setting up authenticated context...');
 
-        // Save the authenticated state (includes cookies)
+        // Set the Authorization header for all subsequent requests
+        await context.setExtraHTTPHeaders({
+          Authorization: `Bearer ${token}`,
+        });
+
+        // Navigate to login page to set up the browser context
+        await page.goto(`${baseURL}/login`);
+
+        // Manually set the token in a cookie since dev endpoint doesn't set httpOnly cookie
+        await context.addCookies([
+          {
+            name: 'auth_token',
+            value: token,
+            domain: 'localhost',
+            path: '/',
+            httpOnly: true,
+            secure: false,
+            sameSite: 'Lax',
+          },
+        ]);
+
+        // Save the authenticated state (includes cookies and headers)
         await context.storageState({ path: authFile });
-        console.log('Auth state (with cookies) saved successfully to:', authFile);
+        console.log('Auth state saved with token cookie to:', authFile);
       } else {
         console.warn('API login failed with status:', response.status());
         console.warn('Response:', await response.text());
