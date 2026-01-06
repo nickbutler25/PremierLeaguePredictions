@@ -99,6 +99,21 @@ jobs:
     name: E2E Tests (Playwright)
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: plp_test
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpass
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5433:5432
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -128,8 +143,15 @@ jobs:
           echo $! > backend.pid
           echo "Backend started with PID $(cat backend.pid)"
         env:
-          ASPNETCORE_ENVIRONMENT: Development
+          ASPNETCORE_ENVIRONMENT: Testing
           ASPNETCORE_URLS: http://localhost:5154
+          ConnectionStrings__DefaultConnection: "Host=localhost;Port=5433;Database=plp_test;Username=testuser;Password=testpass"
+          JwtSettings__Secret: "test-jwt-secret-key-minimum-32-characters-long-for-hs256-testing"
+          JwtSettings__Issuer: "PremierLeaguePredictions"
+          JwtSettings__Audience: "PremierLeaguePredictions"
+          JwtSettings__ExpirationInMinutes: "1440"
+          DisableAuthorizationInDevelopment: "false"
+          RunMigrationsOnStartup: "true"
 
       - name: Wait for backend to be ready
         run: |
