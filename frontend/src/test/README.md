@@ -12,26 +12,31 @@ This directory contains the testing infrastructure and utilities for the Premier
 ## Running Tests
 
 ### Run all tests
+
 ```bash
 npm test
 ```
 
 ### Run tests in watch mode
+
 ```bash
 npm test -- --watch
 ```
 
 ### Run tests with UI
+
 ```bash
 npm run test:ui
 ```
 
 ### Run tests with coverage
+
 ```bash
 npm run test:coverage
 ```
 
 ### Run specific test file
+
 ```bash
 npm test DashboardPage
 ```
@@ -39,13 +44,17 @@ npm test DashboardPage
 ## Test Files
 
 ### `setup.ts`
+
 Global test setup file that:
+
 - Configures jest-dom matchers
 - Sets up automatic cleanup after each test
 - Mocks window.matchMedia for responsive design tests
 
 ### `test-utils.tsx`
+
 Provides testing utilities including:
+
 - Custom render function with all necessary providers (Auth, Router, React Query)
 - Mock user creation helper
 - Centralized test configuration
@@ -76,7 +85,7 @@ describe('MyComponent', () => {
 it('should show user-specific content', () => {
   const mockUser = createMockUser({
     firstName: 'John',
-    isAdmin: true
+    isAdmin: true,
   });
 
   render(<MyComponent />, { user: mockUser, token: 'test-token' });
@@ -176,19 +185,23 @@ The following test files specifically cover the "No Active Season" scenario:
 ## Debugging Tests
 
 ### Run a single test
+
 ```bash
 npm test -- -t "test name"
 ```
 
 ### Debug in VS Code
+
 Add breakpoints and run the "Debug Test" configuration
 
 ### View test output
+
 ```bash
 npm test -- --reporter=verbose
 ```
 
 ### Check what's rendered
+
 ```tsx
 import { screen } from '@testing-library/react';
 
@@ -199,16 +212,19 @@ screen.debug(); // Prints the DOM
 ## Common Issues
 
 ### "Unable to find element"
+
 - Use `screen.debug()` to see what's actually rendered
 - Check if you're waiting for async operations with `waitFor`
 - Verify the element isn't conditionally hidden
 
 ### "Query returned more than one element"
+
 - Make your query more specific
 - Use `getAllBy*` if multiple elements are expected
 - Add test IDs to disambiguate similar elements
 
 ### "Network request failed"
+
 - Ensure the service is mocked
 - Check mock return values match expected types
 - Verify the mock is called with correct parameters

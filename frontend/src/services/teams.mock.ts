@@ -204,7 +204,7 @@ export const mockTeams: Team[] = [
   },
 ];
 
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export const mockTeamsService = {
   getTeams: async (): Promise<Team[]> => {

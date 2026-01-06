@@ -20,7 +20,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     <div className="container mx-auto p-6">
       {/* Admin Tabs Navigation */}
       <div className="mb-6 border-b">
-        <nav className="-mb-px flex space-x-8 overflow-x-auto" role="navigation" aria-label="Admin navigation">
+        <nav
+          className="-mb-px flex space-x-8 overflow-x-auto"
+          role="navigation"
+          aria-label="Admin navigation"
+        >
           {tabs.map((tab) => {
             const isActive = location.pathname === tab.path;
             return (
@@ -45,7 +49,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       </div>
 
       {/* Page Content */}
-      <div role="region" aria-label="Admin content">{children}</div>
+      <div role="region" aria-label="Admin content">
+        {children}
+      </div>
     </div>
   );
 }

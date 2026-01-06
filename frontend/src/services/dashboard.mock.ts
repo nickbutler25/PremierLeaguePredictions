@@ -9,7 +9,7 @@ const mockDashboardData: DashboardData = {
     isLocked: false,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    status: 'Upcoming'
+    status: 'Upcoming',
   },
   user: {
     id: 'mock-user-123',
@@ -94,7 +94,7 @@ const mockDashboardData: DashboardData = {
 };
 
 // Simulate API delay
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export const mockDashboardService = {
   getDashboard: async (userId: string): Promise<DashboardData> => {

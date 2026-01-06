@@ -11,7 +11,9 @@ const realFixturesService = {
   },
 
   getFixturesByGameweek: async (seasonId: string, gameweekNumber: number): Promise<Fixture[]> => {
-    const response = await apiClient.get<ApiResponse<Fixture[]>>(`/api/v1/fixtures/gameweek/${encodeURIComponent(seasonId)}/${gameweekNumber}`);
+    const response = await apiClient.get<ApiResponse<Fixture[]>>(
+      `/api/v1/fixtures/gameweek/${encodeURIComponent(seasonId)}/${gameweekNumber}`
+    );
     return response.data.data!;
   },
 

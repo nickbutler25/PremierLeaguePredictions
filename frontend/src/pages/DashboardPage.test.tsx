@@ -117,9 +117,7 @@ describe('DashboardPage - No Active Season', () => {
     });
 
     expect(screen.queryByText('Admin Action Required')).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('link', { name: /go to admin panel/i })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /go to admin panel/i })).not.toBeInTheDocument();
   });
 
   it('should show loading state while fetching dashboard data', async () => {
