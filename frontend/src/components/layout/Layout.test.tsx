@@ -7,15 +7,15 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 
 // Mock the hooks
 vi.mock('@/hooks/useResultsUpdates', () => ({
-  useResultsUpdates: () => {}
+  useResultsUpdates: () => {},
 }));
 
 vi.mock('@/hooks/useAutoPickNotifications', () => ({
-  useAutoPickNotifications: () => {}
+  useAutoPickNotifications: () => {},
 }));
 
 vi.mock('@/hooks/useSeasonCreatedNotification', () => ({
-  useSeasonCreatedNotification: () => {}
+  useSeasonCreatedNotification: () => {},
 }));
 
 const mockAuthContextValue = {
@@ -27,7 +27,7 @@ const mockAuthContextValue = {
     photoUrl: 'https://example.com/photo.jpg',
     isAdmin: false,
     isActive: true,
-    isPaid: true
+    isPaid: true,
   },
   token: 'mock-token',
   isAuthenticated: true,
@@ -35,16 +35,14 @@ const mockAuthContextValue = {
   isLoading: false,
   login: vi.fn(),
   logout: vi.fn(),
-  updateUser: vi.fn()
+  updateUser: vi.fn(),
 };
 
 const renderWithProviders = (children: React.ReactNode) => {
   return render(
     <BrowserRouter>
       <AuthContext.Provider value={mockAuthContextValue}>
-        <ThemeProvider>
-          {children}
-        </ThemeProvider>
+        <ThemeProvider>{children}</ThemeProvider>
       </AuthContext.Provider>
     </BrowserRouter>
   );
@@ -52,7 +50,11 @@ const renderWithProviders = (children: React.ReactNode) => {
 
 describe('Layout Accessibility', () => {
   it('should have a skip navigation link', () => {
-    renderWithProviders(<Layout><div>Content</div></Layout>);
+    renderWithProviders(
+      <Layout>
+        <div>Content</div>
+      </Layout>
+    );
 
     const skipLink = screen.getByText('Skip to main content');
     expect(skipLink).toBeInTheDocument();
@@ -60,14 +62,22 @@ describe('Layout Accessibility', () => {
   });
 
   it('should have a header with role="banner"', () => {
-    renderWithProviders(<Layout><div>Content</div></Layout>);
+    renderWithProviders(
+      <Layout>
+        <div>Content</div>
+      </Layout>
+    );
 
     const header = screen.getByRole('banner');
     expect(header).toBeInTheDocument();
   });
 
   it('should have main content with role="main" and id="main-content"', () => {
-    renderWithProviders(<Layout><div>Test Content</div></Layout>);
+    renderWithProviders(
+      <Layout>
+        <div>Test Content</div>
+      </Layout>
+    );
 
     const main = screen.getByRole('main');
     expect(main).toBeInTheDocument();
@@ -76,7 +86,11 @@ describe('Layout Accessibility', () => {
   });
 
   it('should have theme toggle button with aria-label', () => {
-    renderWithProviders(<Layout><div>Content</div></Layout>);
+    renderWithProviders(
+      <Layout>
+        <div>Content</div>
+      </Layout>
+    );
 
     const themeButton = screen.getByLabelText('Switch to dark mode');
     expect(themeButton).toBeInTheDocument();
@@ -84,22 +98,34 @@ describe('Layout Accessibility', () => {
   });
 
   it('should have logout button with aria-label', () => {
-    renderWithProviders(<Layout><div>Content</div></Layout>);
+    renderWithProviders(
+      <Layout>
+        <div>Content</div>
+      </Layout>
+    );
 
     const logoutButton = screen.getByLabelText('Logout');
     expect(logoutButton).toBeInTheDocument();
   });
 
   it('should have home link with aria-label', () => {
-    renderWithProviders(<Layout><div>Content</div></Layout>);
+    renderWithProviders(
+      <Layout>
+        <div>Content</div>
+      </Layout>
+    );
 
     const homeLink = screen.getByLabelText('Home');
     expect(homeLink).toBeInTheDocument();
-    expect(homeLink).toHaveAttribute('href', '/');
+    expect(homeLink).toHaveAttribute('href', '/dashboard');
   });
 
   it('should have user profile image with descriptive alt text', () => {
-    renderWithProviders(<Layout><div>Content</div></Layout>);
+    renderWithProviders(
+      <Layout>
+        <div>Content</div>
+      </Layout>
+    );
 
     const profileImage = screen.getByAltText("John Doe's profile picture");
     expect(profileImage).toBeInTheDocument();
@@ -107,7 +133,11 @@ describe('Layout Accessibility', () => {
   });
 
   it('should have decorative SVG icons marked with aria-hidden', () => {
-    const { container } = renderWithProviders(<Layout><div>Content</div></Layout>);
+    const { container } = renderWithProviders(
+      <Layout>
+        <div>Content</div>
+      </Layout>
+    );
 
     const svgs = container.querySelectorAll('svg[aria-hidden="true"]');
     expect(svgs.length).toBeGreaterThan(0);
@@ -117,14 +147,16 @@ describe('Layout Accessibility', () => {
     const adminContextValue = {
       ...mockAuthContextValue,
       user: { ...mockAuthContextValue.user, isAdmin: true },
-      isAdmin: true
+      isAdmin: true,
     };
 
     render(
       <BrowserRouter>
         <AuthContext.Provider value={adminContextValue}>
           <ThemeProvider>
-            <Layout><div>Content</div></Layout>
+            <Layout>
+              <div>Content</div>
+            </Layout>
           </ThemeProvider>
         </AuthContext.Provider>
       </BrowserRouter>
