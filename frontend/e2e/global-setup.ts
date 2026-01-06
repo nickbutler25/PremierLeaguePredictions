@@ -64,21 +64,18 @@ async function globalSetup(config: FullConfig) {
       if (response.ok()) {
         const authData = await response.json();
         console.log('API login successful, setting up auth state...');
+        console.log('Auth response:', JSON.stringify(authData, null, 2));
 
-        // Navigate to any page to set up the context
-        await page.goto(`${baseURL}/login`);
+        // The httpOnly cookie should now be set in the context
+        // Navigate to the dashboard to ensure the page has access to cookies
+        await page.goto(`${baseURL}/dashboard`);
 
-        // Set the auth data in localStorage
-        await page.evaluate((data) => {
-          if (data.data && data.data.token) {
-            localStorage.setItem('token', data.data.token);
-            localStorage.setItem('user', JSON.stringify(data.data.user));
-          }
-        }, authData);
+        // Wait a moment for the app to process the auth state
+        await page.waitForTimeout(1000);
 
-        // Save the authenticated state
+        // Save the authenticated state (includes cookies)
         await context.storageState({ path: authFile });
-        console.log('Auth state saved successfully to:', authFile);
+        console.log('Auth state (with cookies) saved successfully to:', authFile);
       } else {
         console.warn('API login failed with status:', response.status());
         console.warn('Response:', await response.text());
