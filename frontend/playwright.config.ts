@@ -92,5 +92,8 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     stdout: 'ignore',
     stderr: 'pipe',
+    env: {
+      VITE_ENABLE_DEV_LOGIN: process.env.VITE_ENABLE_DEV_LOGIN || 'false',
+    },
   },
 });
