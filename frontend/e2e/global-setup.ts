@@ -46,6 +46,16 @@ async function globalSetup(config: FullConfig) {
 
     // Attempt API-based authentication (bypasses UI)
     try {
+      console.log('Seeding database with test data...');
+
+      // First, seed the database to create admin user
+      const seedResponse = await page.request.post(`${baseURL}/api/v1/dev/seed`);
+      if (seedResponse.ok()) {
+        console.log('Database seeded successfully');
+      } else {
+        console.warn('Database seed failed, but continuing...', await seedResponse.text());
+      }
+
       console.log('Attempting direct API login...');
 
       // Call the dev login endpoint directly
