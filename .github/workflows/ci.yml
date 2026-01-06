@@ -98,9 +98,6 @@ jobs:
   e2e:
     name: E2E Tests (Playwright)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./frontend
 
     steps:
       - name: Checkout code
@@ -111,19 +108,67 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Install dependencies
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore .NET dependencies
+        working-directory: ./backend
+        run: dotnet restore
+
+      - name: Build backend
+        working-directory: ./backend
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Start backend server
+        working-directory: ./backend/PremierLeaguePredictions.API
+        run: |
+          nohup dotnet run --no-build --configuration Release > backend.log 2>&1 &
+          echo $! > backend.pid
+          echo "Backend started with PID $(cat backend.pid)"
+        env:
+          ASPNETCORE_ENVIRONMENT: Development
+          ASPNETCORE_URLS: http://localhost:5154
+
+      - name: Wait for backend to be ready
+        run: |
+          echo "Waiting for backend to start..."
+          for i in {1..30}; do
+            if curl -f http://localhost:5154/health 2>/dev/null || curl -f http://localhost:5154/api/health 2>/dev/null || curl -f http://localhost:5154 2>/dev/null; then
+              echo "Backend is ready!"
+              exit 0
+            fi
+            echo "Attempt $i/30: Backend not ready yet..."
+            sleep 2
+          done
+          echo "Backend failed to start. Check logs:"
+          cat backend/PremierLeaguePredictions.API/backend.log || echo "No backend log found"
+          exit 1
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend
         run: npm ci
 
       - name: Install Playwright browsers
+        working-directory: ./frontend
         run: npx playwright install --with-deps chromium
 
       - name: Run E2E tests
+        working-directory: ./frontend
         run: npm run test:e2e
         env:
-          # Environment variables for E2E tests
           VITE_API_URL: http://localhost:5154
           VITE_GOOGLE_CLIENT_ID: test-google-client-id
           VITE_USE_MOCK_API: false
+
+      - name: Upload backend logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-logs
+          path: backend/PremierLeaguePredictions.API/backend.log
+          retention-days: 7
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
@@ -132,6 +177,15 @@ jobs:
           name: playwright-report
           path: frontend/playwright-report/
           retention-days: 7
+
+      - name: Stop backend server
+        if: always()
+        working-directory: ./backend/PremierLeaguePredictions.API
+        run: |
+          if [ -f backend.pid ]; then
+            kill $(cat backend.pid) || true
+            rm backend.pid
+          fi
 
   # Job 5: Build
   build:
