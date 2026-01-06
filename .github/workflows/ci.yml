@@ -134,12 +134,12 @@ jobs:
 
       - name: Build backend
         working-directory: ./backend
-        run: dotnet build --no-restore --configuration Release
+        run: dotnet build --no-restore --configuration Debug
 
       - name: Start backend server
         working-directory: ./backend/PremierLeaguePredictions.API
         run: |
-          nohup dotnet run --no-build --configuration Release > backend.log 2>&1 &
+          nohup dotnet run --no-build --configuration Debug > backend.log 2>&1 &
           echo $! > backend.pid
           echo "Backend started with PID $(cat backend.pid)"
         env:
