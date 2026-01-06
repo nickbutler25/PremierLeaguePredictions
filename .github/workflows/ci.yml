@@ -183,6 +183,7 @@ jobs:
           VITE_API_URL: http://localhost:5154
           VITE_GOOGLE_CLIENT_ID: test-google-client-id
           VITE_USE_MOCK_API: false
+          VITE_ENABLE_DEV_LOGIN: true
 
       - name: Upload backend logs
         if: always()

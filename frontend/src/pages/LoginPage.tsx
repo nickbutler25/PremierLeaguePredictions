@@ -89,7 +89,7 @@ export function LoginPage() {
             </div>
           )}
 
-          {import.meta.env.DEV && (
+          {(import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEV_LOGIN === 'true') && (
             <div className="space-y-2">
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
