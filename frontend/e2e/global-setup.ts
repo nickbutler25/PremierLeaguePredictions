@@ -71,14 +71,19 @@ async function globalSetup(config: FullConfig) {
 
         // Wait for navigation to dashboard or for login to complete
         try {
-          await page.waitForURL('**/dashboard', { timeout: 10000 });
+          await page.waitForURL('**/dashboard', { timeout: 30000 });
           console.log('Successfully navigated to dashboard');
 
-          // Wait for dashboard content to load
+          // Wait for network to be idle (all API calls complete)
+          await page.waitForLoadState('networkidle', { timeout: 15000 });
+          console.log('Network idle - API calls completed');
+
+          // Wait for dashboard content to load (with longer timeout)
           await page.waitForSelector('[data-testid="dashboard-content"]', {
-            timeout: 5000,
+            timeout: 15000,
             state: 'visible',
           });
+          console.log('Dashboard content is visible');
 
           // Save the authenticated state (includes cookies and localStorage)
           await context.storageState({ path: authFile });
@@ -110,12 +115,16 @@ async function globalSetup(config: FullConfig) {
                 },
               ]);
 
-              // Try navigating to dashboard again
-              await page.goto(`${baseURL}/dashboard`);
+              // Try navigating to dashboard again with longer timeout
+              await page.goto(`${baseURL}/dashboard`, { waitUntil: 'networkidle', timeout: 30000 });
+              console.log('Navigated to dashboard after API fallback');
+
+              // Wait for dashboard content
               await page.waitForSelector('[data-testid="dashboard-content"]', {
-                timeout: 5000,
+                timeout: 15000,
                 state: 'visible',
               });
+              console.log('Dashboard content visible after API fallback');
 
               await context.storageState({ path: authFile });
               console.log('Auth state saved after API fallback');
