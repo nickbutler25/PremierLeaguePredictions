@@ -143,10 +143,10 @@ public class DbSeeder
             {
                 var gameweek = new Gameweek
                 {
-                    SeasonId = season.Id,
+                    SeasonId = season.Name, // Season.Name is the primary key
                     WeekNumber = i,
                     Deadline = startDate.AddDays((i - 1) * 7), // Weekly gameweeks
-                    IsCompleted = false,
+                    IsLocked = false,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 };
