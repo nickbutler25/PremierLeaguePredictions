@@ -72,12 +72,31 @@ async function globalSetup(config: FullConfig) {
       console.log('Dev login API successful');
       console.log('Response data:', JSON.stringify(authData, null, 2));
 
-      // Playwright automatically captures Set-Cookie headers from the API response
-      // The auth cookie should now be available in the browser context
+      // IMPORTANT: The dev login endpoint returns the token in JSON but does NOT set
+      // an httpOnly cookie (unlike the production Google login endpoint).
+      // We need to manually set the auth_token cookie for the tests.
+      const token = authData.data?.token;
+      if (!token) {
+        throw new Error('No token in API response data');
+      }
+
+      console.log('Setting auth_token cookie manually...');
+      await context.addCookies([
+        {
+          name: 'auth_token',
+          value: token,
+          domain: 'localhost',
+          path: '/',
+          httpOnly: true,
+          secure: false, // false for HTTP localhost
+          sameSite: 'Lax',
+          expires: Math.floor(Date.now() / 1000) + 86400, // 1 day from now
+        },
+      ]);
 
       // Log current cookies to verify
       const cookies = await context.cookies();
-      console.log('Cookies after API login:', JSON.stringify(cookies, null, 2));
+      console.log('Cookies after setting auth_token:', JSON.stringify(cookies, null, 2));
 
       // Navigate to dashboard with the auth cookie
       console.log('Navigating to dashboard...');
