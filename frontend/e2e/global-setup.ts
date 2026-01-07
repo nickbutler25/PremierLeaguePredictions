@@ -56,88 +56,62 @@ async function globalSetup(config: FullConfig) {
         console.warn('Database seed failed, but continuing...', await seedResponse.text());
       }
 
-      console.log('Attempting direct API login via UI...');
+      console.log('Attempting API-based authentication...');
 
-      // Navigate to login page first
-      await page.goto(`${baseURL}/login`, { waitUntil: 'networkidle' });
+      // Use API login directly (more reliable than UI)
+      const response = await page.request.post(`${baseURL}/api/v1/dev/login-as-admin`);
 
-      // Click the dev login button if it exists
-      const devLoginButton = page.getByTestId('dev-login-button');
-      const devButtonExists = (await devLoginButton.count()) > 0;
+      if (!response.ok()) {
+        const responseText = await response.text();
+        console.error('API login failed with status:', response.status());
+        console.error('API response body:', responseText);
+        throw new Error(`Dev login API returned ${response.status()}`);
+      }
 
-      if (devButtonExists) {
-        console.log('Dev login button found, clicking...');
-        await devLoginButton.click();
+      const authData = await response.json();
+      console.log('Dev login API successful');
+      console.log('Response data:', JSON.stringify(authData, null, 2));
 
-        // Wait for navigation to dashboard or for login to complete
-        try {
-          await page.waitForURL('**/dashboard', { timeout: 30000 });
-          console.log('Successfully navigated to dashboard');
+      // Playwright automatically captures Set-Cookie headers from the API response
+      // The auth cookie should now be available in the browser context
 
-          // Wait for network to be idle (all API calls complete)
-          await page.waitForLoadState('networkidle', { timeout: 15000 });
-          console.log('Network idle - API calls completed');
+      // Log current cookies to verify
+      const cookies = await context.cookies();
+      console.log('Cookies after API login:', JSON.stringify(cookies, null, 2));
 
-          // Wait for dashboard content to load (with longer timeout)
-          await page.waitForSelector('[data-testid="dashboard-content"]', {
-            timeout: 15000,
-            state: 'visible',
-          });
-          console.log('Dashboard content is visible');
+      // Navigate to dashboard with the auth cookie
+      console.log('Navigating to dashboard...');
+      await page.goto(`${baseURL}/dashboard`, { waitUntil: 'networkidle', timeout: 30000 });
+      console.log('Navigation completed');
 
-          // Save the authenticated state (includes cookies and localStorage)
-          await context.storageState({ path: authFile });
-          console.log('Auth state saved successfully to:', authFile);
-        } catch (navError) {
-          console.warn('Failed to navigate to dashboard:', navError.message);
-          console.warn('Login may have failed. Trying API fallback...');
+      // Wait for the AuthContext to verify the cookie via /api/v1/users/me
+      // and for dashboard content to render
+      try {
+        await page.waitForSelector('[data-testid="dashboard-content"]', {
+          timeout: 20000,
+          state: 'visible',
+        });
+        console.log('Dashboard content is visible - authentication successful');
 
-          // Fallback to API-based login
-          const response = await page.request.post(`${baseURL}/api/v1/dev/login-as-admin`);
+        // Save the authenticated state (includes cookies)
+        await context.storageState({ path: authFile });
+        console.log('Auth state saved successfully to:', authFile);
+      } catch (error) {
+        // Debug: Check what's actually on the page
+        const url = page.url();
+        console.error('Dashboard content not found. Current URL:', url);
 
-          if (response.ok()) {
-            const authData = await response.json();
-            const token = authData.data?.token;
-
-            if (token) {
-              console.log('API fallback successful, setting token...');
-
-              // Add auth cookie
-              await context.addCookies([
-                {
-                  name: 'auth_token',
-                  value: token,
-                  domain: 'localhost',
-                  path: '/',
-                  httpOnly: true,
-                  secure: false,
-                  sameSite: 'Lax',
-                },
-              ]);
-
-              // Try navigating to dashboard again with longer timeout
-              await page.goto(`${baseURL}/dashboard`, { waitUntil: 'networkidle', timeout: 30000 });
-              console.log('Navigated to dashboard after API fallback');
-
-              // Wait for dashboard content
-              await page.waitForSelector('[data-testid="dashboard-content"]', {
-                timeout: 15000,
-                state: 'visible',
-              });
-              console.log('Dashboard content visible after API fallback');
-
-              await context.storageState({ path: authFile });
-              console.log('Auth state saved after API fallback');
-            } else {
-              throw new Error('No token in API response');
-            }
-          } else {
-            throw new Error(`API login failed with status ${response.status()}`);
-          }
+        // Check if we got redirected to login
+        if (url.includes('/login')) {
+          console.error('Page redirected to login - authentication failed');
+          console.error('The backend cookie may not be recognized by the frontend');
         }
-      } else {
-        console.warn('Dev login button not found. Backend may not be in dev mode.');
-        throw new Error('Dev login not available');
+
+        // Try to get any error messages on the page
+        const bodyText = await page.locator('body').textContent();
+        console.error('Page content:', bodyText?.substring(0, 500));
+
+        throw error;
       }
     } catch (loginError) {
       console.error('Authentication failed:', loginError.message);
