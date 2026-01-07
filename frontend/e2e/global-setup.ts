@@ -56,59 +56,83 @@ async function globalSetup(config: FullConfig) {
         console.warn('Database seed failed, but continuing...', await seedResponse.text());
       }
 
-      console.log('Attempting direct API login...');
+      console.log('Attempting direct API login via UI...');
 
-      // Call the dev login endpoint directly
-      const response = await page.request.post(`${baseURL}/api/v1/dev/login-as-admin`);
+      // Navigate to login page first
+      await page.goto(`${baseURL}/login`, { waitUntil: 'networkidle' });
 
-      if (response.ok()) {
-        const authData = await response.json();
-        console.log('API login successful, setting up auth state...');
+      // Click the dev login button if it exists
+      const devLoginButton = page.getByTestId('dev-login-button');
+      const devButtonExists = (await devLoginButton.count()) > 0;
 
-        // Extract token from response
-        const token = authData.data?.token;
-        if (!token) {
-          console.error('No token in response:', authData);
-          throw new Error('Auth response missing token');
+      if (devButtonExists) {
+        console.log('Dev login button found, clicking...');
+        await devLoginButton.click();
+
+        // Wait for navigation to dashboard or for login to complete
+        try {
+          await page.waitForURL('**/dashboard', { timeout: 10000 });
+          console.log('Successfully navigated to dashboard');
+
+          // Wait for dashboard content to load
+          await page.waitForSelector('[data-testid="dashboard-content"]', {
+            timeout: 5000,
+            state: 'visible',
+          });
+
+          // Save the authenticated state (includes cookies and localStorage)
+          await context.storageState({ path: authFile });
+          console.log('Auth state saved successfully to:', authFile);
+        } catch (navError) {
+          console.warn('Failed to navigate to dashboard:', navError.message);
+          console.warn('Login may have failed. Trying API fallback...');
+
+          // Fallback to API-based login
+          const response = await page.request.post(`${baseURL}/api/v1/dev/login-as-admin`);
+
+          if (response.ok()) {
+            const authData = await response.json();
+            const token = authData.data?.token;
+
+            if (token) {
+              console.log('API fallback successful, setting token...');
+
+              // Add auth cookie
+              await context.addCookies([
+                {
+                  name: 'auth_token',
+                  value: token,
+                  domain: 'localhost',
+                  path: '/',
+                  httpOnly: true,
+                  secure: false,
+                  sameSite: 'Lax',
+                },
+              ]);
+
+              // Try navigating to dashboard again
+              await page.goto(`${baseURL}/dashboard`);
+              await page.waitForSelector('[data-testid="dashboard-content"]', {
+                timeout: 5000,
+                state: 'visible',
+              });
+
+              await context.storageState({ path: authFile });
+              console.log('Auth state saved after API fallback');
+            } else {
+              throw new Error('No token in API response');
+            }
+          } else {
+            throw new Error(`API login failed with status ${response.status()}`);
+          }
         }
-
-        console.log('Token received, setting up authenticated context...');
-
-        // Set the Authorization header for all subsequent requests
-        await context.setExtraHTTPHeaders({
-          Authorization: `Bearer ${token}`,
-        });
-
-        // Navigate to login page to set up the browser context
-        await page.goto(`${baseURL}/login`);
-
-        // Manually set the token in a cookie since dev endpoint doesn't set httpOnly cookie
-        await context.addCookies([
-          {
-            name: 'auth_token',
-            value: token,
-            domain: 'localhost',
-            path: '/',
-            httpOnly: true,
-            secure: false,
-            sameSite: 'Lax',
-          },
-        ]);
-
-        // Save the authenticated state (includes cookies and headers)
-        await context.storageState({ path: authFile });
-        console.log('Auth state saved with token cookie to:', authFile);
       } else {
-        console.warn('API login failed with status:', response.status());
-        console.warn('Response:', await response.text());
-        console.warn('Tests will run without authentication.');
-
-        // Create an empty auth file so tests don't crash
-        await context.storageState({ path: authFile });
+        console.warn('Dev login button not found. Backend may not be in dev mode.');
+        throw new Error('Dev login not available');
       }
     } catch (loginError) {
-      console.warn('API login failed:', loginError.message);
-      console.warn('Backend may not be running. Tests will run without authentication.');
+      console.error('Authentication failed:', loginError.message);
+      console.error('Tests will run without authentication and will likely fail.');
 
       // Create an empty auth file so tests don't crash
       await context.storageState({ path: authFile });

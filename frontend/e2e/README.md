@@ -2,13 +2,49 @@
 
 End-to-end tests for the Premier League Predictions application using [Playwright](https://playwright.dev/).
 
+## Prerequisites
+
+**IMPORTANT**: E2E tests require the backend API to be running.
+
+### Starting the Backend
+
+Before running E2E tests locally:
+
+1. Navigate to the backend directory:
+
+   ```bash
+   cd backend/PremierLeaguePredictions.API
+   ```
+
+2. Start the .NET backend:
+
+   ```bash
+   dotnet run
+   ```
+
+   Or in debug mode:
+
+   ```bash
+   dotnet run --configuration Debug
+   ```
+
+3. Verify the backend is running:
+   - Backend should be accessible at `http://localhost:5154`
+   - Check health endpoint: `http://localhost:5154/health` (if available)
+
+4. Ensure dev login is enabled:
+   - Set `VITE_ENABLE_DEV_LOGIN=true` in your environment or `.env` file
+
+### In CI/CD
+
+The backend is automatically started by the GitHub Actions workflow before running E2E tests.
+
 ## Performance Optimizations
 
 These tests have been optimized for speed:
 
 - **Global auth setup**: Login once before all tests, reuse authentication state
 - **Parallel execution**: Multiple workers run tests concurrently (even in CI)
-- **API mocking**: Optional fixtures for mocking API calls to avoid backend dependency
 - **Proper waits**: Using Playwright's auto-waiting instead of arbitrary timeouts
 
 **Expected runtime**: 2-5 minutes (down from 30+ minutes)
