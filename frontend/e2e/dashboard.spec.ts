@@ -2,8 +2,12 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Dashboard', () => {
   test.beforeEach(async ({ page }) => {
-    // Navigate directly to dashboard (auth state is loaded from global setup)
     await page.goto('/dashboard');
+    // Wait for dashboard to finish loading before each test
+    await page.waitForSelector(
+      '[data-testid="dashboard-content"], [data-testid="dashboard-no-season"], [data-testid="dashboard-error"]',
+      { timeout: 30000, state: 'visible' }
+    );
   });
 
   test('should display dashboard with all main sections', async ({ page }) => {
@@ -100,8 +104,8 @@ test.describe('Dashboard', () => {
   });
 
   test('should handle API errors gracefully', async ({ page }) => {
-    // Reload the page with API error
-    await page.route('**/api/v1/dashboard/**', async (route) => {
+    // Set up route mock before navigating so React Query cache is bypassed
+    await page.route('**/api/v1/dashboard*', async (route) => {
       await route.fulfill({
         status: 500,
         contentType: 'application/json',
@@ -109,7 +113,7 @@ test.describe('Dashboard', () => {
       });
     });
 
-    await page.reload();
+    await page.goto('/dashboard');
 
     // Should show error state
     await expect(page.getByTestId('dashboard-error')).toBeVisible();
@@ -119,19 +123,22 @@ test.describe('Dashboard', () => {
   });
 
   test('should handle no active season gracefully', async ({ page }) => {
-    // Reload the page with no gameweeks
-    await page.route('**/api/v1/dashboard/**', async (route) => {
+    // Set up route mock before navigating so React Query cache is bypassed
+    await page.route('**/api/v1/dashboard*', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          upcomingGameweeks: [],
-          currentGameweek: null,
+          data: {
+            upcomingGameweeks: [],
+            currentGameweek: null,
+          },
+          success: true,
         }),
       });
     });
 
-    await page.reload();
+    await page.goto('/dashboard');
 
     // Should show no active season message
     await expect(page.getByTestId('dashboard-no-season')).toBeVisible();
@@ -170,7 +177,7 @@ test.describe('Dashboard', () => {
 
   test('should display loading state correctly', async ({ page }) => {
     // Navigate to dashboard with slow response
-    await page.route('**/api/v1/dashboard/**', async (route) => {
+    await page.route('**/api/v1/dashboard*', async (route) => {
       await new Promise((resolve) => setTimeout(resolve, 2000));
       await route.continue();
     });

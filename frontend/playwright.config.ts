@@ -15,8 +15,8 @@ export default defineConfig({
   /* Retry on CI only - reduced from 2 to 1 to save time */
   retries: process.env.CI ? 1 : 0,
 
-  /* Use multiple workers even in CI for faster execution */
-  workers: process.env.CI ? 2 : undefined,
+  /* Limit workers locally to avoid overloading the local backend under parallel load */
+  workers: process.env.CI ? 2 : 1,
 
   /* Global timeout for each test */
   timeout: 30000, // 30 seconds per test
