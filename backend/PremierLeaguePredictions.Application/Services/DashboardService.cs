@@ -143,10 +143,7 @@ public class DashboardService : IDashboardService
             upcomingGameweeksList.Add(currentGameweek);
 
             // Then add the next upcoming gameweeks
-            var upcoming = await _unitOfWork.Gameweeks.FindAsync(
-                g => !g.IsLocked && g.Deadline > now,
-                trackChanges: false,
-                cancellationToken);
+            var upcoming = allGameweeks.Where(g => !g.IsLocked && g.Deadline > now);
             upcomingGameweeksList.AddRange(upcoming
                 .OrderBy(g => g.Deadline)
                 .Take(2) // Take 2 more since we already have the in-progress one
@@ -163,10 +160,7 @@ public class DashboardService : IDashboardService
         {
             _logger.LogInformation("No in-progress gameweek found, looking for upcoming");
             // No gameweek in progress, so get the next upcoming one
-            var upcoming = await _unitOfWork.Gameweeks.FindAsync(
-                g => !g.IsLocked && g.Deadline > now,
-                trackChanges: false,
-                cancellationToken);
+            var upcoming = allGameweeks.Where(g => !g.IsLocked && g.Deadline > now);
             upcomingGameweeksList = upcoming
                 .OrderBy(g => g.Deadline)
                 .Take(3)
