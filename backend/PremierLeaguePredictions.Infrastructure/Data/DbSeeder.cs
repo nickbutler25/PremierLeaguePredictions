@@ -115,7 +115,10 @@ public class DbSeeder
     private async Task SeedSeasonsAndGameweeksAsync()
     {
         // Check if current season exists
-        var currentSeasonName = $"{DateTime.UtcNow.Year}/{DateTime.UtcNow.Year + 1}";
+        // Football seasons start in August, so before August we're still in the previous year's season
+        var now = DateTime.UtcNow;
+        var seasonStartYear = now.Month < 8 ? now.Year - 1 : now.Year;
+        var currentSeasonName = $"{seasonStartYear}/{seasonStartYear + 1}";
         var seasonExists = await _context.Seasons.AnyAsync(s => s.Name == currentSeasonName);
 
         if (!seasonExists)

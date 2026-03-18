@@ -104,13 +104,14 @@ async function globalSetup(config: FullConfig) {
       console.log('Navigation completed');
 
       // Wait for the AuthContext to verify the cookie via /api/v1/users/me
-      // and for dashboard content to render
+      // and for dashboard content to render. Accept any authenticated dashboard
+      // state: content, no-season, or error (all mean auth succeeded).
       try {
-        await page.waitForSelector('[data-testid="dashboard-content"]', {
-          timeout: 20000,
-          state: 'visible',
-        });
-        console.log('Dashboard content is visible - authentication successful');
+        await page.waitForSelector(
+          '[data-testid="dashboard-content"], [data-testid="dashboard-no-season"], [data-testid="dashboard-error"]',
+          { timeout: 20000, state: 'visible' }
+        );
+        console.log('Dashboard is visible - authentication successful');
 
         // Save the authenticated state (includes cookies)
         await context.storageState({ path: authFile });
@@ -118,7 +119,7 @@ async function globalSetup(config: FullConfig) {
       } catch (error) {
         // Debug: Check what's actually on the page
         const url = page.url();
-        console.error('Dashboard content not found. Current URL:', url);
+        console.error('Dashboard not found. Current URL:', url);
 
         // Check if we got redirected to login
         if (url.includes('/login')) {
