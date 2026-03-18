@@ -98,9 +98,11 @@ async function globalSetup(config: FullConfig) {
       const cookies = await context.cookies();
       console.log('Cookies after setting auth_token:', JSON.stringify(cookies, null, 2));
 
-      // Navigate to dashboard with the auth cookie
+      // Navigate to dashboard with the auth cookie.
+      // Use 'load' (not 'networkidle') — the SPA fires many async API calls on mount
+      // so the network never goes idle quickly enough on CI runners.
       console.log('Navigating to dashboard...');
-      await page.goto(`${baseURL}/dashboard`, { waitUntil: 'networkidle', timeout: 30000 });
+      await page.goto(`${baseURL}/dashboard`, { waitUntil: 'load', timeout: 60000 });
       console.log('Navigation completed');
 
       // Wait for the AuthContext to verify the cookie via /api/v1/users/me
@@ -109,7 +111,7 @@ async function globalSetup(config: FullConfig) {
       try {
         await page.waitForSelector(
           '[data-testid="dashboard-content"], [data-testid="dashboard-no-season"], [data-testid="dashboard-error"]',
-          { timeout: 20000, state: 'visible' }
+          { timeout: 40000, state: 'visible' }
         );
         console.log('Dashboard is visible - authentication successful');
 
