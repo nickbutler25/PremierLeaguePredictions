@@ -93,7 +93,12 @@ export default defineConfig({
     stdout: 'ignore',
     stderr: 'pipe',
     env: {
-      VITE_API_URL: process.env.VITE_API_URL || 'http://localhost:5154',
+      // Use the Vite dev server URL (not the direct backend URL) so all API
+      // requests from the browser go through the Vite proxy (/api → :5154).
+      // Direct cross-origin requests to :5154 would require CORS preflight,
+      // which UseHttpsRedirection intercepts before UseCors can respond —
+      // silently failing all Axios calls in the test browser context.
+      VITE_API_URL: 'http://localhost:5173',
       VITE_USE_MOCK_API: process.env.VITE_USE_MOCK_API || 'false',
       VITE_ENABLE_DEV_LOGIN: process.env.VITE_ENABLE_DEV_LOGIN || 'false',
     },
