@@ -167,7 +167,7 @@ export default function EliminationManagementPage() {
       <Card>
         <CardHeader>
           <CardTitle>Elimination Summary</CardTitle>
-          <CardDescription>Overview of eliminations for {activeSeason.name}</CardDescription>
+          <CardDescription>Overview of eliminations for {activeSeason?.name}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 gap-4">
