@@ -63,7 +63,7 @@ test.describe('Login Flow', () => {
 
   test('should show error message on login failure', async ({ page }) => {
     // Mock a failed login by intercepting the API call
-    await page.route('**/api/dev/login-as-admin', async (route) => {
+    await page.route('**/api/v1/dev/login-as-admin', async (route) => {
       await route.fulfill({
         status: 401,
         contentType: 'application/json',
