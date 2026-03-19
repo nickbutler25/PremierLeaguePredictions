@@ -93,6 +93,8 @@ export default defineConfig({
     stdout: 'ignore',
     stderr: 'pipe',
     env: {
+      VITE_API_URL: process.env.VITE_API_URL || 'http://localhost:5154',
+      VITE_USE_MOCK_API: process.env.VITE_USE_MOCK_API || 'false',
       VITE_ENABLE_DEV_LOGIN: process.env.VITE_ENABLE_DEV_LOGIN || 'false',
     },
   },

@@ -108,11 +108,25 @@ async function globalSetup(config: FullConfig) {
       // Wait for the AuthContext to verify the cookie via /api/v1/users/me
       // and for dashboard content to render. Accept any authenticated dashboard
       // state: content, no-season, or error (all mean auth succeeded).
+      // Also accept dashboard-loading as an intermediate state, then wait further.
       try {
+        // First wait for ANY dashboard testid (including loading state)
         await page.waitForSelector(
-          '[data-testid="dashboard-content"], [data-testid="dashboard-no-season"], [data-testid="dashboard-error"]',
+          '[data-testid="dashboard-content"], [data-testid="dashboard-no-season"], [data-testid="dashboard-error"], [data-testid="dashboard-loading"]',
           { timeout: 40000, state: 'visible' }
         );
+        console.log('Dashboard element visible - auth succeeded, checking for stable state...');
+
+        // If still loading, wait for the final state
+        const isLoading = await page.locator('[data-testid="dashboard-loading"]').isVisible();
+        if (isLoading) {
+          console.log('Dashboard is loading, waiting for final state...');
+          await page.waitForSelector(
+            '[data-testid="dashboard-content"], [data-testid="dashboard-no-season"], [data-testid="dashboard-error"]',
+            { timeout: 30000, state: 'visible' }
+          );
+        }
+
         console.log('Dashboard is visible - authentication successful');
 
         // Save the authenticated state (includes cookies)
@@ -129,9 +143,25 @@ async function globalSetup(config: FullConfig) {
           console.error('The backend cookie may not be recognized by the frontend');
         }
 
+        // Capture screenshot for debugging
+        try {
+          const screenshotPath = path.join(authDir, 'debug-screenshot.png');
+          await page.screenshot({ path: screenshotPath, fullPage: true });
+          console.error('Debug screenshot saved to:', screenshotPath);
+        } catch (screenshotError) {
+          console.error('Failed to capture debug screenshot:', screenshotError);
+        }
+
         // Try to get any error messages on the page
         const bodyText = await page.locator('body').textContent();
         console.error('Page content:', bodyText?.substring(0, 500));
+
+        // Log all visible testids for debugging
+        const testids = await page.evaluate(() => {
+          const elements = document.querySelectorAll('[data-testid]');
+          return Array.from(elements).map(el => el.getAttribute('data-testid'));
+        });
+        console.error('Visible testids on page:', testids);
 
         throw error;
       }
