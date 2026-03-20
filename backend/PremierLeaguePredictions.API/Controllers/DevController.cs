@@ -7,7 +7,6 @@ using PremierLeaguePredictions.Infrastructure.Services;
 
 namespace PremierLeaguePredictions.API.Controllers;
 
-#if DEBUG
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/[controller]")]
@@ -17,22 +16,33 @@ public class DevController : ControllerBase
     private readonly ITokenService _tokenService;
     private readonly DbSeeder _seeder;
     private readonly ILogger<DevController> _logger;
+    private readonly IWebHostEnvironment _env;
 
     public DevController(
         ApplicationDbContext context,
         ITokenService tokenService,
         DbSeeder seeder,
-        ILogger<DevController> logger)
+        ILogger<DevController> logger,
+        IWebHostEnvironment env)
     {
         _context = context;
         _tokenService = tokenService;
         _seeder = seeder;
         _logger = logger;
+        _env = env;
+    }
+
+    private IActionResult? EnforceDevOnly()
+    {
+        if (!_env.IsDevelopment())
+            return NotFound();
+        return null;
     }
 
     [HttpPost("seed")]
     public async Task<IActionResult> SeedDatabase()
     {
+        if (EnforceDevOnly() is { } r) return r;
         await _seeder.SeedAsync();
         return Ok(ApiResponse.SuccessResult("Database seeded successfully"));
     }
@@ -40,6 +50,7 @@ public class DevController : ControllerBase
     [HttpPost("login-as-admin")]
     public async Task<ActionResult<ApiResponse<AuthResponse>>> LoginAsAdmin()
     {
+        if (EnforceDevOnly() is { } r) return r;
         var adminUser = await _context.Users
             .FirstOrDefaultAsync(u => u.IsAdmin);
 
@@ -80,6 +91,7 @@ public class DevController : ControllerBase
     [HttpPost("login-as-user")]
     public async Task<ActionResult<ApiResponse<AuthResponse>>> LoginAsUser()
     {
+        if (EnforceDevOnly() is { } r) return r;
         var testUser = await _context.Users
             .FirstOrDefaultAsync(u => u.Email == "test@plpredictions.com");
 
@@ -120,6 +132,7 @@ public class DevController : ControllerBase
     [HttpGet("test-football-api")]
     public async Task<IActionResult> TestFootballApi([FromServices] Infrastructure.Services.IFootballDataService footballDataService)
     {
+        if (EnforceDevOnly() is { } r) return r;
         try
         {
             var teams = await footballDataService.GetTeamsAsync();
@@ -142,4 +155,3 @@ public class DevController : ControllerBase
         }
     }
 }
-#endif
