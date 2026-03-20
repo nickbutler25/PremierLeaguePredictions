@@ -1,0 +1,23 @@
+# Development image — built with Debug configuration so DevController (#if DEBUG) is included.
+# Used by the premierleague-api-dev Render service (develop branch).
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+COPY ["PremierLeaguePredictions.API/PremierLeaguePredictions.API.csproj", "PremierLeaguePredictions.API/"]
+COPY ["PremierLeaguePredictions.Application/PremierLeaguePredictions.Application.csproj", "PremierLeaguePredictions.Application/"]
+COPY ["PremierLeaguePredictions.Core/PremierLeaguePredictions.Core.csproj", "PremierLeaguePredictions.Core/"]
+COPY ["PremierLeaguePredictions.Infrastructure/PremierLeaguePredictions.Infrastructure.csproj", "PremierLeaguePredictions.Infrastructure/"]
+
+RUN dotnet restore "PremierLeaguePredictions.API/PremierLeaguePredictions.API.csproj"
+
+COPY . .
+
+WORKDIR "/src/PremierLeaguePredictions.API"
+RUN dotnet publish "PremierLeaguePredictions.API.csproj" -c Debug -o /app/publish /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+WORKDIR /app
+EXPOSE 8080
+COPY --from=build /app/publish .
+ENV ASPNETCORE_URLS=http://+:8080
+ENTRYPOINT ["dotnet", "PremierLeaguePredictions.API.dll"]
