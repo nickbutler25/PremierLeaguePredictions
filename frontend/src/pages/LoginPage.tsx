@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { authService } from '@/services/auth';
 import { apiClient } from '@/services/api';
 import { useState } from 'react';
-import type { AuthResponse } from '@/types';
+import type { ApiResponse, AuthResponse } from '@/types';
 
 export function LoginPage() {
   const { login } = useAuth();
@@ -42,8 +42,10 @@ export function LoginPage() {
     setError(null);
 
     try {
-      const response = await apiClient.post<AuthResponse>('/api/dev/login-as-admin');
-      await login(response.data);
+      const response = await apiClient.post<ApiResponse<AuthResponse>>(
+        '/api/v1/dev/login-as-admin'
+      );
+      await login(response.data.data!);
     } catch (err) {
       console.error('Dev login failed:', err);
       setError('Failed to login as admin. Please try again.');

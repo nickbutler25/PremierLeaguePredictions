@@ -1,12 +1,15 @@
 
 services:
-  # Backend API
+  # ─── Production ─────────────────────────────────────────────────────────────
+
+  # Backend API (production — main branch)
   - type: web
     name: premierleague-api
     runtime: docker
     region: oregon
     rootDir: backend
     dockerfilePath: ./Dockerfile
+    branch: main
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
@@ -39,3 +42,69 @@ services:
       - key: GitHub__PersonalAccessToken
         sync: false
     healthCheckPath: /health
+
+  # ─── Development ─────────────────────────────────────────────────────────────
+
+  # Backend API (dev — develop branch, Debug build so DevController is available)
+  - type: web
+    name: premierleague-api-dev
+    runtime: docker
+    region: oregon
+    rootDir: backend
+    dockerfilePath: ./Dockerfile.dev
+    branch: develop
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Development
+      - key: DisableAuthorizationInDevelopment
+        value: false
+      - key: RunMigrationsOnStartup
+        value: true
+      - key: ConnectionStrings__DefaultConnection
+        sync: false
+      - key: JWT__Secret
+        generateValue: true
+      - key: JWT__Issuer
+        value: PremierLeaguePredictions
+      - key: JWT__Audience
+        value: PremierLeaguePredictions
+      - key: JWT__ExpirationInMinutes
+        value: 43200
+      - key: Google__ClientId
+        sync: false
+      - key: FootballData__ApiKey
+        sync: false
+      - key: AllowedOrigins__0
+        sync: false
+      - key: ExternalSync__ApiKey
+        sync: false
+      - key: ApiBaseUrl
+        sync: false
+      - key: GitHub__Owner
+        value: nickbutler25
+      - key: GitHub__Repository
+        value: PremierLeaguePredictions
+      - key: GitHub__PersonalAccessToken
+        sync: false
+    healthCheckPath: /health
+
+  # Frontend (dev — develop branch)
+  - type: web
+    name: premierleague-frontend-dev
+    runtime: static
+    region: oregon
+    branch: develop
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_URL
+        sync: false
+      - key: VITE_ENABLE_DEV_LOGIN
+        value: true
+      - key: VITE_GOOGLE_CLIENT_ID
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

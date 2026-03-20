@@ -9,6 +9,9 @@ public class DbSeeder
     private readonly ApplicationDbContext _context;
     private readonly ILogger<DbSeeder> _logger;
 
+    // Dedicated E2E test season — separate from real production seasons
+    private const string E2eSeasonName = "E2E-TEST";
+
     public DbSeeder(ApplicationDbContext context, ILogger<DbSeeder> logger)
     {
         _context = context;
@@ -19,14 +22,10 @@ public class DbSeeder
     {
         try
         {
-            // Seed users
             await SeedUsersAsync();
-
-            // Seed teams
             await SeedTeamsAsync();
-
-            // Seed seasons and gameweeks
-            await SeedSeasonsAndGameweeksAsync();
+            await SeedE2eSeasonAsync();
+            await SeedSeasonParticipationsAsync();
 
             _logger.LogInformation("Database seeding completed successfully");
         }
@@ -39,7 +38,6 @@ public class DbSeeder
 
     private async Task SeedUsersAsync()
     {
-        // Check if admin user already exists
         var adminExists = await _context.Users.AnyAsync(u => u.IsAdmin);
 
         if (!adminExists)
@@ -62,7 +60,6 @@ public class DbSeeder
             _logger.LogInformation("Admin user created: {Email}", adminUser.Email);
         }
 
-        // Check if test user exists
         var testUserExists = await _context.Users.AnyAsync(u => u.Email == "test@plpredictions.com");
 
         if (!testUserExists)
@@ -88,7 +85,6 @@ public class DbSeeder
 
     private async Task SeedTeamsAsync()
     {
-        // Check if teams already exist
         var teamsExist = await _context.Teams.AnyAsync();
 
         if (!teamsExist)
@@ -112,52 +108,116 @@ public class DbSeeder
         }
     }
 
-    private async Task SeedSeasonsAndGameweeksAsync()
+    /// <summary>
+    /// Creates a dedicated E2E test season with rolling future gameweek deadlines.
+    /// Uses a fixed season name to avoid polluting production seasons.
+    /// IsActive = false so it doesn't conflict with the real active season.
+    /// Gameweek deadlines are always regenerated to be in the future so the
+    /// dashboard always has upcoming content regardless of when CI runs.
+    /// </summary>
+    private async Task SeedE2eSeasonAsync()
     {
-        // Check if current season exists
-        var currentSeasonName = $"{DateTime.UtcNow.Year}/{DateTime.UtcNow.Year + 1}";
-        var seasonExists = await _context.Seasons.AnyAsync(s => s.Name == currentSeasonName);
+        var now = DateTime.UtcNow;
+
+        var seasonExists = await _context.Seasons.AnyAsync(s => s.Name == E2eSeasonName);
 
         if (!seasonExists)
         {
             var season = new Season
             {
-                Name = currentSeasonName,
-                StartDate = new DateTime(DateTime.UtcNow.Year, 8, 1),
-                EndDate = new DateTime(DateTime.UtcNow.Year + 1, 5, 31),
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                Name = E2eSeasonName,
+                StartDate = now.Date,
+                EndDate = now.Date.AddYears(1),
+                IsActive = false, // Not a real active season — only used to provide future gameweeks
+                CreatedAt = now,
+                UpdatedAt = now
             };
 
             _context.Seasons.Add(season);
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Season created: {SeasonName}", season.Name);
+            _logger.LogInformation("E2E test season created: {SeasonName}", E2eSeasonName);
+        }
 
-            // Create gameweeks for the season
-            var gameweeks = new List<Gameweek>();
-            var startDate = season.StartDate;
+        // Ensure there are upcoming gameweeks with future deadlines.
+        // If none exist with a future deadline, add new ones (rolling forward).
+        var futureGameweeksExist = await _context.Gameweeks
+            .AnyAsync(g => g.SeasonId == E2eSeasonName && g.Deadline > now);
 
-            for (int i = 1; i <= 38; i++)
+        if (!futureGameweeksExist)
+        {
+            var maxWeekNumber = await _context.Gameweeks
+                .Where(g => g.SeasonId == E2eSeasonName)
+                .Select(g => (int?)g.WeekNumber)
+                .MaxAsync() ?? 0;
+
+            var newGameweeks = Enumerable.Range(1, 3).Select(i => new Gameweek
             {
-                var gameweek = new Gameweek
-                {
-                    SeasonId = season.Name, // Season.Name is the primary key
-                    WeekNumber = i,
-                    Deadline = startDate.AddDays((i - 1) * 7), // Weekly gameweeks
-                    IsLocked = false,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                };
+                SeasonId = E2eSeasonName,
+                WeekNumber = maxWeekNumber + i,
+                Deadline = now.AddDays(i * 7),
+                IsLocked = false,
+                CreatedAt = now,
+                UpdatedAt = now
+            }).ToList();
 
-                gameweeks.Add(gameweek);
-            }
-
-            _context.Gameweeks.AddRange(gameweeks);
+            _context.Gameweeks.AddRange(newGameweeks);
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Created {Count} gameweeks for season {SeasonName}", gameweeks.Count, season.Name);
+            _logger.LogInformation("Created {Count} upcoming E2E gameweeks (starting from week {Start})",
+                newGameweeks.Count, maxWeekNumber + 1);
         }
+    }
+
+    /// <summary>
+    /// Ensures both test users have approved season participation in:
+    /// 1. All currently active seasons (so DashboardService participation check passes)
+    /// 2. The E2E test season (so future gameweeks are accessible)
+    /// </summary>
+    private async Task SeedSeasonParticipationsAsync()
+    {
+        var now = DateTime.UtcNow;
+
+        var adminUser = await _context.Users.FirstOrDefaultAsync(u => u.IsAdmin);
+        var testUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == "test@plpredictions.com");
+
+        var usersToSeed = new[] { adminUser, testUser }.Where(u => u != null).ToList();
+
+        // Cover all active seasons (real ones) + the E2E test season
+        var activeSeasonIds = await _context.Seasons
+            .Where(s => s.IsActive)
+            .Select(s => s.Name)
+            .ToListAsync();
+
+        var seasonIds = activeSeasonIds.Union(new[] { E2eSeasonName }).ToList();
+
+        foreach (var user in usersToSeed)
+        {
+            foreach (var seasonId in seasonIds)
+            {
+                var participationExists = await _context.SeasonParticipations
+                    .AnyAsync(sp => sp.UserId == user!.Id && sp.SeasonId == seasonId);
+
+                if (!participationExists)
+                {
+                    _context.SeasonParticipations.Add(new SeasonParticipation
+                    {
+                        UserId = user!.Id,
+                        SeasonId = seasonId,
+                        IsApproved = true,
+                        RequestedAt = now,
+                        ApprovedAt = now,
+                        ApprovedByUserId = adminUser?.Id,
+                        CreatedAt = now,
+                        UpdatedAt = now
+                    });
+
+                    _logger.LogInformation("Created approved season participation for {Email} in {Season}",
+                        user.Email, seasonId);
+                }
+            }
+        }
+
+        await _context.SaveChangesAsync();
     }
 }

@@ -65,10 +65,6 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isAuthenticated || !token) {
-      // Disconnect if not authenticated
-      if (connection) {
-        connection.stop();
-      }
       return;
     }
 
@@ -110,11 +106,13 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
         setIsConnected(false);
       });
 
-    // Cleanup on unmount
+    // Cleanup on unmount or when auth changes
     return () => {
       newConnection.stop();
+      setConnection(null);
+      setIsConnected(false);
     };
-  }, [isAuthenticated, token, connection]);
+  }, [isAuthenticated, token]); // 'connection' intentionally excluded — including it caused an infinite reconnect loop
 
   const onSeasonApprovalUpdate = useCallback(
     (callback: (data: SeasonApprovalUpdateData) => void) => {

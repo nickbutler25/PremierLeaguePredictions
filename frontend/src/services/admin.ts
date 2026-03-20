@@ -1,4 +1,5 @@
 import { apiClient } from './api';
+import type { AxiosError } from 'axios';
 import type { ApiResponse } from '@/types';
 
 export interface Season {
@@ -69,8 +70,15 @@ export const adminService = {
   },
 
   async getActiveSeason() {
-    const response = await apiClient.get<ApiResponse<Season>>('/api/v1/admin/seasons/active');
-    return response.data.data!;
+    try {
+      const response = await apiClient.get<ApiResponse<Season>>('/api/v1/admin/seasons/active');
+      return response.data.data ?? null;
+    } catch (error) {
+      if ((error as AxiosError).response?.status === 404) {
+        return null;
+      }
+      throw error;
+    }
   },
 
   async createSeason(request: CreateSeasonRequest) {

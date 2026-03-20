@@ -24,6 +24,20 @@ async function globalSetup(config: FullConfig) {
   const context = await browser.newContext();
   const page = await context.newPage();
 
+  // Capture browser console errors for diagnostics
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') {
+      console.log('[BROWSER ERROR]', msg.text());
+    }
+  });
+
+  // Capture failed API responses for diagnostics
+  page.on('response', (response) => {
+    if (response.status() >= 400) {
+      console.log('[FAILED REQUEST]', response.status(), response.url());
+    }
+  });
+
   try {
     // Wait for dev server to be ready with retries
     let serverReady = false;
@@ -70,7 +84,6 @@ async function globalSetup(config: FullConfig) {
 
       const authData = await response.json();
       console.log('Dev login API successful');
-      console.log('Response data:', JSON.stringify(authData, null, 2));
 
       // IMPORTANT: The dev login endpoint returns the token in JSON but does NOT set
       // an httpOnly cookie (unlike the production Google login endpoint).
@@ -94,49 +107,32 @@ async function globalSetup(config: FullConfig) {
         },
       ]);
 
-      // Log current cookies to verify
-      const cookies = await context.cookies();
-      console.log('Cookies after setting auth_token:', JSON.stringify(cookies, null, 2));
+      // Verify auth directly via API call — do NOT rely on React rendering.
+      // The React app has multiple loading layers (AuthContext, ApprovalCheckRoute,
+      // DashboardPage) and any one of them showing a spinner results in an empty body
+      // with zero testids, making selector-based auth verification unreliable.
+      // Instead, verify the cookie works by calling /users/me through the Vite proxy.
+      // page.request sends the browser context's cookies, so auth_token is included.
+      console.log('Verifying auth via /api/v1/users/me...');
+      const meResponse = await page.request.get(`${baseURL}/api/v1/users/me`);
 
-      // Navigate to dashboard with the auth cookie
-      console.log('Navigating to dashboard...');
-      await page.goto(`${baseURL}/dashboard`, { waitUntil: 'networkidle', timeout: 30000 });
-      console.log('Navigation completed');
-
-      // Wait for the AuthContext to verify the cookie via /api/v1/users/me
-      // and for dashboard content to render
-      try {
-        await page.waitForSelector('[data-testid="dashboard-content"]', {
-          timeout: 20000,
-          state: 'visible',
-        });
-        console.log('Dashboard content is visible - authentication successful');
-
-        // Save the authenticated state (includes cookies)
-        await context.storageState({ path: authFile });
-        console.log('Auth state saved successfully to:', authFile);
-      } catch (error) {
-        // Debug: Check what's actually on the page
-        const url = page.url();
-        console.error('Dashboard content not found. Current URL:', url);
-
-        // Check if we got redirected to login
-        if (url.includes('/login')) {
-          console.error('Page redirected to login - authentication failed');
-          console.error('The backend cookie may not be recognized by the frontend');
-        }
-
-        // Try to get any error messages on the page
-        const bodyText = await page.locator('body').textContent();
-        console.error('Page content:', bodyText?.substring(0, 500));
-
-        throw error;
+      if (!meResponse.ok()) {
+        const meText = await meResponse.text();
+        console.error('/users/me returned', meResponse.status(), meText);
+        throw new Error(`Auth verification failed: /users/me returned ${meResponse.status()}`);
       }
+
+      const meData = await meResponse.json();
+      console.log('Auth verified. User:', meData.data?.email ?? meData.data?.id ?? '(no email)');
+
+      // Save the authenticated state (the auth_token cookie is the entire auth state)
+      await context.storageState({ path: authFile });
+      console.log('Auth state saved successfully to:', authFile);
     } catch (loginError) {
-      console.error('Authentication failed:', loginError.message);
+      console.error('Authentication setup failed:', (loginError as Error).message);
       console.error('Tests will run without authentication and will likely fail.');
 
-      // Create an empty auth file so tests don't crash
+      // Create an empty auth file so tests don't crash on missing file
       await context.storageState({ path: authFile });
     }
   } catch (error) {

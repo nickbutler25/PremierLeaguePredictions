@@ -50,6 +50,14 @@ public class DevController : ControllerBase
 
         var token = _tokenService.GenerateToken(adminUser);
 
+        Response.Cookies.Append("auth_token", token, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = false, // HTTP is acceptable for dev/test environments
+            SameSite = SameSiteMode.Lax,
+            Expires = DateTimeOffset.UtcNow.AddDays(1)
+        });
+
         var authResponse = new AuthResponse
         {
             Token = token,
@@ -81,6 +89,14 @@ public class DevController : ControllerBase
         }
 
         var token = _tokenService.GenerateToken(testUser);
+
+        Response.Cookies.Append("auth_token", token, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = false,
+            SameSite = SameSiteMode.Lax,
+            Expires = DateTimeOffset.UtcNow.AddDays(1)
+        });
 
         var authResponse = new AuthResponse
         {

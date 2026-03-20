@@ -16,12 +16,12 @@ const realPicksService = {
   },
 
   updatePick: async (_userId: string, pickId: string, pickData: PickSelection): Promise<Pick> => {
-    const response = await apiClient.put<ApiResponse<Pick>>(`/api/picks/${pickId}`, pickData);
+    const response = await apiClient.put<ApiResponse<Pick>>(`/api/v1/picks/${pickId}`, pickData);
     return response.data.data!;
   },
 
   deletePick: async (_userId: string, pickId: string): Promise<void> => {
-    await apiClient.delete(`/api/picks/${pickId}`);
+    await apiClient.delete(`/api/v1/picks/${pickId}`);
   },
 };
 
