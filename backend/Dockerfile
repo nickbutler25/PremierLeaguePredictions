@@ -21,6 +21,9 @@ RUN dotnet publish "PremierLeaguePredictions.API.csproj" -c Release -o /app/publ
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
+# Npgsql requires libgssapi-krb5-2 even when Kerberos auth is not used
+RUN apt-get update && apt-get install -y libgssapi-krb5-2 && rm -rf /var/lib/apt/lists/*
+
 # Expose the port that Render will use
 EXPOSE 8080
 
