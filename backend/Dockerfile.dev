@@ -17,6 +17,8 @@ RUN dotnet publish "PremierLeaguePredictions.API.csproj" -c Debug -o /app/publis
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
+# Npgsql requires libgssapi-krb5-2 even when Kerberos auth is not used
+RUN apt-get update && apt-get install -y libgssapi-krb5-2 && rm -rf /var/lib/apt/lists/*
 EXPOSE 8080
 COPY --from=build /app/publish .
 ENV ASPNETCORE_URLS=http://+:8080
