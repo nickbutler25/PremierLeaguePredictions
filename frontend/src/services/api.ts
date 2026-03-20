@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { AxiosInstance, AxiosError } from 'axios';
+import type { AxiosInstance, AxiosError, AxiosRequestConfig } from 'axios';
 import { API_URL } from '@/config/constants';
 
 class ApiClient {
@@ -29,23 +29,23 @@ class ApiClient {
     );
   }
 
-  public get<T>(url: string, config?: any) {
+  public get<T>(url: string, config?: AxiosRequestConfig) {
     return this.client.get<T>(url, config);
   }
 
-  public post<T>(url: string, data?: any, config?: any) {
+  public post<T>(url: string, data?: unknown, config?: AxiosRequestConfig) {
     return this.client.post<T>(url, data, config);
   }
 
-  public put<T>(url: string, data?: any, config?: any) {
+  public put<T>(url: string, data?: unknown, config?: AxiosRequestConfig) {
     return this.client.put<T>(url, data, config);
   }
 
-  public patch<T>(url: string, data?: any, config?: any) {
+  public patch<T>(url: string, data?: unknown, config?: AxiosRequestConfig) {
     return this.client.patch<T>(url, data, config);
   }
 
-  public delete<T>(url: string, config?: any) {
+  public delete<T>(url: string, config?: AxiosRequestConfig) {
     return this.client.delete<T>(url, config);
   }
 }

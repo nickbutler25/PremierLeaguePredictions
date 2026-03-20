@@ -230,7 +230,7 @@ const mockPlayers: StandingEntry[] = [
 ];
 
 // Simulate API delay
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export const mockLeagueService = {
   getStandings: async (): Promise<LeagueStandings> => {

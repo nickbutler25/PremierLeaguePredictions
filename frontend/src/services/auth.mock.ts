@@ -18,7 +18,7 @@ const mockUser = {
 const mockToken = 'mock-jwt-token-' + Math.random().toString(36).substring(7);
 
 // Simulate API delay
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export const mockAuthService = {
   login: async (googleToken: string): Promise<AuthResponse> => {

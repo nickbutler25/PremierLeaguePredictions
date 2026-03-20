@@ -87,7 +87,7 @@ logs
 *.log
 
 # Dependencies
-package-lock.json
+# Note: package-lock.json should be committed for consistent CI/CD
 yarn.lock
 
 # Testing

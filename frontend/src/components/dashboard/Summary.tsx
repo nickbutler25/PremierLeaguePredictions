@@ -22,55 +22,16 @@ export function Summary() {
     queryFn: () => leagueService.getStandings(),
   });
 
-  if (isLoading || !data) {
-    return (
-      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-        {[1, 2, 3, 4].map((i) => (
-          <Card key={i} className="py-2">
-            <CardHeader className="pb-2 pt-3">
-              <CardTitle className="text-xs font-medium">Loading...</CardTitle>
-            </CardHeader>
-            <CardContent className="pb-3">
-              <div className="text-lg font-bold">--</div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    );
-  }
-
-  const { user: userStats, upcomingGameweeks } = data;
-
-  // Check if current user is eliminated
-  const currentUserStanding = leagueData?.standings.find(s => s.userId === user?.id);
-  const isEliminated = currentUserStanding?.isEliminated || false;
-  const eliminatedInGameweek = currentUserStanding?.eliminatedInGameweek;
-
-  // Calculate active players count
-  const activePlayers = leagueData?.standings.filter(s => !s.isEliminated).length || 0;
-  const userPosition = currentUserStanding?.position;
-
-  // Helper function to add ordinal suffix (1st, 2nd, 3rd, etc.)
-  const getOrdinal = (n: number): string => {
-    const s = ['th', 'st', 'nd', 'rd'];
-    const v = n % 100;
-    return n + (s[(v - 20) % 10] || s[v] || s[0]);
-  };
-
-  const nextGameweek = upcomingGameweeks.length > 0 ? upcomingGameweeks[0] : null;
-  const isInProgress = nextGameweek?.status === 'InProgress';
-  const formattedDeadline = nextGameweek
-    ? new Date(nextGameweek.deadline).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-      })
-    : 'TBD';
-
-  // Calculate countdown to deadline
+  // Calculate countdown to deadline - must be before early return
   useEffect(() => {
+    if (!data || isLoading) return;
+
+    const upcomingGameweeks = data.upcomingGameweeks;
+    const nextGameweek = upcomingGameweeks.length > 0 ? upcomingGameweeks[0] : null;
+    const isInProgress = nextGameweek?.status === 'InProgress';
+
     if (!nextGameweek || isInProgress) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCountdown('');
       return;
     }
@@ -105,7 +66,53 @@ export function Summary() {
     const interval = setInterval(updateCountdown, 60000);
 
     return () => clearInterval(interval);
-  }, [nextGameweek, isInProgress]);
+  }, [data, isLoading]);
+
+  if (isLoading || !data) {
+    return (
+      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+        {[1, 2, 3, 4].map((i) => (
+          <Card key={i} className="py-2">
+            <CardHeader className="pb-2 pt-3">
+              <CardTitle className="text-xs font-medium">Loading...</CardTitle>
+            </CardHeader>
+            <CardContent className="pb-3">
+              <div className="text-lg font-bold">--</div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  const { user: userStats, upcomingGameweeks } = data;
+
+  // Check if current user is eliminated
+  const currentUserStanding = leagueData?.standings.find((s) => s.userId === user?.id);
+  const isEliminated = currentUserStanding?.isEliminated || false;
+  const eliminatedInGameweek = currentUserStanding?.eliminatedInGameweek;
+
+  // Calculate active players count
+  const activePlayers = leagueData?.standings.filter((s) => !s.isEliminated).length || 0;
+  const userPosition = currentUserStanding?.position;
+
+  // Helper function to add ordinal suffix (1st, 2nd, 3rd, etc.)
+  const getOrdinal = (n: number): string => {
+    const s = ['th', 'st', 'nd', 'rd'];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  };
+
+  const nextGameweek = upcomingGameweeks.length > 0 ? upcomingGameweeks[0] : null;
+  const isInProgress = nextGameweek?.status === 'InProgress';
+  const formattedDeadline = nextGameweek
+    ? new Date(nextGameweek.deadline).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      })
+    : 'TBD';
 
   return (
     <div className="space-y-3">
@@ -116,7 +123,8 @@ export function Summary() {
             <strong>⚠️ You have been eliminated from the competition.</strong>
             {eliminatedInGameweek && (
               <p className="mt-1">
-                You were eliminated after Gameweek {eliminatedInGameweek}. You can still view your picks and the league standings, but you cannot make new picks.
+                You were eliminated after Gameweek {eliminatedInGameweek}. You can still view your
+                picks and the league standings, but you cannot make new picks.
               </p>
             )}
           </AlertDescription>
@@ -137,7 +145,9 @@ export function Summary() {
               {isInProgress ? (
                 <span className="text-amber-600 dark:text-amber-400 font-medium">In Progress</span>
               ) : countdown ? (
-                <span className="text-blue-600 dark:text-blue-400 font-medium">{countdown} until deadline</span>
+                <span className="text-blue-600 dark:text-blue-400 font-medium">
+                  {countdown} until deadline
+                </span>
               ) : (
                 `Deadline: ${formattedDeadline}`
               )}
@@ -165,9 +175,7 @@ export function Summary() {
           </CardHeader>
           <CardContent className="pb-3">
             <div className="text-lg font-bold">{userStats.totalPoints}</div>
-            <p className="text-xs text-muted-foreground">
-              {userStats.totalPicks} picks made
-            </p>
+            <p className="text-xs text-muted-foreground">{userStats.totalPicks} picks made</p>
           </CardContent>
         </Card>
 

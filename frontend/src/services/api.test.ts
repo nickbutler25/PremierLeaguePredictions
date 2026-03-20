@@ -21,6 +21,7 @@ describe('API Service Endpoint Paths', () => {
         status: 200,
         statusText: 'OK',
         headers: {},
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         config: {} as any,
       });
 
@@ -32,36 +33,26 @@ describe('API Service Endpoint Paths', () => {
 
       // Test teams service
       await teamsService.getTeams();
-      expect(getSpy).toHaveBeenCalledWith(
-        expect.stringContaining('/api/v1/teams')
-      );
+      expect(getSpy).toHaveBeenCalledWith(expect.stringContaining('/api/v1/teams'));
 
       // Test gameweeks service
       getSpy.mockClear();
       await gameweeksService.getAllGameweeks();
-      expect(getSpy).toHaveBeenCalledWith(
-        expect.stringContaining('/api/v1/gameweeks')
-      );
+      expect(getSpy).toHaveBeenCalledWith(expect.stringContaining('/api/v1/gameweeks'));
 
       getSpy.mockClear();
       await gameweeksService.getCurrentGameweek();
-      expect(getSpy).toHaveBeenCalledWith(
-        expect.stringContaining('/api/v1/gameweeks/current')
-      );
+      expect(getSpy).toHaveBeenCalledWith(expect.stringContaining('/api/v1/gameweeks/current'));
 
       // Test fixtures service
       getSpy.mockClear();
       await fixturesService.getFixtures();
-      expect(getSpy).toHaveBeenCalledWith(
-        expect.stringContaining('/api/v1/fixtures')
-      );
+      expect(getSpy).toHaveBeenCalledWith(expect.stringContaining('/api/v1/fixtures'));
 
       // Test league service
       getSpy.mockClear();
       await leagueService.getStandings();
-      expect(getSpy).toHaveBeenCalledWith(
-        expect.stringContaining('/api/v1/league/standings')
-      );
+      expect(getSpy).toHaveBeenCalledWith(expect.stringContaining('/api/v1/league/standings'));
 
       getSpy.mockRestore();
     });
@@ -73,6 +64,7 @@ describe('API Service Endpoint Paths', () => {
         status: 200,
         statusText: 'OK',
         headers: {},
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         config: {} as any,
       });
 
@@ -81,9 +73,7 @@ describe('API Service Endpoint Paths', () => {
 
       // Should NOT call unversioned endpoint
       expect(getSpy).not.toHaveBeenCalledWith('/api/teams');
-      expect(getSpy).not.toHaveBeenCalledWith(
-        expect.stringMatching(/^\/api\/(?!v\d)/)
-      );
+      expect(getSpy).not.toHaveBeenCalledWith(expect.stringMatching(/^\/api\/(?!v\d)/));
 
       getSpy.mockRestore();
     });
@@ -97,6 +87,7 @@ describe('API Service Endpoint Paths', () => {
         status: 200,
         statusText: 'OK',
         headers: {},
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         config: {} as any,
       });
 
@@ -105,6 +96,7 @@ describe('API Service Endpoint Paths', () => {
         status: 200,
         statusText: 'OK',
         headers: {},
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         config: {} as any,
       });
 
@@ -112,21 +104,15 @@ describe('API Service Endpoint Paths', () => {
 
       // Test various admin endpoints
       await adminService.getSeasons();
-      expect(getSpy).toHaveBeenCalledWith(
-        expect.stringContaining('/api/v1/admin/seasons')
-      );
+      expect(getSpy).toHaveBeenCalledWith(expect.stringContaining('/api/v1/admin/seasons'));
 
       getSpy.mockClear();
       await adminService.getActiveSeason();
-      expect(getSpy).toHaveBeenCalledWith(
-        expect.stringContaining('/api/v1/admin/seasons/active')
-      );
+      expect(getSpy).toHaveBeenCalledWith(expect.stringContaining('/api/v1/admin/seasons/active'));
 
       getSpy.mockClear();
       await adminService.getTeamStatuses();
-      expect(getSpy).toHaveBeenCalledWith(
-        expect.stringContaining('/api/v1/admin/teams/status')
-      );
+      expect(getSpy).toHaveBeenCalledWith(expect.stringContaining('/api/v1/admin/teams/status'));
 
       postSpy.mockClear();
       await adminService.syncTeams();
@@ -148,6 +134,7 @@ describe('API Service Endpoint Paths', () => {
         status: 200,
         statusText: 'OK',
         headers: {},
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         config: {} as any,
       });
 
@@ -161,9 +148,7 @@ describe('API Service Endpoint Paths', () => {
 
       postSpy.mockClear();
       await authService.logout();
-      expect(postSpy).toHaveBeenCalledWith(
-        expect.stringContaining('/api/v1/auth/logout')
-      );
+      expect(postSpy).toHaveBeenCalledWith(expect.stringContaining('/api/v1/auth/logout'));
 
       postSpy.mockRestore();
     });
@@ -177,6 +162,7 @@ describe('API Service Endpoint Paths', () => {
         status: 200,
         statusText: 'OK',
         headers: {},
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         config: {} as any,
       });
 
@@ -185,15 +171,14 @@ describe('API Service Endpoint Paths', () => {
         status: 200,
         statusText: 'OK',
         headers: {},
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         config: {} as any,
       });
 
       const { picksService } = await import('./picks');
 
       await picksService.getPicks('user-id');
-      expect(getSpy).toHaveBeenCalledWith(
-        expect.stringContaining('/api/v1/picks')
-      );
+      expect(getSpy).toHaveBeenCalledWith(expect.stringContaining('/api/v1/picks'));
 
       postSpy.mockClear();
       await picksService.createPick('user-id', {
@@ -218,15 +203,14 @@ describe('API Service Endpoint Paths', () => {
         status: 200,
         statusText: 'OK',
         headers: {},
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         config: {} as any,
       });
 
       const { dashboardService } = await import('./dashboard');
 
       await dashboardService.getDashboard('user-id');
-      expect(getSpy).toHaveBeenCalledWith(
-        expect.stringContaining('/api/v1/dashboard')
-      );
+      expect(getSpy).toHaveBeenCalledWith(expect.stringContaining('/api/v1/dashboard'));
 
       getSpy.mockRestore();
     });
@@ -240,6 +224,7 @@ describe('API Service Endpoint Paths', () => {
         status: 200,
         statusText: 'OK',
         headers: {},
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         config: {} as any,
       });
 
@@ -248,6 +233,7 @@ describe('API Service Endpoint Paths', () => {
         status: 200,
         statusText: 'OK',
         headers: {},
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         config: {} as any,
       });
 
@@ -286,6 +272,7 @@ describe('API Service Endpoint Paths', () => {
         status: 200,
         statusText: 'OK',
         headers: {},
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         config: {} as any,
       });
 
@@ -294,6 +281,7 @@ describe('API Service Endpoint Paths', () => {
         status: 200,
         statusText: 'OK',
         headers: {},
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         config: {} as any,
       });
 
@@ -330,15 +318,14 @@ describe('API Service Endpoint Paths', () => {
         status: 200,
         statusText: 'OK',
         headers: {},
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         config: {} as any,
       });
 
       const { usersService } = await import('./users');
 
       await usersService.getUsers();
-      expect(getSpy).toHaveBeenCalledWith(
-        expect.stringContaining('/api/v1/users')
-      );
+      expect(getSpy).toHaveBeenCalledWith(expect.stringContaining('/api/v1/users'));
 
       getSpy.mockRestore();
     });

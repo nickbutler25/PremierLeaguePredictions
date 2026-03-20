@@ -9,7 +9,11 @@ export function useSeasonCreatedNotification() {
   const { toast } = useToast();
 
   useEffect(() => {
-    const handleSeasonCreated = (data: { seasonId: string; seasonName: string; message: string }) => {
+    const handleSeasonCreated = (data: {
+      seasonId: string;
+      seasonName: string;
+      message: string;
+    }) => {
       console.log('Season created notification received:', data);
 
       // Show toast notification

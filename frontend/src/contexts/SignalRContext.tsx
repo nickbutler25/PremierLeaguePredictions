@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import * as signalR from '@microsoft/signalr';
@@ -64,12 +65,6 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isAuthenticated || !token) {
-      // Disconnect if not authenticated
-      if (connection) {
-        connection.stop();
-        setConnection(null);
-        setIsConnected(false);
-      }
       return;
     }
 
@@ -81,18 +76,6 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
       .withAutomaticReconnect()
       .configureLogging(signalR.LogLevel.Information)
       .build();
-
-    // Start connection
-    newConnection
-      .start()
-      .then(() => {
-        console.log('SignalR Connected');
-        setIsConnected(true);
-      })
-      .catch((err) => {
-        console.error('SignalR Connection Error: ', err);
-        setIsConnected(false);
-      });
 
     // Handle reconnection
     newConnection.onreconnecting((error) => {
@@ -110,13 +93,26 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
       setIsConnected(false);
     });
 
-    setConnection(newConnection);
+    // Start connection
+    newConnection
+      .start()
+      .then(() => {
+        console.log('SignalR Connected');
+        setConnection(newConnection);
+        setIsConnected(true);
+      })
+      .catch((err) => {
+        console.error('SignalR Connection Error: ', err);
+        setIsConnected(false);
+      });
 
-    // Cleanup on unmount
+    // Cleanup on unmount or when auth changes
     return () => {
       newConnection.stop();
+      setConnection(null);
+      setIsConnected(false);
     };
-  }, [isAuthenticated, token]);
+  }, [isAuthenticated, token]); // 'connection' intentionally excluded — including it caused an infinite reconnect loop
 
   const onSeasonApprovalUpdate = useCallback(
     (callback: (data: SeasonApprovalUpdateData) => void) => {

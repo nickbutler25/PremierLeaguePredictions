@@ -31,27 +31,35 @@ export interface ProcessEliminationsResponse {
 export const eliminationService = {
   // Get all eliminations for a season
   async getSeasonEliminations(seasonId: string) {
-    const response = await apiClient.get<ApiResponse<UserElimination[]>>(`/api/v1/admin/eliminations/season/${encodeURIComponent(seasonId)}`);
+    const response = await apiClient.get<ApiResponse<UserElimination[]>>(
+      `/api/v1/admin/eliminations/season/${encodeURIComponent(seasonId)}`
+    );
     return response.data.data!;
   },
 
   // Get eliminations for a specific gameweek
   async getGameweekEliminations(seasonId: string, gameweekNumber: number) {
-    const response = await apiClient.get<ApiResponse<UserElimination[]>>(`/api/v1/admin/eliminations/gameweek/${encodeURIComponent(seasonId)}/${gameweekNumber}`);
+    const response = await apiClient.get<ApiResponse<UserElimination[]>>(
+      `/api/v1/admin/eliminations/gameweek/${encodeURIComponent(seasonId)}/${gameweekNumber}`
+    );
     return response.data.data!;
   },
 
   // Get elimination configuration for all gameweeks in a season
   async getEliminationConfigs(seasonId: string) {
-    const response = await apiClient.get<ApiResponse<EliminationConfig[]>>(`/api/v1/admin/eliminations/configs/${encodeURIComponent(seasonId)}`);
+    const response = await apiClient.get<ApiResponse<EliminationConfig[]>>(
+      `/api/v1/admin/eliminations/configs/${encodeURIComponent(seasonId)}`
+    );
     return response.data.data!;
   },
 
   // Update elimination count for a specific gameweek (not currently used - bulk update is preferred)
-  async updateGameweekEliminationCount(_gameweekId: string, _eliminationCount: number) {
+  async updateGameweekEliminationCount(gameweekId: string, eliminationCount: number) {
     // This would require a new backend endpoint that accepts gameweekId
     // For now, this is not used - the page uses bulkUpdateEliminationCounts instead
-    throw new Error('Single gameweek update not implemented - use bulkUpdateEliminationCounts');
+    throw new Error(
+      `Single gameweek update not implemented - use bulkUpdateEliminationCounts (gameweekId: ${gameweekId}, count: ${eliminationCount})`
+    );
   },
 
   // Bulk update elimination counts for multiple gameweeks

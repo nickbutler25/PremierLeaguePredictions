@@ -32,7 +32,7 @@ export function Fixtures() {
   const displayGameweek = selectedGameweek || currentGameweek;
 
   // Create a map of picks by gameweek number
-  const picksByGameweek = new Map<number, typeof picks[0]>();
+  const picksByGameweek = new Map<number, (typeof picks)[0]>();
   picks.forEach((pick) => {
     if (pick.gameweekNumber) {
       picksByGameweek.set(pick.gameweekNumber, pick);
@@ -87,7 +87,7 @@ export function Fixtures() {
     return date.toLocaleTimeString('en-US', {
       hour: 'numeric',
       minute: '2-digit',
-      hour12: true
+      hour12: true,
     });
   };
 
@@ -96,7 +96,7 @@ export function Fixtures() {
     return date.toLocaleDateString('en-US', {
       weekday: 'short',
       month: 'short',
-      day: 'numeric'
+      day: 'numeric',
     });
   };
 
@@ -181,7 +181,9 @@ export function Fixtures() {
                 >
                   <div className="flex items-center justify-between gap-2">
                     {/* Home Team */}
-                    <div className={`flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0 ${homeColor}`}>
+                    <div
+                      className={`flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0 ${homeColor}`}
+                    >
                       {fixture.homeTeam?.logoUrl && (
                         <img
                           src={fixture.homeTeam.logoUrl}
@@ -209,21 +211,29 @@ export function Fixtures() {
                         </div>
                       ) : fixture.status === 'PAUSED' ? (
                         <div className="text-xs">
-                          <div className="text-orange-600 dark:text-orange-400 font-semibold">HT</div>
+                          <div className="text-orange-600 dark:text-orange-400 font-semibold">
+                            HT
+                          </div>
                           <div className="font-bold">
                             {fixture.homeScore} - {fixture.awayScore}
                           </div>
                         </div>
                       ) : (
                         <div className="text-xs text-muted-foreground">
-                          <div className="hidden sm:block">{formatKickoffDate(fixture.kickoffTime)}</div>
-                          <div className="font-medium">{formatKickoffTime(fixture.kickoffTime)}</div>
+                          <div className="hidden sm:block">
+                            {formatKickoffDate(fixture.kickoffTime)}
+                          </div>
+                          <div className="font-medium">
+                            {formatKickoffTime(fixture.kickoffTime)}
+                          </div>
                         </div>
                       )}
                     </div>
 
                     {/* Away Team */}
-                    <div className={`flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0 justify-end ${awayColor}`}>
+                    <div
+                      className={`flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0 justify-end ${awayColor}`}
+                    >
                       <span className="text-xs sm:text-sm font-medium text-right truncate">
                         {fixture.awayTeam?.name}
                       </span>

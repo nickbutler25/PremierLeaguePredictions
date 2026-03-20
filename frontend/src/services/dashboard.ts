@@ -5,7 +5,7 @@ import type { DashboardData, ApiResponse } from '@/types';
 const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true';
 
 const realDashboardService = {
-  getDashboard: async (_userId: string): Promise<DashboardData> => {
+  getDashboard: async (): Promise<DashboardData> => {
     const response = await apiClient.get<ApiResponse<DashboardData>>('/api/v1/dashboard');
     return response.data.data!;
   },

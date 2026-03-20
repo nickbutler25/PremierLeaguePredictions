@@ -1,4 +1,5 @@
 import { apiClient } from './api';
+import type { AxiosError } from 'axios';
 import type { ApiResponse } from '@/types';
 
 export interface Season {
@@ -69,12 +70,22 @@ export const adminService = {
   },
 
   async getActiveSeason() {
-    const response = await apiClient.get<ApiResponse<Season>>('/api/v1/admin/seasons/active');
-    return response.data.data!;
+    try {
+      const response = await apiClient.get<ApiResponse<Season>>('/api/v1/admin/seasons/active');
+      return response.data.data ?? null;
+    } catch (error) {
+      if ((error as AxiosError).response?.status === 404) {
+        return null;
+      }
+      throw error;
+    }
   },
 
   async createSeason(request: CreateSeasonRequest) {
-    const response = await apiClient.post<ApiResponse<CreateSeasonResponse>>('/api/v1/admin/seasons', request);
+    const response = await apiClient.post<ApiResponse<CreateSeasonResponse>>(
+      '/api/v1/admin/seasons',
+      request
+    );
     return response.data.data!;
   },
 
@@ -90,44 +101,54 @@ export const adminService = {
 
   // Sync operations
   async syncTeams() {
-    const response = await apiClient.post<ApiResponse<{
-      message: string;
-      teamsCreated: number;
-      teamsUpdated: number;
-      totalActiveTeams: number;
-    }>>('/api/v1/admin/sync/teams');
+    const response = await apiClient.post<
+      ApiResponse<{
+        message: string;
+        teamsCreated: number;
+        teamsUpdated: number;
+        totalActiveTeams: number;
+      }>
+    >('/api/v1/admin/sync/teams');
     return response.data.data!;
   },
 
   async syncFixtures(season?: number) {
-    const url = season ? `/api/v1/admin/sync/fixtures?season=${season}` : '/api/v1/admin/sync/fixtures';
-    const response = await apiClient.post<ApiResponse<{
-      message: string;
-      fixturesCreated: number;
-      fixturesUpdated: number;
-      gameweeksCreated: number;
-    }>>(url);
+    const url = season
+      ? `/api/v1/admin/sync/fixtures?season=${season}`
+      : '/api/v1/admin/sync/fixtures';
+    const response = await apiClient.post<
+      ApiResponse<{
+        message: string;
+        fixturesCreated: number;
+        fixturesUpdated: number;
+        gameweeksCreated: number;
+      }>
+    >(url);
     return response.data.data!;
   },
 
   async syncResults() {
-    const response = await apiClient.post<ApiResponse<{
-      fixturesUpdated: number;
-      gameweeksProcessed: number;
-      picksRecalculated: number;
-      message: string;
-    }>>('/api/v1/admin/sync/results');
+    const response = await apiClient.post<
+      ApiResponse<{
+        fixturesUpdated: number;
+        gameweeksProcessed: number;
+        picksRecalculated: number;
+        message: string;
+      }>
+    >('/api/v1/admin/sync/results');
     return response.data.data!;
   },
 
   // Backfill picks
   async backfillPicks(userId: string, picks: Array<{ gameweekNumber: number; teamId: number }>) {
-    const response = await apiClient.post<ApiResponse<{
-      picksCreated: number;
-      picksUpdated: number;
-      picksSkipped: number;
-      message: string;
-    }>>('/api/v1/admin/picks/backfill', {
+    const response = await apiClient.post<
+      ApiResponse<{
+        picksCreated: number;
+        picksUpdated: number;
+        picksSkipped: number;
+        message: string;
+      }>
+    >('/api/v1/admin/picks/backfill', {
       userId,
       picks,
     });
@@ -136,17 +157,25 @@ export const adminService = {
 
   // Pick rules management
   async getPickRules(seasonId: string) {
-    const response = await apiClient.get<ApiResponse<PickRulesResponse>>(`/api/v1/admin/pick-rules/${encodeURIComponent(seasonId)}`);
+    const response = await apiClient.get<ApiResponse<PickRulesResponse>>(
+      `/api/v1/admin/pick-rules/${encodeURIComponent(seasonId)}`
+    );
     return response.data.data!;
   },
 
   async createPickRule(request: CreatePickRuleRequest) {
-    const response = await apiClient.post<ApiResponse<PickRuleDto>>('/api/v1/admin/pick-rules', request);
+    const response = await apiClient.post<ApiResponse<PickRuleDto>>(
+      '/api/v1/admin/pick-rules',
+      request
+    );
     return response.data.data!;
   },
 
   async updatePickRule(id: string, request: UpdatePickRuleRequest) {
-    const response = await apiClient.put<ApiResponse<PickRuleDto>>(`/api/v1/admin/pick-rules/${id}`, request);
+    const response = await apiClient.put<ApiResponse<PickRuleDto>>(
+      `/api/v1/admin/pick-rules/${id}`,
+      request
+    );
     return response.data.data!;
   },
 
@@ -155,7 +184,9 @@ export const adminService = {
   },
 
   async initializeDefaultPickRules(seasonId: string) {
-    const response = await apiClient.post<ApiResponse<PickRulesResponse>>(`/api/v1/admin/pick-rules/${encodeURIComponent(seasonId)}/initialize`);
+    const response = await apiClient.post<ApiResponse<PickRulesResponse>>(
+      `/api/v1/admin/pick-rules/${encodeURIComponent(seasonId)}/initialize`
+    );
     return response.data.data!;
   },
 };

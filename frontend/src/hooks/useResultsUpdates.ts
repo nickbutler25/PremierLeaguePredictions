@@ -4,7 +4,13 @@ import { useSignalR } from '@/contexts/SignalRContext';
 import type { ResultsUpdateData } from '@/contexts/SignalRContext';
 
 export function useResultsUpdates() {
-  const { onResultsUpdated, offResultsUpdated, subscribeToResults, unsubscribeFromResults, isConnected } = useSignalR();
+  const {
+    onResultsUpdated,
+    offResultsUpdated,
+    subscribeToResults,
+    unsubscribeFromResults,
+    isConnected,
+  } = useSignalR();
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -41,5 +47,12 @@ export function useResultsUpdates() {
       offResultsUpdated(handleResultsUpdated);
       unsubscribeFromResults();
     };
-  }, [isConnected, onResultsUpdated, offResultsUpdated, subscribeToResults, unsubscribeFromResults, queryClient]);
+  }, [
+    isConnected,
+    onResultsUpdated,
+    offResultsUpdated,
+    subscribeToResults,
+    unsubscribeFromResults,
+    queryClient,
+  ]);
 }

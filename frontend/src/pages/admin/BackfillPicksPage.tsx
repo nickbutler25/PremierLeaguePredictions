@@ -67,8 +67,28 @@ export function BackfillPicksPage() {
   const currentGameweek = gameweekQuery.data;
   const loadingGameweek = gameweekQuery.isLoading;
 
-  console.log('📊 Teams Query:', 'isLoading:', teamsQuery.isLoading, 'isFetching:', teamsQuery.isFetching, 'isSuccess:', teamsQuery.isSuccess, 'data:', teamsQuery.data);
-  console.log('📊 Users Query:', 'isLoading:', usersQuery.isLoading, 'isFetching:', usersQuery.isFetching, 'isSuccess:', usersQuery.isSuccess, 'data:', usersQuery.data);
+  console.log(
+    '📊 Teams Query:',
+    'isLoading:',
+    teamsQuery.isLoading,
+    'isFetching:',
+    teamsQuery.isFetching,
+    'isSuccess:',
+    teamsQuery.isSuccess,
+    'data:',
+    teamsQuery.data
+  );
+  console.log(
+    '📊 Users Query:',
+    'isLoading:',
+    usersQuery.isLoading,
+    'isFetching:',
+    usersQuery.isFetching,
+    'isSuccess:',
+    usersQuery.isSuccess,
+    'data:',
+    usersQuery.data
+  );
 
   useEffect(() => {
     if (currentGameweek) {
@@ -78,6 +98,7 @@ export function BackfillPicksPage() {
       for (let i = 1; i < currentGwNum; i++) {
         newPicks.push({ gameweekNumber: i, teamId: '' });
       }
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPicks(newPicks);
     }
   }, [currentGameweek]);
@@ -88,7 +109,7 @@ export function BackfillPicksPage() {
       usersLoading: loadingUsers,
       gameweekLoading: loadingGameweek,
       teamsDataLength: teams.length,
-      usersDataLength: users.length
+      usersDataLength: users.length,
     });
   }, [loadingTeams, loadingUsers, loadingGameweek, teams.length, users.length]);
 
@@ -116,8 +137,8 @@ export function BackfillPicksPage() {
       const userId = selectedUserId || user?.id;
       if (!userId) throw new Error('No user selected');
       const validPicks = picks
-        .filter(p => p.teamId !== '')
-        .map(p => ({ ...p, teamId: parseInt(p.teamId, 10) }));
+        .filter((p) => p.teamId !== '')
+        .map((p) => ({ ...p, teamId: parseInt(p.teamId, 10) }));
       return adminService.backfillPicks(userId, validPicks);
     },
     onSuccess: (response) => {
@@ -128,12 +149,17 @@ export function BackfillPicksPage() {
       });
       queryClient.invalidateQueries({ queryKey: ['picks'] });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       console.error('Backfill error:', error);
-      const errorMessage = error.response?.data?.message
-        || error.response?.data?.title
-        || error.message
-        || 'Failed to backfill picks';
+      const err = error as {
+        response?: { data?: { message?: string; title?: string } };
+        message?: string;
+      };
+      const errorMessage =
+        err.response?.data?.message ||
+        err.response?.data?.title ||
+        err.message ||
+        'Failed to backfill picks';
 
       toast({
         title: 'Error Backfilling Picks',
@@ -163,7 +189,7 @@ export function BackfillPicksPage() {
       return;
     }
 
-    const validPicks = picks.filter(p => p.teamId !== '');
+    const validPicks = picks.filter((p) => p.teamId !== '');
     if (validPicks.length === 0) {
       toast({
         title: 'Validation Error',
@@ -198,7 +224,9 @@ export function BackfillPicksPage() {
           <CardContent className="p-6">
             <div className="text-center text-red-600 dark:text-red-400">
               <p className="font-semibold">Error loading teams</p>
-              <p className="text-sm mt-2">{(teamsError as any)?.message || 'Failed to load teams'}</p>
+              <p className="text-sm mt-2">
+                {(teamsError as { message?: string })?.message || 'Failed to load teams'}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -213,7 +241,9 @@ export function BackfillPicksPage() {
           <CardContent className="p-6">
             <div className="text-center text-red-600 dark:text-red-400">
               <p className="font-semibold">Error loading users</p>
-              <p className="text-sm mt-2">{(usersError as any)?.message || 'Failed to load users'}</p>
+              <p className="text-sm mt-2">
+                {(usersError as { message?: string })?.message || 'Failed to load users'}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -223,12 +253,15 @@ export function BackfillPicksPage() {
 
   return (
     <div className="space-y-6">
-
       <Card>
         <CardHeader>
-          <CardTitle>Backfill Gameweeks 1-{currentGameweek ? currentGameweek.weekNumber - 1 : '...'}</CardTitle>
+          <CardTitle>
+            Backfill Gameweeks 1-{currentGameweek ? currentGameweek.weekNumber - 1 : '...'}
+          </CardTitle>
           <CardDescription>
-            Select your team picks for the first {currentGameweek ? currentGameweek.weekNumber - 1 : '...'} gameweeks. Points will be automatically calculated based on results.
+            Select your team picks for the first{' '}
+            {currentGameweek ? currentGameweek.weekNumber - 1 : '...'} gameweeks. Points will be
+            automatically calculated based on results.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -275,10 +308,7 @@ export function BackfillPicksPage() {
             </div>
 
             <div className="flex gap-2 pt-4">
-              <Button
-                type="submit"
-                disabled={backfillMutation.isPending}
-              >
+              <Button type="submit" disabled={backfillMutation.isPending}>
                 {backfillMutation.isPending ? 'Backfilling...' : 'Backfill Picks'}
               </Button>
             </div>

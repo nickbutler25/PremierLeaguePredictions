@@ -79,8 +79,13 @@ public class CronSchedulerService : ICronSchedulerService
                 f => f.SeasonId == gameweek.SeasonId && f.GameweekNumber == gameweek.WeekNumber,
                 cancellationToken);
 
+            // Include fixtures that:
+            // 1. Haven't started yet and kick off in next 7 days, OR
+            // 2. Are in progress (kicked off within last 2 hours)
+            var syncWindowStart = now.AddHours(-2); // Matches sync for 2h after kickoff
+
             var fixturesList = fixtures
-                .Where(f => f.KickoffTime >= now && f.KickoffTime <= nextWeek)
+                .Where(f => f.KickoffTime >= syncWindowStart && f.KickoffTime <= nextWeek)
                 .OrderBy(f => f.KickoffTime)
                 .ToList();
 

@@ -36,7 +36,7 @@ export function SeasonManagementPage() {
   const availableSeasons = Array.from({ length: currentSeasonYear - 2019 }, (_, i) => {
     const year = currentSeasonYear - i;
     return `${year}/${year + 1}`;
-  }).filter(seasonName => !seasons?.some(s => s.name === seasonName));
+  }).filter((seasonName) => !seasons?.some((s) => s.name === seasonName));
 
   const createSeasonMutation = useMutation({
     mutationFn: adminService.createSeason,
@@ -68,10 +68,12 @@ export function SeasonManagementPage() {
           title: 'Pick Rules Created',
           description: `Pick rules set: Teams ${maxTeamPicks}x, Opposition ${maxOppositionTargets}x per half`,
         });
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const err = error as { response?: { data?: { message?: string } }; message?: string };
         toast({
           title: 'Warning',
-          description: 'Season created but pick rules failed: ' + (error.response?.data?.message || error.message),
+          description:
+            'Season created but pick rules failed: ' + (err.response?.data?.message || err.message),
           variant: 'destructive',
         });
       }
@@ -85,10 +87,11 @@ export function SeasonManagementPage() {
       setMaxTeamPicks(1);
       setMaxOppositionTargets(1);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      const err = error as { response?: { data?: { message?: string } } };
       toast({
         title: 'Error',
-        description: error.response?.data?.message || 'Failed to create season',
+        description: err.response?.data?.message || 'Failed to create season',
         variant: 'destructive',
       });
     },
@@ -104,10 +107,11 @@ export function SeasonManagementPage() {
       });
       queryClient.invalidateQueries({ queryKey: ['admin', 'teams'] });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      const err = error as { response?: { data?: { message?: string } } };
       toast({
         title: 'Error',
-        description: error.response?.data?.message || 'Failed to update team status',
+        description: err.response?.data?.message || 'Failed to update team status',
         variant: 'destructive',
       });
     },
@@ -122,10 +126,11 @@ export function SeasonManagementPage() {
       });
       queryClient.invalidateQueries({ queryKey: ['admin', 'teams'] });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      const err = error as { response?: { data?: { message?: string } } };
       toast({
         title: 'Error',
-        description: error.response?.data?.message || 'Failed to sync teams',
+        description: err.response?.data?.message || 'Failed to sync teams',
         variant: 'destructive',
       });
     },
@@ -139,10 +144,11 @@ export function SeasonManagementPage() {
         description: `Fixtures Created: ${response.fixturesCreated}, Updated: ${response.fixturesUpdated}, Gameweeks Created: ${response.gameweeksCreated}`,
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      const err = error as { response?: { data?: { message?: string } } };
       toast({
         title: 'Error',
-        description: error.response?.data?.message || 'Failed to sync fixtures',
+        description: err.response?.data?.message || 'Failed to sync fixtures',
         variant: 'destructive',
       });
     },
@@ -160,10 +166,11 @@ export function SeasonManagementPage() {
       queryClient.invalidateQueries({ queryKey: ['fixtures'] });
       queryClient.invalidateQueries({ queryKey: ['picks'] });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      const err = error as { response?: { data?: { message?: string } } };
       toast({
         title: 'Error',
-        description: error.response?.data?.message || 'Failed to sync results',
+        description: err.response?.data?.message || 'Failed to sync results',
         variant: 'destructive',
       });
     },
@@ -253,7 +260,8 @@ export function SeasonManagementPage() {
               <div className="border-t pt-4 space-y-4">
                 <h3 className="font-medium">Pick Rules (First Half)</h3>
                 <p className="text-sm text-muted-foreground">
-                  These rules will apply to both halves of the season. You can modify the second half rules later if needed.
+                  These rules will apply to both halves of the season. You can modify the second
+                  half rules later if needed.
                 </p>
 
                 <div className="space-y-2">
@@ -272,7 +280,9 @@ export function SeasonManagementPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="maxOppositionTargets">Max times an opposition can be targeted per half</Label>
+                  <Label htmlFor="maxOppositionTargets">
+                    Max times an opposition can be targeted per half
+                  </Label>
                   <Input
                     id="maxOppositionTargets"
                     type="number"
@@ -288,10 +298,7 @@ export function SeasonManagementPage() {
               </div>
 
               <div className="flex gap-2">
-                <Button
-                  onClick={handleCreateSeason}
-                  disabled={!selectedSeasonName}
-                >
+                <Button onClick={handleCreateSeason} disabled={!selectedSeasonName}>
                   Create Season
                 </Button>
                 <Button
@@ -375,7 +382,9 @@ export function SeasonManagementPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {(syncTeamsMutation.isPending || syncFixturesMutation.isPending || syncResultsMutation.isPending) ? (
+          {syncTeamsMutation.isPending ||
+          syncFixturesMutation.isPending ||
+          syncResultsMutation.isPending ? (
             <div className="flex flex-col items-center justify-center p-8 space-y-4">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
               <div className="text-center">
@@ -432,7 +441,8 @@ export function SeasonManagementPage() {
                 </p>
               </div>
               <p className="text-sm text-muted-foreground">
-                Sync teams first, then sync fixtures. Gameweeks will be created automatically. Use "Sync Results" after games finish to update scores.
+                Sync teams first, then sync fixtures. Gameweeks will be created automatically. Use
+                "Sync Results" after games finish to update scores.
               </p>
             </>
           )}
@@ -444,7 +454,8 @@ export function SeasonManagementPage() {
         <CardHeader>
           <CardTitle>Team Status</CardTitle>
           <CardDescription>
-            Manage which teams are active. When creating a new season, mark relegated teams as inactive before syncing fixtures.
+            Manage which teams are active. When creating a new season, mark relegated teams as
+            inactive before syncing fixtures.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -458,9 +469,7 @@ export function SeasonManagementPage() {
                   className="flex items-center justify-between p-3 border rounded-lg"
                 >
                   <div className="flex items-center gap-2">
-                    {team.logoUrl && (
-                      <img src={team.logoUrl} alt={team.name} className="w-6 h-6" />
-                    )}
+                    {team.logoUrl && <img src={team.logoUrl} alt={team.name} className="w-6 h-6" />}
                     <span className="text-sm font-medium">{team.name}</span>
                   </div>
                   <Button
