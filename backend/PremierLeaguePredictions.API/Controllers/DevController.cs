@@ -34,7 +34,7 @@ public class DevController : ControllerBase
 
     private IActionResult? EnforceDevOnly()
     {
-        if (!_env.IsDevelopment())
+        if (!_env.IsDevelopment() && !_env.IsEnvironment("Testing"))
             return NotFound();
         return null;
     }
