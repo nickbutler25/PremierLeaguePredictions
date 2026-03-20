@@ -48,7 +48,7 @@ public class DevController : ControllerBase
     }
 
     [HttpPost("login-as-admin")]
-    public async Task<ActionResult<ApiResponse<AuthResponse>>> LoginAsAdmin()
+    public async Task<IActionResult> LoginAsAdmin()
     {
         if (EnforceDevOnly() is { } r) return r;
         var adminUser = await _context.Users
@@ -89,7 +89,7 @@ public class DevController : ControllerBase
     }
 
     [HttpPost("login-as-user")]
-    public async Task<ActionResult<ApiResponse<AuthResponse>>> LoginAsUser()
+    public async Task<IActionResult> LoginAsUser()
     {
         if (EnforceDevOnly() is { } r) return r;
         var testUser = await _context.Users
