@@ -39,6 +39,16 @@ public class DevController : ControllerBase
         return null;
     }
 
+    // Development (Render dev) is cross-site with the Vercel frontend, so SameSite=None; Secure=true is required.
+    // Testing (CI, localhost HTTP) is same-site, so Lax + not-secure is fine.
+    private CookieOptions DevCookieOptions() => new CookieOptions
+    {
+        HttpOnly = true,
+        Secure = _env.IsDevelopment(),
+        SameSite = _env.IsDevelopment() ? SameSiteMode.None : SameSiteMode.Lax,
+        Expires = DateTimeOffset.UtcNow.AddDays(1)
+    };
+
     [HttpPost("seed")]
     public async Task<IActionResult> SeedDatabase()
     {
@@ -61,13 +71,7 @@ public class DevController : ControllerBase
 
         var token = _tokenService.GenerateToken(adminUser);
 
-        Response.Cookies.Append("auth_token", token, new CookieOptions
-        {
-            HttpOnly = true,
-            Secure = false, // HTTP is acceptable for dev/test environments
-            SameSite = SameSiteMode.Lax,
-            Expires = DateTimeOffset.UtcNow.AddDays(1)
-        });
+        Response.Cookies.Append("auth_token", token, DevCookieOptions());
 
         var authResponse = new AuthResponse
         {
@@ -102,13 +106,7 @@ public class DevController : ControllerBase
 
         var token = _tokenService.GenerateToken(testUser);
 
-        Response.Cookies.Append("auth_token", token, new CookieOptions
-        {
-            HttpOnly = true,
-            Secure = false,
-            SameSite = SameSiteMode.Lax,
-            Expires = DateTimeOffset.UtcNow.AddDays(1)
-        });
+        Response.Cookies.Append("auth_token", token, DevCookieOptions());
 
         var authResponse = new AuthResponse
         {
