@@ -17,17 +17,20 @@ public class AuthController : ControllerBase
     private readonly ITokenService _tokenService;
     private readonly IGoogleAuthService _googleAuthService;
     private readonly ILogger<AuthController> _logger;
+    private readonly IWebHostEnvironment _env;
 
     public AuthController(
         ApplicationDbContext context,
         ITokenService tokenService,
         IGoogleAuthService googleAuthService,
-        ILogger<AuthController> logger)
+        ILogger<AuthController> logger,
+        IWebHostEnvironment env)
     {
         _context = context;
         _tokenService = tokenService;
         _googleAuthService = googleAuthService;
         _logger = logger;
+        _env = env;
     }
 
     [HttpPost("login")]
@@ -107,16 +110,7 @@ public class AuthController : ControllerBase
             // Generate JWT token
             var token = _tokenService.GenerateToken(user);
 
-            // Set token in HTTP-only cookie
-            var cookieOptions = new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true, // Requires HTTPS
-                SameSite = SameSiteMode.Lax, // Lax works better with Safari/iOS while still providing security
-                Domain = GetCookieDomain(), // Set domain to allow subdomain sharing
-                Expires = DateTimeOffset.UtcNow.AddDays(1)
-            };
-            Response.Cookies.Append("auth_token", token, cookieOptions);
+            Response.Cookies.Append("auth_token", token, GetCookieOptions());
 
             var authResponse = new AuthResponse
             {
@@ -180,16 +174,7 @@ public class AuthController : ControllerBase
             // Generate JWT token
             var token = _tokenService.GenerateToken(user);
 
-            // Set token in HTTP-only cookie
-            var cookieOptions = new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true, // Requires HTTPS
-                SameSite = SameSiteMode.Lax, // Lax works better with Safari/iOS while still providing security
-                Domain = GetCookieDomain(), // Set domain to allow subdomain sharing
-                Expires = DateTimeOffset.UtcNow.AddDays(1)
-            };
-            Response.Cookies.Append("auth_token", token, cookieOptions);
+            Response.Cookies.Append("auth_token", token, GetCookieOptions());
 
             var authResponse = new AuthResponse
             {
@@ -219,37 +204,36 @@ public class AuthController : ControllerBase
     [HttpPost("logout")]
     public IActionResult Logout()
     {
-        // Clear the auth cookie with same options as when it was set
-        var cookieOptions = new CookieOptions
+        Response.Cookies.Append("auth_token", "", GetCookieOptions(expired: true));
+        return Ok(ApiResponse.SuccessResult("Logged out successfully"));
+    }
+
+    private CookieOptions GetCookieOptions(bool expired = false)
+    {
+        // Cross-site dev environment (vercel.app ↔ onrender.com) requires SameSite=None; Secure=true.
+        // Testing (CI, localhost) uses Lax + not-secure because it is same-site HTTP.
+        // Production uses Lax + secure because API and frontend share the eplpredict.com domain.
+        var isCrossSiteDev = _env.IsDevelopment();
+        return new CookieOptions
         {
             HttpOnly = true,
-            Secure = true,
-            SameSite = SameSiteMode.Lax,
-            Domain = GetCookieDomain(),
-            Expires = DateTimeOffset.UtcNow.AddDays(-1) // Expire in the past
+            Secure = isCrossSiteDev ? true : !_env.IsEnvironment("Testing"),
+            SameSite = isCrossSiteDev ? SameSiteMode.None : SameSiteMode.Lax,
+            Domain = isCrossSiteDev ? null : GetCookieDomain(),
+            Expires = expired
+                ? DateTimeOffset.UtcNow.AddDays(-1)
+                : DateTimeOffset.UtcNow.AddDays(1)
         };
-        Response.Cookies.Append("auth_token", "", cookieOptions);
-        return Ok(ApiResponse.SuccessResult("Logged out successfully"));
     }
 
     private string? GetCookieDomain()
     {
-        // Get the host from the request
         var host = Request.Host.Host;
-
-        // For localhost, don't set domain
         if (host == "localhost" || host == "127.0.0.1")
             return null;
-
-        // For production, extract root domain to share cookies across subdomains
-        // e.g., api.plpredictions.com -> .plpredictions.com
         var parts = host.Split('.');
         if (parts.Length >= 2)
-        {
-            // Return the root domain with leading dot to allow subdomains
             return $".{parts[^2]}.{parts[^1]}";
-        }
-
         return null;
     }
 }

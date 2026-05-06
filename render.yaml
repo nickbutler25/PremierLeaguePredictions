@@ -88,23 +88,4 @@ services:
         sync: false
     healthCheckPath: /health
 
-  # Frontend (dev — develop branch)
-  - type: web
-    name: premierleague-frontend-dev
-    runtime: static
-    region: oregon
-    branch: develop
-    rootDir: frontend
-    buildCommand: npm ci && npm run build
-    staticPublishPath: ./dist
-    envVars:
-      - key: VITE_API_URL
-        sync: false
-      - key: VITE_ENABLE_DEV_LOGIN
-        value: true
-      - key: VITE_GOOGLE_CLIENT_ID
-        sync: false
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
+  # Frontend (dev) is hosted on Vercel — see the premierleague-frontend-dev Vercel project (develop branch)

@@ -1,4 +1,4 @@
-# Development image — built with Debug configuration so DevController (#if DEBUG) is included.
+# Development image — Release build with runtime environment guard on DevController.
 # Used by the premierleague-api-dev Render service (develop branch).
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
@@ -13,7 +13,7 @@ RUN dotnet restore "PremierLeaguePredictions.API/PremierLeaguePredictions.API.cs
 COPY . .
 
 WORKDIR "/src/PremierLeaguePredictions.API"
-RUN dotnet publish "PremierLeaguePredictions.API.csproj" -c Debug -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "PremierLeaguePredictions.API.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
