@@ -6,17 +6,8 @@ interface TeamNameProps {
   className?: string;
 }
 
-/**
- * Renders a team name that adapts to its actual available width:
- *   < 60px   → code       (e.g. "BHA")
- *   < 180px  → mediumName (e.g. "Brighton")
- *   >= 180px → name       (e.g. "Brighton & Hove Albion")
- *
- * Uses ResizeObserver on the span itself. The span uses flex-1 so its width
- * is determined by available space (not text content), preventing feedback loops.
- */
 export function TeamName({ team, className }: TeamNameProps) {
-  const ref = useRef<HTMLSpanElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(999);
 
   useEffect(() => {
@@ -39,8 +30,8 @@ export function TeamName({ team, className }: TeamNameProps) {
   }
 
   return (
-    <span ref={ref} className={`flex-1 min-w-0 ${className ?? ''}`}>
+    <div ref={ref} className={`flex-1 min-w-0 overflow-hidden whitespace-nowrap ${className ?? ''}`}>
       {displayName}
-    </span>
+    </div>
   );
 }

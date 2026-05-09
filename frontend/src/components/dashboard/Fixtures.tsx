@@ -195,7 +195,7 @@ export function Fixtures() {
                       {fixture.homeTeam && (
                         <TeamName
                           team={fixture.homeTeam}
-                          className="text-xs sm:text-sm font-medium truncate"
+                          className="text-xs sm:text-sm font-medium"
                         />
                       )}
                     </div>
@@ -241,7 +241,7 @@ export function Fixtures() {
                       {fixture.awayTeam && (
                         <TeamName
                           team={fixture.awayTeam}
-                          className="text-xs sm:text-sm font-medium text-right truncate"
+                          className="text-xs sm:text-sm font-medium text-right"
                         />
                       )}
                       {fixture.awayTeam?.logoUrl && (
