@@ -45,10 +45,16 @@ public class FixtureSyncService : IFixtureSyncService
                 // Update existing team
                 var hasChanges = false;
                 var cleanedName = CleanTeamName(externalTeam.Name);
+                var cleanedMediumName = CleanTeamName(externalTeam.ShortName);
 
                 if (existingTeam.Name != cleanedName)
                 {
                     existingTeam.Name = cleanedName;
+                    hasChanges = true;
+                }
+                if (!string.IsNullOrEmpty(cleanedMediumName) && existingTeam.MediumName != cleanedMediumName)
+                {
+                    existingTeam.MediumName = cleanedMediumName;
                     hasChanges = true;
                 }
                 if (externalTeam.Tla != null && existingTeam.Code != externalTeam.Tla)
@@ -76,6 +82,7 @@ public class FixtureSyncService : IFixtureSyncService
                 {
                     ExternalId = externalTeam.Id,
                     Name = CleanTeamName(externalTeam.Name),
+                    MediumName = CleanTeamName(externalTeam.ShortName),
                     Code = externalTeam.Tla,
                     LogoUrl = externalTeam.Crest,
                     IsActive = true, // New teams are active by default
