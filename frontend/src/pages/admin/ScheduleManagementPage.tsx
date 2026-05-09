@@ -38,18 +38,16 @@ export function ScheduleManagementPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Reads all upcoming fixtures and deadlines, then creates or replaces jobs on cron-job.org.
-            Run this now to cover the current gameweek, or set up a master cron job to call{' '}
+            Reads all upcoming fixtures and deadlines, then creates or replaces jobs on
+            cron-job.org. Run this now to cover the current gameweek, or set up a master cron job to
+            call{' '}
             <code className="bg-muted px-1 py-0.5 rounded text-xs">
               POST /api/v1/admin/schedule/generate
             </code>{' '}
             every Monday at 09:00 UTC for hands-free scheduling.
           </p>
 
-          <Button
-            onClick={() => generateMutation.mutate()}
-            disabled={generateMutation.isPending}
-          >
+          <Button onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending}>
             {generateMutation.isPending ? 'Generating…' : 'Generate Weekly Schedule'}
           </Button>
 

@@ -87,9 +87,15 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                 <TableHead className="text-center w-12">D</TableHead>
                 <TableHead className="text-center w-12">L</TableHead>
                 <TableHead className="text-center w-16 font-bold">PT</TableHead>
-                {!compact && <TableHead className="text-center w-16 hidden md:table-cell">GF</TableHead>}
-                {!compact && <TableHead className="text-center w-16 hidden md:table-cell">GA</TableHead>}
-                {!compact && <TableHead className="text-center w-16 hidden lg:table-cell">GD</TableHead>}
+                {!compact && (
+                  <TableHead className="text-center w-16 hidden md:table-cell">GF</TableHead>
+                )}
+                {!compact && (
+                  <TableHead className="text-center w-16 hidden md:table-cell">GA</TableHead>
+                )}
+                {!compact && (
+                  <TableHead className="text-center w-16 hidden lg:table-cell">GD</TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>

@@ -30,7 +30,10 @@ export function TeamName({ team, className }: TeamNameProps) {
   }
 
   return (
-    <div ref={ref} className={`flex-1 min-w-0 overflow-hidden whitespace-nowrap ${className ?? ''}`}>
+    <div
+      ref={ref}
+      className={`flex-1 min-w-0 overflow-hidden whitespace-nowrap ${className ?? ''}`}
+    >
       {displayName}
     </div>
   );
