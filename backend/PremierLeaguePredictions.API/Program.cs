@@ -290,10 +290,10 @@ builder.Services.AddScoped<IResultsService>(sp =>
     return new ResultsService(unitOfWork, footballDataService, adminService, eliminationService, (IHubContext<Hub>)(object)hubContext, logger);
 });
 
-// Register Cron Scheduler services (replaces background services)
+// Register Cron Scheduler services
 builder.Services.AddScoped<ICronSchedulerService, CronSchedulerService>();
-builder.Services.AddScoped<IGitHubWorkflowService, GitHubWorkflowService>();
-builder.Services.AddHttpClient<GitHubApiClient>();
+builder.Services.AddScoped<ICronJobsOrgService, CronJobsOrgService>();
+builder.Services.AddHttpClient<CronJobsOrgClient>();
 
 // Add SignalR
 builder.Services.AddSignalR();
