@@ -28,11 +28,16 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function ApprovalCheckRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { needsApproval, isLoading, isApiDown } = useSeasonApproval();
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Admins are never subject to season approval checks
+  if (user?.isAdmin) {
+    return <>{children}</>;
   }
 
   if (isLoading) {
