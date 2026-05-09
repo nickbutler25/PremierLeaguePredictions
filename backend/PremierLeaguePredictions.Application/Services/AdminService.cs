@@ -207,7 +207,7 @@ public class AdminService : IAdminService
             {
                 Id = t.Id,
                 Name = t.Name,
-                ShortName = t.ShortName,
+                Code = t.Code,
                 LogoUrl = t.LogoUrl,
                 IsActive = t.IsActive
             });

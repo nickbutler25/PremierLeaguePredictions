@@ -8,7 +8,7 @@ interface TeamNameProps {
 
 /**
  * Renders a team name that adapts to its actual available width:
- *   < 60px   → shortName  (e.g. "BHA")
+ *   < 60px   → code       (e.g. "BHA")
  *   < 180px  → mediumName (e.g. "Brighton")
  *   >= 180px → name       (e.g. "Brighton & Hove Albion")
  *
@@ -31,7 +31,7 @@ export function TeamName({ team, className }: TeamNameProps) {
 
   let displayName: string;
   if (width < 60) {
-    displayName = team.shortName ?? team.name;
+    displayName = team.code ?? team.name;
   } else if (width < 180) {
     displayName = team.mediumName ?? team.name;
   } else {

@@ -30,7 +30,7 @@ export interface CreateSeasonResponse {
 export interface TeamStatus {
   id: number;
   name: string;
-  shortName?: string;
+  code?: string;
   logoUrl?: string;
   isActive: boolean;
 }

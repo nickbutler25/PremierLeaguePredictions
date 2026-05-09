@@ -9,16 +9,16 @@ const API_BASE = '/api/v1';
 // Helper to generate fixtures for a gameweek
 const generateFixtures = (seasonId: string, gameweekNumber: number) => {
   const teams = [
-    { id: 1, name: 'Arsenal', shortName: 'ARS' },
-    { id: 2, name: 'Liverpool', shortName: 'LIV' },
-    { id: 3, name: 'Manchester City', shortName: 'MCI' },
-    { id: 4, name: 'Chelsea', shortName: 'CHE' },
-    { id: 5, name: 'Tottenham', shortName: 'TOT' },
-    { id: 6, name: 'Manchester United', shortName: 'MUN' },
-    { id: 7, name: 'Newcastle', shortName: 'NEW' },
-    { id: 8, name: 'Brighton', shortName: 'BRI' },
-    { id: 9, name: 'Aston Villa', shortName: 'AVL' },
-    { id: 10, name: 'West Ham', shortName: 'WHU' },
+    { id: 1, name: 'Arsenal', code: 'ARS' },
+    { id: 2, name: 'Liverpool', code: 'LIV' },
+    { id: 3, name: 'Manchester City', code: 'MCI' },
+    { id: 4, name: 'Chelsea', code: 'CHE' },
+    { id: 5, name: 'Tottenham', code: 'TOT' },
+    { id: 6, name: 'Manchester United', code: 'MUN' },
+    { id: 7, name: 'Newcastle', code: 'NEW' },
+    { id: 8, name: 'Brighton', code: 'BHA' },
+    { id: 9, name: 'Aston Villa', code: 'AVL' },
+    { id: 10, name: 'West Ham', code: 'WHU' },
   ];
 
   const fixtures = [];
@@ -39,13 +39,13 @@ const generateFixtures = (seasonId: string, gameweekNumber: number) => {
       awayTeamId: awayTeam.id,
       homeTeam: {
         ...homeTeam,
-        logoUrl: `https://example.com/${homeTeam.shortName.toLowerCase()}.png`,
+        logoUrl: `https://example.com/${(homeTeam.code ?? homeTeam.name).toLowerCase()}.png`,
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
       },
       awayTeam: {
         ...awayTeam,
-        logoUrl: `https://example.com/${awayTeam.shortName.toLowerCase()}.png`,
+        logoUrl: `https://example.com/${(awayTeam.code ?? awayTeam.name).toLowerCase()}.png`,
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
       },

@@ -33,7 +33,6 @@ const mockDashboardData: DashboardData = {
       team: {
         id: 1,
         name: 'Manchester City',
-        shortName: 'MCI',
         code: 'MCI',
         logoUrl: 'https://resources.premierleague.com/premierleague/badges/t43.svg',
         createdAt: new Date().toISOString(),
@@ -55,7 +54,6 @@ const mockDashboardData: DashboardData = {
       team: {
         id: 2,
         name: 'Arsenal',
-        shortName: 'ARS',
         code: 'ARS',
         logoUrl: 'https://resources.premierleague.com/premierleague/badges/t3.svg',
         createdAt: new Date().toISOString(),
@@ -77,7 +75,6 @@ const mockDashboardData: DashboardData = {
       team: {
         id: 3,
         name: 'Liverpool',
-        shortName: 'LIV',
         code: 'LIV',
         logoUrl: 'https://resources.premierleague.com/premierleague/badges/t14.svg',
         createdAt: new Date().toISOString(),

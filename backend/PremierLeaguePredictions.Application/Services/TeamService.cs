@@ -59,7 +59,6 @@ public class TeamService : ITeamService
         var team = new Team
         {
             Name = request.Name,
-            ShortName = request.ShortName,
             LogoUrl = request.LogoUrl,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -81,7 +80,6 @@ public class TeamService : ITeamService
         if (team == null) throw new KeyNotFoundException("Team not found");
 
         team.Name = request.Name;
-        team.ShortName = request.ShortName;
         team.LogoUrl = request.LogoUrl;
         team.UpdatedAt = DateTime.UtcNow;
 
@@ -114,7 +112,7 @@ public class TeamService : ITeamService
         Id = team.Id,
         Name = team.Name,
         MediumName = team.MediumName,
-        ShortName = team.ShortName,
+        Code = team.Code,
         LogoUrl = team.LogoUrl
     };
 }

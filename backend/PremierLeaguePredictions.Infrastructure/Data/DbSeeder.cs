@@ -91,14 +91,14 @@ public class DbSeeder
         {
             var teams = new[]
             {
-                new Team { Name = "Arsenal", ShortName = "Arsenal", Code = "ARS", ExternalId = 57, LogoUrl = "https://resources.premierleague.com/premierleague/badges/50/t3.png", IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
-                new Team { Name = "Aston Villa", ShortName = "Aston Villa", Code = "AVL", ExternalId = 58, LogoUrl = "https://resources.premierleague.com/premierleague/badges/50/t7.png", IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
-                new Team { Name = "Chelsea", ShortName = "Chelsea", Code = "CHE", ExternalId = 61, LogoUrl = "https://resources.premierleague.com/premierleague/badges/50/t8.png", IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
-                new Team { Name = "Liverpool", ShortName = "Liverpool", Code = "LIV", ExternalId = 64, LogoUrl = "https://resources.premierleague.com/premierleague/badges/50/t14.png", IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
-                new Team { Name = "Manchester City", ShortName = "Man City", Code = "MCI", ExternalId = 65, LogoUrl = "https://resources.premierleague.com/premierleague/badges/50/t43.png", IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
-                new Team { Name = "Manchester United", ShortName = "Man United", Code = "MUN", ExternalId = 66, LogoUrl = "https://resources.premierleague.com/premierleague/badges/50/t1.png", IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
-                new Team { Name = "Newcastle United", ShortName = "Newcastle", Code = "NEW", ExternalId = 67, LogoUrl = "https://resources.premierleague.com/premierleague/badges/50/t4.png", IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
-                new Team { Name = "Tottenham Hotspur", ShortName = "Spurs", Code = "TOT", ExternalId = 73, LogoUrl = "https://resources.premierleague.com/premierleague/badges/50/t6.png", IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+                new Team { Name = "Arsenal", MediumName = "Arsenal", Code = "ARS", ExternalId = 57, LogoUrl = "https://resources.premierleague.com/premierleague/badges/50/t3.png", IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+                new Team { Name = "Aston Villa", MediumName = "Aston Villa", Code = "AVL", ExternalId = 58, LogoUrl = "https://resources.premierleague.com/premierleague/badges/50/t7.png", IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+                new Team { Name = "Chelsea", MediumName = "Chelsea", Code = "CHE", ExternalId = 61, LogoUrl = "https://resources.premierleague.com/premierleague/badges/50/t8.png", IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+                new Team { Name = "Liverpool", MediumName = "Liverpool", Code = "LIV", ExternalId = 64, LogoUrl = "https://resources.premierleague.com/premierleague/badges/50/t14.png", IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+                new Team { Name = "Manchester City", MediumName = "Man City", Code = "MCI", ExternalId = 65, LogoUrl = "https://resources.premierleague.com/premierleague/badges/50/t43.png", IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+                new Team { Name = "Manchester United", MediumName = "Man United", Code = "MUN", ExternalId = 66, LogoUrl = "https://resources.premierleague.com/premierleague/badges/50/t1.png", IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+                new Team { Name = "Newcastle United", MediumName = "Newcastle", Code = "NEW", ExternalId = 67, LogoUrl = "https://resources.premierleague.com/premierleague/badges/50/t4.png", IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
+                new Team { Name = "Tottenham Hotspur", MediumName = "Spurs", Code = "TOT", ExternalId = 73, LogoUrl = "https://resources.premierleague.com/premierleague/badges/50/t6.png", IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow },
             };
 
             _context.Teams.AddRange(teams);
