@@ -4,6 +4,7 @@ public class Team
 {
     public int Id { get; set; } // Auto-increment integer
     public string Name { get; set; } = string.Empty;
+    public string? MediumName { get; set; }
     public string? ShortName { get; set; }
     public string? Code { get; set; }
     public string? LogoUrl { get; set; }

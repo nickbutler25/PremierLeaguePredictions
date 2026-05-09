@@ -113,6 +113,7 @@ public class TeamService : ITeamService
     {
         Id = team.Id,
         Name = team.Name,
+        MediumName = team.MediumName,
         ShortName = team.ShortName,
         LogoUrl = team.LogoUrl
     };

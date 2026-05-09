@@ -23,6 +23,7 @@ export interface Season {
 export interface Team {
   id: number;
   name: string;
+  mediumName?: string;
   shortName?: string;
   code?: string;
   logoUrl?: string;
