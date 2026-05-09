@@ -14,6 +14,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     { path: '/admin/backfill', label: 'Backfill Picks' },
     { path: '/admin/approvals', label: 'Season Approvals' },
     { path: '/admin/eliminations', label: 'Eliminations' },
+    { path: '/admin/schedule', label: 'Schedule' },
   ];
 
   return (

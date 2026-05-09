@@ -165,7 +165,7 @@ export function DashboardPage() {
 
         {/* Right Column - League Standings */}
         <div data-testid="dashboard-standings-column">
-          <LeagueStandings />
+          <LeagueStandings compact />
         </div>
       </div>
     </div>

@@ -139,6 +139,17 @@ export const adminService = {
     return response.data.data!;
   },
 
+  async generateWeeklySchedule() {
+    const response = await apiClient.post<
+      ApiResponse<{
+        success: boolean;
+        message: string;
+        jobCount: number;
+      }>
+    >('/api/v1/admin/schedule/generate');
+    return response.data.data!;
+  },
+
   // Backfill picks
   async backfillPicks(userId: string, picks: Array<{ gameweekNumber: number; teamId: number }>) {
     const response = await apiClient.post<
