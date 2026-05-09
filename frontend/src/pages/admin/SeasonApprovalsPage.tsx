@@ -52,6 +52,11 @@ export function SeasonApprovalsPage() {
       isApproved: boolean;
     }) => seasonParticipationService.approveParticipation(participationId, isApproved),
     onSuccess: (_, variables) => {
+      // Remove immediately from cache so the row disappears without waiting for refetch
+      queryClient.setQueriesData<typeof pendingApprovals>(
+        { queryKey: ['season-approvals'] },
+        (old) => old?.filter((a) => a.participationId !== variables.participationId) ?? []
+      );
       queryClient.invalidateQueries({ queryKey: ['season-approvals'] });
       queryClient.invalidateQueries({ queryKey: ['active-season'] });
       queryClient.invalidateQueries({ queryKey: ['season-approval'] });
