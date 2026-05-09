@@ -5,6 +5,7 @@ export const mockTeams: Team[] = [
   {
     id: 1,
     name: 'Arsenal',
+    mediumName: 'Arsenal',
     shortName: 'ARS',
     code: 'ARS',
     logoUrl: 'https://resources.premierleague.com/premierleague/badges/t3.svg',
@@ -15,6 +16,7 @@ export const mockTeams: Team[] = [
   {
     id: 2,
     name: 'Aston Villa',
+    mediumName: 'Aston Villa',
     shortName: 'AVL',
     code: 'AVL',
     logoUrl: 'https://resources.premierleague.com/premierleague/badges/t7.svg',
@@ -25,6 +27,7 @@ export const mockTeams: Team[] = [
   {
     id: 3,
     name: 'Bournemouth',
+    mediumName: 'Bournemouth',
     shortName: 'BOU',
     code: 'BOU',
     logoUrl: 'https://resources.premierleague.com/premierleague/badges/t91.svg',
@@ -35,6 +38,7 @@ export const mockTeams: Team[] = [
   {
     id: 4,
     name: 'Brentford',
+    mediumName: 'Brentford',
     shortName: 'BRE',
     code: 'BRE',
     logoUrl: 'https://resources.premierleague.com/premierleague/badges/t94.svg',
@@ -45,6 +49,7 @@ export const mockTeams: Team[] = [
   {
     id: 5,
     name: 'Brighton & Hove Albion',
+    mediumName: 'Brighton',
     shortName: 'BHA',
     code: 'BHA',
     logoUrl: 'https://resources.premierleague.com/premierleague/badges/t36.svg',
@@ -55,6 +60,7 @@ export const mockTeams: Team[] = [
   {
     id: 6,
     name: 'Chelsea',
+    mediumName: 'Chelsea',
     shortName: 'CHE',
     code: 'CHE',
     logoUrl: 'https://resources.premierleague.com/premierleague/badges/t8.svg',
@@ -65,6 +71,7 @@ export const mockTeams: Team[] = [
   {
     id: 7,
     name: 'Crystal Palace',
+    mediumName: 'Crystal Palace',
     shortName: 'CRY',
     code: 'CRY',
     logoUrl: 'https://resources.premierleague.com/premierleague/badges/t31.svg',
@@ -75,6 +82,7 @@ export const mockTeams: Team[] = [
   {
     id: 8,
     name: 'Everton',
+    mediumName: 'Everton',
     shortName: 'EVE',
     code: 'EVE',
     logoUrl: 'https://resources.premierleague.com/premierleague/badges/t11.svg',
@@ -85,6 +93,7 @@ export const mockTeams: Team[] = [
   {
     id: 9,
     name: 'Fulham',
+    mediumName: 'Fulham',
     shortName: 'FUL',
     code: 'FUL',
     logoUrl: 'https://resources.premierleague.com/premierleague/badges/t54.svg',
@@ -95,6 +104,7 @@ export const mockTeams: Team[] = [
   {
     id: 10,
     name: 'Leeds United',
+    mediumName: 'Leeds',
     shortName: 'LEE',
     code: 'LEE',
     logoUrl: 'https://resources.premierleague.com/premierleague/badges/t2.svg',
@@ -105,6 +115,7 @@ export const mockTeams: Team[] = [
   {
     id: 11,
     name: 'Sunderland',
+    mediumName: 'Sunderland',
     shortName: 'SUN',
     code: 'SUN',
     logoUrl: 'https://resources.premierleague.com/premierleague/badges/t56.svg',
@@ -115,6 +126,7 @@ export const mockTeams: Team[] = [
   {
     id: 12,
     name: 'Liverpool',
+    mediumName: 'Liverpool',
     shortName: 'LIV',
     code: 'LIV',
     logoUrl: 'https://resources.premierleague.com/premierleague/badges/t14.svg',
@@ -125,6 +137,7 @@ export const mockTeams: Team[] = [
   {
     id: 13,
     name: 'Manchester City',
+    mediumName: 'Man City',
     shortName: 'MCI',
     code: 'MCI',
     logoUrl: 'https://resources.premierleague.com/premierleague/badges/t43.svg',
@@ -135,6 +148,7 @@ export const mockTeams: Team[] = [
   {
     id: 14,
     name: 'Manchester United',
+    mediumName: 'Man United',
     shortName: 'MUN',
     code: 'MUN',
     logoUrl: 'https://resources.premierleague.com/premierleague/badges/t1.svg',
@@ -145,6 +159,7 @@ export const mockTeams: Team[] = [
   {
     id: 15,
     name: 'Newcastle United',
+    mediumName: 'Newcastle',
     shortName: 'NEW',
     code: 'NEW',
     logoUrl: 'https://resources.premierleague.com/premierleague/badges/t4.svg',
@@ -155,6 +170,7 @@ export const mockTeams: Team[] = [
   {
     id: 16,
     name: 'Nottingham Forest',
+    mediumName: "Nott'm Forest",
     shortName: 'NFO',
     code: 'NFO',
     logoUrl: 'https://resources.premierleague.com/premierleague/badges/t17.svg',
@@ -165,6 +181,7 @@ export const mockTeams: Team[] = [
   {
     id: 17,
     name: 'Burnley',
+    mediumName: 'Burnley',
     shortName: 'BUR',
     code: 'BUR',
     logoUrl: 'https://resources.premierleague.com/premierleague/badges/t90.svg',
@@ -175,6 +192,7 @@ export const mockTeams: Team[] = [
   {
     id: 18,
     name: 'Tottenham Hotspur',
+    mediumName: 'Spurs',
     shortName: 'TOT',
     code: 'TOT',
     logoUrl: 'https://resources.premierleague.com/premierleague/badges/t6.svg',
@@ -185,6 +203,7 @@ export const mockTeams: Team[] = [
   {
     id: 19,
     name: 'West Ham United',
+    mediumName: 'West Ham',
     shortName: 'WHU',
     code: 'WHU',
     logoUrl: 'https://resources.premierleague.com/premierleague/badges/t21.svg',
@@ -195,6 +214,7 @@ export const mockTeams: Team[] = [
   {
     id: 20,
     name: 'Wolverhampton Wanderers',
+    mediumName: 'Wolves',
     shortName: 'WOL',
     code: 'WOL',
     logoUrl: 'https://resources.premierleague.com/premierleague/badges/t39.svg',

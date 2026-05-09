@@ -1,3 +1,4 @@
+import { useRef, useState, useEffect } from 'react';
 import type { Team } from '@/types';
 
 interface TeamNameProps {
@@ -6,19 +7,40 @@ interface TeamNameProps {
 }
 
 /**
- * Renders a team name at three sizes based on available viewport width:
- *   < 480px  → shortName  (e.g. "BHA")
- *   480–639px → mediumName (e.g. "Brighton")
- *   640px+   → name       (e.g. "Brighton & Hove Albion")
+ * Renders a team name that adapts to its actual available width:
+ *   < 60px   → shortName  (e.g. "BHA")
+ *   < 180px  → mediumName (e.g. "Brighton")
+ *   >= 180px → name       (e.g. "Brighton & Hove Albion")
  *
- * Falls back gracefully: mediumName → name, shortName → name.
+ * Uses ResizeObserver on the span itself. The span uses flex-1 so its width
+ * is determined by available space (not text content), preventing feedback loops.
  */
 export function TeamName({ team, className }: TeamNameProps) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [width, setWidth] = useState(999);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      setWidth(entry.contentRect.width);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  let displayName: string;
+  if (width < 60) {
+    displayName = team.shortName ?? team.name;
+  } else if (width < 180) {
+    displayName = team.mediumName ?? team.name;
+  } else {
+    displayName = team.name;
+  }
+
   return (
-    <span className={className}>
-      <span className="xs:hidden">{team.shortName ?? team.name}</span>
-      <span className="hidden xs:inline sm:hidden">{team.mediumName ?? team.name}</span>
-      <span className="hidden sm:inline">{team.name}</span>
+    <span ref={ref} className={`flex-1 min-w-0 ${className ?? ''}`}>
+      {displayName}
     </span>
   );
 }

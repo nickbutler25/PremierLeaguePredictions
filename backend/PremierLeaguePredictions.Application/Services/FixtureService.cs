@@ -147,6 +147,7 @@ public class FixtureService : IFixtureService
             {
                 Id = homeTeam.Id,
                 Name = homeTeam.Name,
+                MediumName = homeTeam.MediumName,
                 ShortName = homeTeam.ShortName,
                 LogoUrl = homeTeam.LogoUrl,
                 ExternalApiId = homeTeam.ExternalId
@@ -159,6 +160,7 @@ public class FixtureService : IFixtureService
             {
                 Id = awayTeam.Id,
                 Name = awayTeam.Name,
+                MediumName = awayTeam.MediumName,
                 ShortName = awayTeam.ShortName,
                 LogoUrl = awayTeam.LogoUrl,
                 ExternalApiId = awayTeam.ExternalId
