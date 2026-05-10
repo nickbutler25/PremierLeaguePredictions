@@ -43,6 +43,15 @@ public class SmtpEmailService : IEmailService
                 throw new InvalidOperationException(errorMessage);
             }
 
+            var devOverride = _configuration["Email:DevOverrideAddress"];
+            var actualRecipient = toEmail;
+            if (!string.IsNullOrEmpty(devOverride))
+            {
+                _logger.LogInformation("Dev email override: redirecting {OriginalTo} → {DevAddress}", toEmail, devOverride);
+                actualRecipient = devOverride;
+                subject = $"[DEV → {toEmail}] {subject}";
+            }
+
             using var message = new MailMessage
             {
                 From = new MailAddress(fromEmail, fromName),
@@ -51,7 +60,7 @@ public class SmtpEmailService : IEmailService
                 IsBodyHtml = true
             };
 
-            message.To.Add(new MailAddress(toEmail));
+            message.To.Add(new MailAddress(actualRecipient));
 
             // Add plain text alternative if provided
             if (!string.IsNullOrEmpty(plainTextBody))
@@ -68,7 +77,7 @@ public class SmtpEmailService : IEmailService
 
             await smtpClient.SendMailAsync(message);
 
-            _logger.LogInformation("Email sent successfully to {ToEmail} with subject: {Subject}", toEmail, subject);
+            _logger.LogInformation("Email sent successfully to {ToEmail} with subject: {Subject}", actualRecipient, subject);
         }
         catch (Exception ex)
         {
