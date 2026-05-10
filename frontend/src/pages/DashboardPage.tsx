@@ -53,7 +53,8 @@ export function DashboardPage() {
     const axiosError = error as AxiosError;
     const isNetworkError = !axiosError.response;
     const isServerError = axiosError.response?.status && axiosError.response.status >= 500;
-    const isUnauthorized = axiosError.response?.status === 401 || axiosError.response?.status === 403;
+    const isUnauthorized =
+      axiosError.response?.status === 401 || axiosError.response?.status === 403;
 
     if (isUnauthorized) {
       return (
