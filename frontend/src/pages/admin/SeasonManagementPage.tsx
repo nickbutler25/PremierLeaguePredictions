@@ -82,6 +82,7 @@ export function SeasonManagementPage() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'teams'] });
       queryClient.invalidateQueries({ queryKey: ['active-season'] });
       queryClient.invalidateQueries({ queryKey: ['season-approval'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       setIsCreatingSeason(false);
       setSelectedSeasonName('');
       setMaxTeamPicks(1);
@@ -131,6 +132,23 @@ export function SeasonManagementPage() {
       toast({
         title: 'Error',
         description: err.response?.data?.message || 'Failed to sync teams',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const enrollAdminMutation = useMutation({
+    mutationFn: (seasonId: string) => adminService.enrollAdminForSeason(seasonId),
+    onSuccess: () => {
+      toast({ title: 'Enrolled', description: 'You are now enrolled in this season.' });
+      queryClient.invalidateQueries({ queryKey: ['league-standings'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+    onError: (error: unknown) => {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast({
+        title: 'Error',
+        description: err.response?.data?.message || 'Failed to enroll',
         variant: 'destructive',
       });
     },
@@ -353,6 +371,16 @@ export function SeasonManagementPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
+                    {season.isActive && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => enrollAdminMutation.mutate(season.name)}
+                        disabled={enrollAdminMutation.isPending}
+                      >
+                        Enroll Me
+                      </Button>
+                    )}
                     {season.isActive && (
                       <span className="px-2 py-1 text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 rounded">
                         Active

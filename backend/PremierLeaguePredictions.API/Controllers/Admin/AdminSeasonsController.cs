@@ -4,6 +4,7 @@ using Asp.Versioning;
 using PremierLeaguePredictions.Application.DTOs;
 using PremierLeaguePredictions.Application.Interfaces;
 using PremierLeaguePredictions.Infrastructure.Services;
+using System.Security.Claims;
 
 namespace PremierLeaguePredictions.API.Controllers.Admin;
 
@@ -15,13 +16,16 @@ public class AdminSeasonsController : ControllerBase
 {
     private readonly IAdminService _adminService;
     private readonly IFixtureSyncService _fixtureSyncService;
+    private readonly ISeasonParticipationService _seasonParticipationService;
 
     public AdminSeasonsController(
         IAdminService adminService,
-        IFixtureSyncService fixtureSyncService)
+        IFixtureSyncService fixtureSyncService,
+        ISeasonParticipationService seasonParticipationService)
     {
         _adminService = adminService;
         _fixtureSyncService = fixtureSyncService;
+        _seasonParticipationService = seasonParticipationService;
     }
 
     [HttpGet]
@@ -54,6 +58,13 @@ public class AdminSeasonsController : ControllerBase
             // Step 1: Create the season
             var seasonId = await _adminService.CreateSeasonAsync(request);
 
+            // Step 1b: Auto-enroll the creating admin as an approved participant
+            var adminUserIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (Guid.TryParse(adminUserIdClaim, out var adminUserId))
+            {
+                await _seasonParticipationService.EnrollAdminForSeasonAsync(adminUserId, seasonId);
+            }
+
             // Step 2: Sync teams from Football Data API
             var (teamsCreated, teamsUpdated) = await _fixtureSyncService.SyncTeamsAsync();
 
@@ -82,5 +93,18 @@ public class AdminSeasonsController : ControllerBase
         {
             return BadRequest(ApiResponse<CreateSeasonResponse>.FailureResult(ex.Message));
         }
+    }
+
+    [HttpPost("{seasonId}/enroll-admin")]
+    public async Task<ActionResult<ApiResponse<string>>> EnrollAdmin(string seasonId)
+    {
+        var adminUserIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!Guid.TryParse(adminUserIdClaim, out var adminUserId))
+        {
+            return Unauthorized(ApiResponse<string>.FailureResult("Invalid user identity"));
+        }
+
+        await _seasonParticipationService.EnrollAdminForSeasonAsync(adminUserId, seasonId);
+        return Ok(ApiResponse<string>.SuccessResult(seasonId, "Admin enrolled successfully"));
     }
 }

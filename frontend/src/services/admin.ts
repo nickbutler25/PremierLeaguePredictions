@@ -200,4 +200,8 @@ export const adminService = {
     );
     return response.data.data!;
   },
+
+  async enrollAdminForSeason(seasonId: string) {
+    await apiClient.post(`/api/v1/admin/seasons/${encodeURIComponent(seasonId)}/enroll-admin`);
+  },
 };
