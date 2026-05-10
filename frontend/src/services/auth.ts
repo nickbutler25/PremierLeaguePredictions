@@ -12,6 +12,31 @@ const realAuthService = {
     return response.data.data!;
   },
 
+  register: async (
+    email: string,
+    firstName: string,
+    lastName: string,
+    password: string,
+    confirmPassword: string
+  ): Promise<AuthResponse> => {
+    const response = await apiClient.post<ApiResponse<AuthResponse>>('/api/v1/auth/register', {
+      email,
+      firstName,
+      lastName,
+      password,
+      confirmPassword,
+    });
+    return response.data.data!;
+  },
+
+  passwordLogin: async (email: string, password: string): Promise<AuthResponse> => {
+    const response = await apiClient.post<ApiResponse<AuthResponse>>(
+      '/api/v1/auth/password-login',
+      { email, password }
+    );
+    return response.data.data!;
+  },
+
   logout: async (): Promise<void> => {
     await apiClient.post('/api/v1/auth/logout');
   },

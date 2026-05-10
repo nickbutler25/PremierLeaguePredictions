@@ -107,28 +107,10 @@ public class AuthController : ControllerBase
                 return Unauthorized(ApiResponse<AuthResponse>.FailureResult("Your account has been deactivated. Please contact an administrator."));
             }
 
-            // Generate JWT token
             var token = _tokenService.GenerateToken(user);
-
             Response.Cookies.Append("auth_token", token, GetCookieOptions());
 
-            var authResponse = new AuthResponse
-            {
-                Token = null, // Don't send token in response body
-                User = new UserDto
-                {
-                    Id = user.Id,
-                    Email = user.Email,
-                    FirstName = user.FirstName,
-                    LastName = user.LastName,
-                    PhotoUrl = user.PhotoUrl,
-                    IsActive = user.IsActive,
-                    IsAdmin = user.IsAdmin,
-                    IsPaid = user.IsPaid
-                }
-            };
-
-            return Ok(ApiResponse<AuthResponse>.SuccessResult(authResponse, "Login successful"));
+            return Ok(ApiResponse<AuthResponse>.SuccessResult(BuildAuthResponse(user), "Login successful"));
         }
         catch (Exception ex)
         {
@@ -138,20 +120,19 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register")]
+    [ServiceFilter(typeof(Filters.ValidationFilter<RegisterRequest>))]
     public async Task<ActionResult<ApiResponse<AuthResponse>>> Register([FromBody] RegisterRequest request)
     {
         try
         {
-            // Check if user already exists
             var existingUser = await _context.Users
                 .FirstOrDefaultAsync(u => u.Email == request.Email);
 
             if (existingUser != null)
             {
-                return BadRequest(ApiResponse<AuthResponse>.FailureResult("User with this email already exists"));
+                return BadRequest(ApiResponse<AuthResponse>.FailureResult("An account with this email already exists"));
             }
 
-            // Create new user
             var user = new User
             {
                 Email = request.Email,
@@ -159,6 +140,7 @@ public class AuthController : ControllerBase
                 LastName = request.LastName,
                 PhotoUrl = request.PhotoUrl,
                 GoogleId = request.GoogleId,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
                 IsActive = true,
                 IsAdmin = false,
                 IsPaid = false,
@@ -171,33 +153,49 @@ public class AuthController : ControllerBase
 
             _logger.LogInformation("New user registered: {Email}", user.Email);
 
-            // Generate JWT token
             var token = _tokenService.GenerateToken(user);
-
             Response.Cookies.Append("auth_token", token, GetCookieOptions());
 
-            var authResponse = new AuthResponse
-            {
-                Token = null, // Don't send token in response body
-                User = new UserDto
-                {
-                    Id = user.Id,
-                    Email = user.Email,
-                    FirstName = user.FirstName,
-                    LastName = user.LastName,
-                    PhotoUrl = user.PhotoUrl,
-                    IsActive = user.IsActive,
-                    IsAdmin = user.IsAdmin,
-                    IsPaid = user.IsPaid
-                }
-            };
-
-            return Ok(ApiResponse<AuthResponse>.SuccessResult(authResponse, "Registration successful"));
+            return Ok(ApiResponse<AuthResponse>.SuccessResult(BuildAuthResponse(user), "Registration successful"));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error during registration");
             return StatusCode(500, ApiResponse<AuthResponse>.FailureResult("An error occurred during registration"));
+        }
+    }
+
+    [HttpPost("password-login")]
+    [ServiceFilter(typeof(Filters.ValidationFilter<PasswordLoginRequest>))]
+    public async Task<ActionResult<ApiResponse<AuthResponse>>> PasswordLogin([FromBody] PasswordLoginRequest request)
+    {
+        try
+        {
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u => u.Email == request.Email);
+
+            if (user == null || string.IsNullOrEmpty(user.PasswordHash) ||
+                !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+            {
+                return Unauthorized(ApiResponse<AuthResponse>.FailureResult("Invalid email or password"));
+            }
+
+            if (!user.IsActive)
+            {
+                return Unauthorized(ApiResponse<AuthResponse>.FailureResult("Your account has been deactivated. Please contact an administrator."));
+            }
+
+            var token = _tokenService.GenerateToken(user);
+            Response.Cookies.Append("auth_token", token, GetCookieOptions());
+
+            _logger.LogInformation("User logged in via password: {Email}", user.Email);
+
+            return Ok(ApiResponse<AuthResponse>.SuccessResult(BuildAuthResponse(user), "Login successful"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during password login");
+            return StatusCode(500, ApiResponse<AuthResponse>.FailureResult("An error occurred during login"));
         }
     }
 
@@ -207,6 +205,22 @@ public class AuthController : ControllerBase
         Response.Cookies.Append("auth_token", "", GetCookieOptions(expired: true));
         return Ok(ApiResponse.SuccessResult("Logged out successfully"));
     }
+
+    private AuthResponse BuildAuthResponse(User user) => new AuthResponse
+    {
+        Token = null,
+        User = new UserDto
+        {
+            Id = user.Id,
+            Email = user.Email,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            PhotoUrl = user.PhotoUrl,
+            IsActive = user.IsActive,
+            IsAdmin = user.IsAdmin,
+            IsPaid = user.IsPaid
+        }
+    };
 
     private CookieOptions GetCookieOptions(bool expired = false)
     {

@@ -29,5 +29,25 @@ public class RegisterRequestValidator : AbstractValidator<RegisterRequest>
         RuleFor(x => x.LastName)
             .NotEmpty().WithMessage("Last name is required")
             .MaximumLength(ValidationRules.MaxLastNameLength).WithMessage($"Last name must not exceed {ValidationRules.MaxLastNameLength} characters");
+
+        RuleFor(x => x.Password)
+            .NotEmpty().WithMessage("Password is required")
+            .MinimumLength(8).WithMessage("Password must be at least 8 characters");
+
+        RuleFor(x => x.ConfirmPassword)
+            .Equal(x => x.Password).WithMessage("Passwords do not match");
+    }
+}
+
+public class PasswordLoginRequestValidator : AbstractValidator<PasswordLoginRequest>
+{
+    public PasswordLoginRequestValidator()
+    {
+        RuleFor(x => x.Email)
+            .NotEmpty().WithMessage("Email is required")
+            .EmailAddress().WithMessage("Invalid email format");
+
+        RuleFor(x => x.Password)
+            .NotEmpty().WithMessage("Password is required");
     }
 }
