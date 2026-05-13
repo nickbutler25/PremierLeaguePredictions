@@ -82,8 +82,7 @@ public class CronJobsOrgService : ICronJobsOrgService
     {
         var headers = new Dictionary<string, string>
         {
-            ["X-API-Key"] = apiKey,
-            ["Content-Type"] = "application/json"
+            ["X-API-Key"] = apiKey
         };
 
         var requests = new List<CronJobRequest>();
@@ -109,8 +108,7 @@ public class CronJobsOrgService : ICronJobsOrgService
                 Schedule = BuildSchedule(job),
                 ExtendedData = new CronJobExtendedData
                 {
-                    Headers = headers,
-                    Body = string.Empty
+                    Headers = headers
                 }
             });
         }

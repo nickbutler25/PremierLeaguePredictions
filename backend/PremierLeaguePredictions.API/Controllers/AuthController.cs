@@ -128,30 +128,51 @@ public class AuthController : ControllerBase
             var existingUser = await _context.Users
                 .FirstOrDefaultAsync(u => u.Email == request.Email);
 
+            User user;
+
             if (existingUser != null)
             {
-                return BadRequest(ApiResponse<AuthResponse>.FailureResult("An account with this email already exists"));
+                // Allow claiming a pre-created account (no credentials set yet)
+                var hasCredentials = !string.IsNullOrEmpty(existingUser.PasswordHash) ||
+                                     !string.IsNullOrEmpty(existingUser.GoogleId);
+                if (hasCredentials)
+                {
+                    var hint = string.IsNullOrEmpty(existingUser.GoogleId)
+                        ? "Please sign in with your existing password."
+                        : "Please sign in with Google.";
+                    return BadRequest(ApiResponse<AuthResponse>.FailureResult($"An account with this email already exists. {hint}"));
+                }
+
+                // Claim the pre-created account
+                existingUser.FirstName = request.FirstName;
+                existingUser.LastName = request.LastName;
+                existingUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+                existingUser.UpdatedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("User {Email} claimed pre-created account", existingUser.Email);
+                user = existingUser;
             }
-
-            var user = new User
+            else
             {
-                Email = request.Email,
-                FirstName = request.FirstName,
-                LastName = request.LastName,
-                PhotoUrl = request.PhotoUrl,
-                GoogleId = request.GoogleId,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-                IsActive = true,
-                IsAdmin = false,
-                IsPaid = false,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
+                user = new User
+                {
+                    Email = request.Email,
+                    FirstName = request.FirstName,
+                    LastName = request.LastName,
+                    PhotoUrl = request.PhotoUrl,
+                    GoogleId = request.GoogleId,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+                    IsActive = true,
+                    IsAdmin = false,
+                    IsPaid = false,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
 
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
-
-            _logger.LogInformation("New user registered: {Email}", user.Email);
+                _context.Users.Add(user);
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("New user registered: {Email}", user.Email);
+            }
 
             var token = _tokenService.GenerateToken(user);
             Response.Cookies.Append("auth_token", token, GetCookieOptions());

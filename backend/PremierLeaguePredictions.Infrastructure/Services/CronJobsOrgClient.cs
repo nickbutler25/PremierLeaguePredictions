@@ -46,7 +46,14 @@ public class CronJobsOrgClient
         _logger.LogDebug("Creating cron-jobs.org job: {Title}", job.Title);
 
         var response = await _httpClient.PutAsync("jobs", httpContent, cancellationToken);
-        response.EnsureSuccessStatusCode();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            _logger.LogError("cron-jobs.org returned {StatusCode} for job '{Title}'. Request: {Request} Response: {Response}",
+                (int)response.StatusCode, job.Title, json, errorBody);
+            response.EnsureSuccessStatusCode();
+        }
 
         var content = await response.Content.ReadAsStringAsync(cancellationToken);
         var result = JsonSerializer.Deserialize<CreateJobResponse>(content, JsonOptions);
@@ -153,5 +160,5 @@ public class CronJobExtendedData
     public Dictionary<string, string>? Headers { get; set; }
 
     [JsonPropertyName("body")]
-    public string Body { get; set; } = string.Empty;
+    public string? Body { get; set; }
 }

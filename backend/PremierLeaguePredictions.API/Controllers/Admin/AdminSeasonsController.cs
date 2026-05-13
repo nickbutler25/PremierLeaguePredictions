@@ -107,4 +107,5 @@ public class AdminSeasonsController : ControllerBase
         await _seasonParticipationService.EnrollAdminForSeasonAsync(adminUserId, seasonId);
         return Ok(ApiResponse<string>.SuccessResult(seasonId, "Admin enrolled successfully"));
     }
+
 }
