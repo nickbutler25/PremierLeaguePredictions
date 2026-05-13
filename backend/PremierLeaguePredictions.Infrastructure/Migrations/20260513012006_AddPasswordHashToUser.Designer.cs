@@ -12,7 +12,7 @@ using PremierLeaguePredictions.Infrastructure.Data;
 namespace PremierLeaguePredictions.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260510125327_AddPasswordHashToUser")]
+    [Migration("20260513012006_AddPasswordHashToUser")]
     partial class AddPasswordHashToUser
     {
         /// <inheritdoc />
@@ -640,6 +640,9 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("last_name");
+
+                    b.Property<string>("PasswordHash")
+                        .HasColumnType("text");
 
                     b.Property<string>("PhotoUrl")
                         .HasMaxLength(500)
