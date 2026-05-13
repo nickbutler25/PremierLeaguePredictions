@@ -28,21 +28,24 @@ public class ApiKeyAuthenticationHandler : AuthenticationHandler<AuthenticationS
     {
         Logger.LogDebug("API Key authentication handler invoked for path: {Path}", Request.Path);
 
-        // Check if the API key header exists
-        if (!Request.Headers.TryGetValue(ApiKeyHeaderName, out var apiKeyHeaderValues))
+        // Accept API key from header or query parameter (query param supports cron-job.org free tier)
+        string? providedApiKey = null;
+        if (Request.Headers.TryGetValue(ApiKeyHeaderName, out var apiKeyHeaderValues))
         {
-            Logger.LogDebug("No X-API-Key header found, returning NoResult");
-            return Task.FromResult(AuthenticateResult.NoResult());
+            providedApiKey = apiKeyHeaderValues.FirstOrDefault();
+            Logger.LogDebug("X-API-Key header found with length: {Length}", providedApiKey?.Length ?? 0);
+        }
+        else if (Request.Query.TryGetValue("apiKey", out var queryKeyValues))
+        {
+            providedApiKey = queryKeyValues.FirstOrDefault();
+            Logger.LogDebug("apiKey query parameter found with length: {Length}", providedApiKey?.Length ?? 0);
         }
 
-        var providedApiKey = apiKeyHeaderValues.FirstOrDefault();
         if (string.IsNullOrWhiteSpace(providedApiKey))
         {
-            Logger.LogWarning("X-API-Key header present but empty");
+            Logger.LogDebug("No API key found in header or query string, returning NoResult");
             return Task.FromResult(AuthenticateResult.NoResult());
         }
-
-        Logger.LogDebug("X-API-Key header found with length: {Length}", providedApiKey.Length);
 
         // Get the valid API key from configuration
         var validApiKey = _configuration["ExternalSync:ApiKey"];

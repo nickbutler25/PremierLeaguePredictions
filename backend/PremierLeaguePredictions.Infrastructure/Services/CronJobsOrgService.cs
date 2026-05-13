@@ -80,11 +80,6 @@ public class CronJobsOrgService : ICronJobsOrgService
 
     private List<CronJobRequest> BuildJobRequests(SchedulePlan plan, string apiBaseUrl, string apiKey)
     {
-        var headers = new Dictionary<string, string>
-        {
-            ["X-API-Key"] = apiKey
-        };
-
         var requests = new List<CronJobRequest>();
         var index = new Dictionary<string, int>(); // job type → counter for unique titles
 
@@ -101,15 +96,15 @@ public class CronJobsOrgService : ICronJobsOrgService
 
             var title = $"{JobTitlePrefix}{plan.WeekNumber}-{job.JobType}-{n + 1}";
 
+            // Embed the API key as a query parameter — cron-job.org free tier does not support
+            // custom request headers via extendedData, so auth is passed in the URL instead.
+            var url = $"{apiBaseUrl}{endpoint}?apiKey={Uri.EscapeDataString(apiKey)}";
+
             requests.Add(new CronJobRequest
             {
                 Title = title,
-                Url = $"{apiBaseUrl}{endpoint}",
+                Url = url,
                 Schedule = BuildSchedule(job),
-                ExtendedData = new CronJobExtendedData
-                {
-                    Headers = headers
-                }
             });
         }
 
