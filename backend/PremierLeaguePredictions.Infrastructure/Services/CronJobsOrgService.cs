@@ -80,9 +80,9 @@ public class CronJobsOrgService : ICronJobsOrgService
 
     private List<CronJobRequest> BuildJobRequests(SchedulePlan plan, string apiBaseUrl, string apiKey)
     {
-        var headers = new List<CronJobHeader>
+        var headers = new Dictionary<string, string>
         {
-            new() { Name = "X-API-Key", Value = apiKey }
+            ["X-API-Key"] = apiKey
         };
 
         var requests = new List<CronJobRequest>();

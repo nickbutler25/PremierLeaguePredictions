@@ -157,17 +157,8 @@ public class CronJobSchedule
 public class CronJobExtendedData
 {
     [JsonPropertyName("headers")]
-    public List<CronJobHeader>? Headers { get; set; }
+    public Dictionary<string, string>? Headers { get; set; }
 
     [JsonPropertyName("body")]
     public string? Body { get; set; }
-}
-
-public class CronJobHeader
-{
-    [JsonPropertyName("name")]
-    public string Name { get; set; } = string.Empty;
-
-    [JsonPropertyName("value")]
-    public string Value { get; set; } = string.Empty;
 }
