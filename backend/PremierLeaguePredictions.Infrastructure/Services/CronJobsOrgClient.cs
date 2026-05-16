@@ -42,6 +42,8 @@ public class CronJobsOrgClient
     {
         var json = JsonSerializer.Serialize(new { job }, JsonOptions);
         var httpContent = new StringContent(json, Encoding.UTF8, "application/json");
+        // cron-job.org rejects "application/json; charset=utf-8" — strip the charset
+        httpContent.Headers.ContentType!.CharSet = null;
 
         _logger.LogDebug("Creating cron-jobs.org job: {Title}", job.Title);
 
