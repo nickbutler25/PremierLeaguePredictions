@@ -12,7 +12,7 @@ ASP.NET Core Web API for the Premier League Predictions application.
 - **FluentValidation** - Request validation
 - **Serilog** - Structured logging
 - **SignalR** - Real-time notifications
-- **GitHub Actions** - Automated task scheduling
+- **cron-job.org** - External cron service for automated task scheduling
 - **Football-Data.org API** - Live fixture and result data
 
 ## Architecture Overview
@@ -38,7 +38,7 @@ graph TB
         Repositories[Repositories]
         DbContext[EF Core DbContext]
         ExternalAPIs[External API Clients]
-        GitHubService[GitHub Workflow Service]
+        CronService[CronJobsOrg Service]
         EmailService[Email Service]
     end
 
@@ -50,7 +50,7 @@ graph TB
     subgraph "External Systems"
         DB[(PostgreSQL)]
         FootballAPI[Football-Data.org]
-        GitHub[GitHub Actions]
+        CronOrg[cron-job.org]
         SMTP[Email SMTP]
     end
 
@@ -64,8 +64,8 @@ graph TB
     DbContext --> DB
     Services --> ExternalAPIs
     ExternalAPIs --> FootballAPI
-    Services --> GitHubService
-    GitHubService --> GitHub
+    Services --> CronService
+    CronService --> CronOrg
     Services --> EmailService
     EmailService --> SMTP
     Entities --> CoreInterfaces
@@ -75,7 +75,7 @@ graph TB
     style Services fill:#fff4e1
     style Entities fill:#e8f5e9
     style DB fill:#f3e5f5
-    style GitHub fill:#e3f2fd
+    style CronOrg fill:#e3f2fd
 ```
 
 ### Project Layers
@@ -96,9 +96,9 @@ graph TB
 3. **PremierLeaguePredictions.Infrastructure**
    - EF Core repositories
    - Database context and configurations
-   - External API clients (Football-Data.org, GitHub)
+   - External API clients (Football-Data.org, cron-job.org)
    - Email service
-   - Task scheduling via GitHub Actions integration
+   - Task scheduling via cron-job.org integration
 
 4. **PremierLeaguePredictions.Core**
    - Domain entities (User, Team, Fixture, Pick, etc.)
@@ -107,45 +107,44 @@ graph TB
 
 ### Automated Task Scheduling
 
-The application uses a **dynamic GitHub Actions scheduler** instead of traditional background services:
+The application uses **cron-job.org** (an external cron service) instead of traditional background services. A weekly master job calls the API, which generates the per-week schedule and creates individual jobs via the cron-job.org REST API. See [LIVE_SCORES_SETUP.md](../LIVE_SCORES_SETUP.md) for the full flow.
 
 ```mermaid
 sequenceDiagram
-    participant Master as Master Scheduler<br/>(Monday 9 AM UTC)
+    participant Master as Master Job (cron-job.org)<br/>(Mon 09:00 Europe/London)
     participant API as Admin Schedule API
     participant Scheduler as CronSchedulerService
-    participant GitHub as GitHubWorkflowService
-    participant Repo as GitHub Repository
+    participant CronSvc as CronJobsOrgService
+    participant Cron as cron-job.org
 
-    Master->>API: POST /admin/schedule/generate
+    Master->>API: POST /api/v1/admin/schedule/generate
     API->>Scheduler: GenerateWeeklyScheduleAsync()
     Scheduler->>Scheduler: Query gameweeks (next 7 days)
     Scheduler->>Scheduler: Create SchedulePlan<br/>(reminders, auto-pick, scores)
     Scheduler-->>API: Return SchedulePlan
-    API->>GitHub: GenerateAndCommitWorkflowAsync(plan)
-    GitHub->>GitHub: Convert plan to YAML
-    GitHub->>Repo: Commit weekly-jobs-YYYY-WW.yml
-    GitHub->>Repo: Delete previous week's file
-    GitHub-->>API: Return success
+    API->>CronSvc: SyncWeeklyJobsAsync(plan)
+    CronSvc->>Cron: Delete all EPL-* jobs
+    CronSvc->>Cron: Create EPL-{week}-{jobType}-{n} jobs
+    CronSvc-->>API: Return success
     API-->>Master: 200 OK
 
-    Note over Repo: Workflow runs at scheduled times
-    Repo->>API: POST /admin/schedule/reminders
-    Repo->>API: POST /admin/schedule/auto-pick
-    Repo->>API: POST /dev/fixtures/sync-results
+    Note over Cron: Generated jobs run at scheduled times
+    Cron->>API: POST /api/v1/admin/schedule/reminders
+    Cron->>API: POST /api/v1/admin/schedule/auto-pick
+    Cron->>API: POST /api/v1/admin/sync/results
 ```
 
 **Key Components:**
 - `CronSchedulerService` - Analyzes gameweeks and generates schedule plans
-- `GitHubWorkflowService` - Converts schedule plans to GitHub Actions YAML
-- `GitHubApiClient` - Manages workflow files via GitHub REST API
+- `CronJobsOrgService` - Creates/deletes cron-job.org jobs from the schedule plan
+- `CronJobsOrgClient` - Talks to the cron-job.org REST API
 - `AdminScheduleController` - API endpoints for schedule generation
 
 **Benefits:**
 - No 24/7 background processes consuming resources
-- Jobs run even if API is down
 - Precise cron timing (no polling drift)
-- Full visibility in GitHub Actions tab
+- Generates zero jobs in the off-season (no upcoming fixtures)
+- Full visibility in the cron-job.org dashboard
 
 ## Prerequisites
 
@@ -398,28 +397,21 @@ Get your Google Client ID from [Google Cloud Console](https://console.cloud.goog
 4. Add authorized origins (e.g., `http://localhost:5173`)
 5. Copy the Client ID to `appsettings.json`
 
-### GitHub Actions Scheduler
+### cron-job.org Scheduler
 
-Configure GitHub integration for automated task scheduling:
+Scheduling runs on **cron-job.org**, configured via these environment variables (set per Render service):
 
-```json
-{
-  "ApiBaseUrl": "https://api.eplpredict.com",
-  "GitHub": {
-    "Owner": "your-github-username",
-    "Repository": "PremierLeaguePredictions",
-    "PersonalAccessToken": ""  // Set via environment variable
-  }
-}
-```
+| Variable | Purpose |
+|---|---|
+| `CronJobsOrg__ApiKey` | cron-job.org **account** API key (Bearer token for the REST API). Set manually in each Render service's Environment tab (in the dashboard). Use separate keys for prod and dev. |
+| `ExternalSync__ApiKey` | Key the cron-job.org jobs use to authenticate to our API. |
+| `ApiBaseUrl` | Base URL the generated jobs' target URLs are built from. |
 
-**Setup:**
-1. Create Personal Access Token at [GitHub Settings](https://github.com/settings/tokens) (Tokens classic)
-2. Grant `workflow` scope (includes necessary repository access)
-3. Set environment variable: `GitHub__PersonalAccessToken=ghp_your_token`
-4. Add API key to repository secrets: `EXTERNAL_SYNC_API_KEY`
+**Setup:** create a weekly **master job** (Mondays 09:00 Europe/London) in the cron-job.org dashboard that `POST`s to `/api/v1/admin/schedule/generate` with the `X-API-Key` header, plus a warm-up `/health` ping job a few minutes earlier. The master job title must **not** start with `EPL-`.
 
-See [DEPLOYMENT.md](../DEPLOYMENT.md#github-actions-scheduler-setup) for full setup guide.
+> **Deprecated:** the old `GitHub__Owner` / `GitHub__Repository` / `GitHub__PersonalAccessToken` env vars and the `EXTERNAL_SYNC_API_KEY` GitHub secret belonged to the retired GitHub Actions scheduler and are no longer used.
+
+See [LIVE_SCORES_SETUP.md](../LIVE_SCORES_SETUP.md) and [DEPLOYMENT.md](../DEPLOYMENT.md#cron-joborg-scheduler-setup) for the full setup guide.
 
 ## Database Schema
 
@@ -535,32 +527,16 @@ export AllowedOrigins__0="https://your-frontend-domain.com"
 # 1. Start the API
 dotnet run --project PremierLeaguePredictions.API
 
-# 2. Call schedule generation endpoint
+# 2. Call schedule generation endpoint (creates cron-job.org jobs)
 curl -X POST http://localhost:5000/api/v1/admin/schedule/generate \
   -H "X-API-Key: your-api-key-here"
-
-# Expected response:
-# {
-#   "success": true,
-#   "data": {
-#     "success": true,
-#     "workflowFile": ".github/workflows/weekly-jobs-2025-W49.yml",
-#     "jobCount": 15
-#   }
-# }
 ```
 
-### Verify Generated Workflow
+`generate` builds the schedule and calls the cron-job.org REST API to create `EPL-{week}-{jobType}-{n}` jobs (deleting existing `EPL-` jobs first). Requires `CronJobsOrg__ApiKey` and `ExternalSync__ApiKey` to be configured. With no gameweeks/fixtures in the next 7 days it correctly creates zero jobs.
 
-```bash
-# Check that workflow file was created
-cat .github/workflows/weekly-jobs-*.yml
+### Verify Generated Jobs
 
-# Should contain:
-# - Schedule cron expressions
-# - Jobs for send-reminders, auto-pick, sync-scores
-# - Correct API endpoint URLs
-```
+Check the [cron-job.org dashboard](https://cron-job.org) — you should see `EPL-`-prefixed jobs for `send-reminders`, `auto-pick`, and `sync-scores`, each with the correct target URL and an `?apiKey=` query parameter.
 
 ### Test Individual Scheduler Jobs
 
@@ -573,22 +549,8 @@ curl -X POST http://localhost:5000/api/v1/admin/schedule/reminders \
 curl -X POST http://localhost:5000/api/v1/admin/schedule/auto-pick \
   -H "X-API-Key: your-api-key-here"
 
-# Test score sync
-curl -X POST http://localhost:5000/api/v1/dev/fixtures/sync-results \
-  -H "X-API-Key: your-api-key-here"
-```
-
-### Manual Workflow Trigger
-
-```bash
-# Trigger master scheduler via GitHub CLI
-gh workflow run master-scheduler.yml
-
-# View workflow runs
-gh run list --workflow=master-scheduler.yml
-
-# View specific run logs
-gh run view <run-id> --log
+# Test score sync (note: query-param auth, like the generated jobs)
+curl -X POST "http://localhost:5000/api/v1/admin/sync/results?apiKey=your-api-key-here"
 ```
 
 ## Testing

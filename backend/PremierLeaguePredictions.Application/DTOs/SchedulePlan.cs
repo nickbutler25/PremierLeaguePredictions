@@ -114,6 +114,5 @@ public class ScheduleGenerationResponse
 {
     public bool Success { get; set; }
     public string? Message { get; set; }
-    public string? WorkflowFile { get; set; }
     public int JobCount { get; set; }
 }

@@ -29,7 +29,7 @@ Configurable per season in admin. Each week, X players with the lowest **average
 
 **Frontend:** React 19, TypeScript, Vite, TanStack React Query, React Router v7, Tailwind CSS, shadcn/ui, Axios, SignalR client
 
-**Deployment:** Render.com (free tier — app spins down on inactivity), Supabase (PostgreSQL), GitHub Actions (cron scheduling)
+**Deployment:** Render.com (free tier — app spins down on inactivity), Supabase (PostgreSQL), cron-job.org (external cron scheduling), GitHub Actions (CI/CD)
 
 **External APIs:** football-data.org (free tier — be mindful of rate limits)
 
@@ -42,7 +42,7 @@ Clean Architecture with four layers:
 ```
 Core/           → Domain entities (User, Team, Season, Gameweek, Fixture, Pick, etc.)
 Application/    → Business logic, services, DTOs, interfaces, validators
-Infrastructure/ → EF Core, repositories, external API clients (FootballData, GitHub, Google)
+Infrastructure/ → EF Core, repositories, external API clients (FootballData, cron-job.org, Google)
 API/            → Controllers, middleware, auth, filters
 ```
 
@@ -59,16 +59,16 @@ API/            → Controllers, middleware, auth, filters
 ## Live Score Flow (Current Architecture)
 
 ```
-GitHub Actions cron (every 2 min during match windows)
-  → POST /api/v1/dev/fixtures/sync-results  (API Key auth)
-  → FootballDataService fetches from football-data.org
+cron-job.org sync-scores job (every 2 min during match windows)
+  → POST /api/v1/admin/sync/results  (API Key auth, key via ?apiKey= query param)
+  → ResultsService fetches from football-data.org
   → Results saved to DB
   → SignalR pushes updates to connected frontend clients
 ```
 
 **Known issue:** Live scores do not always update correctly on the frontend during games. Root cause is unknown — could be SignalR connection, the sync job, the football-data.org polling, or the frontend receiving but not rendering updates. This needs investigation.
 
-**Note on scheduling:** The GitHub Actions approach (master-scheduler generates a weekly YAML, committed to the repo) is functional but not ideal. The user is open to alternatives. Hangfire is not viable because Render free tier spins the app down — background jobs would die. Any alternative needs to work with a service that may be cold-started.
+**Note on scheduling:** Scheduling runs on **cron-job.org** (an external cron service), not GitHub Actions. A weekly master job (Mondays 09:00 Europe/London) POSTs to `/api/v1/admin/schedule/generate`; `CronSchedulerService` builds a plan from gameweeks in the next 7 days, then `CronJobsOrgService` creates one cron-job.org job per (reminders / auto-pick / sync-scores) schedule via the cron-job.org REST API. Generated jobs are titled `EPL-{week}-{jobType}-{n}`; each run deletes all existing `EPL-` jobs first (so the master and warm-up jobs must NOT be `EPL-` prefixed). Off-season with no upcoming fixtures correctly produces zero jobs. cron-job.org has a hard 30s request timeout and Render free tier cold-starts (~24s), so a warm-up ping to `/health` runs a few minutes before the Monday generate. GitHub Actions is now CI/CD only. See `LIVE_SCORES_SETUP.md` for the full flow.
 
 ---
 
@@ -140,11 +140,12 @@ develop   → main     (PR, tests must pass → auto-deploy to Render)
 |---|---|
 | API entry point | `backend/PremierLeaguePredictions.API/Program.cs` |
 | Cron schedule generation | `backend/PremierLeaguePredictions.Application/Services/CronSchedulerService.cs` |
-| GitHub workflow generation | `backend/PremierLeaguePredictions.Infrastructure/Services/GitHubWorkflowService.cs` |
+| cron-job.org integration (create/delete jobs) | `backend/PremierLeaguePredictions.Infrastructure/Services/CronJobsOrgService.cs` |
+| cron-job.org REST API client | `backend/PremierLeaguePredictions.Infrastructure/Services/CronJobsOrgClient.cs` |
+| Schedule controller (generate/reminders/auto-pick) | `backend/PremierLeaguePredictions.API/Controllers/Admin/AdminScheduleController.cs` |
 | EF Core context | `backend/PremierLeaguePredictions.Infrastructure/Data/ApplicationDbContext.cs` |
 | Auth policies | `backend/PremierLeaguePredictions.API/Authorization/AdminPolicies.cs` |
-| Master scheduler workflow | `.github/workflows/master-scheduler.yml` |
-| Render deploy config | `render.yaml` |
+| API container build (prod / dev) | `backend/Dockerfile` / `backend/Dockerfile.dev` |
 | Frontend routes | `frontend/App.tsx` |
 | Auth context | `frontend/src/contexts/` |
 

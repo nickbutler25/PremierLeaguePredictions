@@ -56,12 +56,13 @@ This guide explains how to deploy the Premier League Predictions API using Rende
 
 1. Go to [Render Dashboard](https://dashboard.render.com/) → New → Web Service
 2. Connect your GitHub repository
-3. Configure:
-   - **Name**: `premierleague-api`
+3. Configure manually (Render's free tier has no Blueprint/`render.yaml`, so every setting is entered by hand):
+   - **Name**: `premierleague-api` (prod) or `premierleague-api-dev` (dev)
    - **Region**: Choose closest to you (preferably same region as Supabase)
    - **Root Directory**: `backend`
    - **Runtime**: Docker
    - **Dockerfile Path**: `./Dockerfile`
+   - **Health Check Path**: set under Settings → Health Check Path = `/health`
 
 4. Add Environment Variables (click "Advanced" to add them):
    ```
@@ -75,9 +76,8 @@ This guide explains how to deploy the Premier League Predictions API using Rende
    FootballData__ApiKey=[Your Football Data API Key]
    AllowedOrigins__0=http://localhost:5173
    ApiBaseUrl=https://premierleague-api.onrender.com
-   GitHub__Owner=[Your GitHub username]
-   GitHub__Repository=PremierLeaguePredictions
-   GitHub__PersonalAccessToken=[Will be added in step 5]
+   ExternalSync__ApiKey=[Key the cron-job.org jobs use to authenticate to the API]
+   CronJobsOrg__ApiKey=[Will be added in step 5 — cron-job.org account API key]
    ```
 
    **Important Notes**:
@@ -119,55 +119,47 @@ After deploying the frontend to Vercel, go back to your Render API service:
 2. Update `AllowedOrigins__0` with your Vercel URL
 3. Save changes (service will redeploy)
 
-#### 5. Configure GitHub Actions Scheduler
+#### 5. Configure cron-job.org Scheduler
 
-The application uses GitHub Actions for automated tasks (reminders, auto-picks, score syncing).
+The application uses **cron-job.org** (an external cron service) for automated tasks (reminders, auto-picks, score syncing). A weekly master job calls the API, which generates the per-week schedule and creates the individual jobs via the cron-job.org REST API. (GitHub Actions is used for CI/CD only.)
 
-**5.1. Create GitHub Personal Access Token**
+**5.1. Get a cron-job.org account API key**
 
-1. Go to [GitHub Settings > Personal Access Tokens > Tokens (classic)](https://github.com/settings/tokens)
-2. Click "Generate new token (classic)"
-3. Set description: `PremierLeague Scheduler`
-4. Select scopes:
-   - ✅ `repo` (Full control of private repositories)
-   - ✅ `workflow` (Update GitHub Action workflows)
-5. Click "Generate token"
-6. **Copy the token immediately** (you won't see it again)
+1. Sign in at [cron-job.org](https://cron-job.org) (use a **separate account/key for each environment** — see the warning below).
+2. Create an API key from the account settings.
 
-**5.2. Add Token to Render Environment**
+**5.2. Add scheduler env vars to Render**
 
-1. Go to your Render API service
-2. Navigate to "Environment" tab
-3. Update `GitHub__PersonalAccessToken` with the token you just created
-4. Save changes (service will redeploy)
+1. Go to your Render API service → "Environment" tab.
+2. Set:
+   - `CronJobsOrg__ApiKey` = the cron-job.org account API key (Bearer token for the REST API). Set this **manually in each service's Environment tab** (in the Render dashboard).
+   - `ExternalSync__ApiKey` = the key the cron-job.org jobs use to authenticate to the API.
+3. Save changes (service will redeploy).
 
-**5.3. Add API Key to GitHub Secrets**
+> ⚠️ **Use separate `CronJobsOrg__ApiKey` values for prod and dev.** The `generate` step deletes **all** cron-job.org jobs whose title starts with `EPL-` before recreating them, and this delete is account-wide — a shared key makes the two environments wipe each other's jobs.
 
-1. Go to your GitHub repository
-2. Navigate to Settings > Secrets and variables > Actions
-3. Click "New repository secret"
-4. Add:
-   ```
-   Name:  EXTERNAL_SYNC_API_KEY
-   Value: [Copy from Render Environment: ExternalSyncApiKey]
-   ```
+**5.3. Create the master job in cron-job.org**
 
-**5.4. Verify Master Scheduler**
+Create a job in the cron-job.org dashboard (title must **not** start with `EPL-`):
 
-1. Check that `.github/workflows/master-scheduler.yml` exists in your repository
-2. Go to GitHub repository > Actions tab
-3. You should see "Master Scheduler" workflow
-4. It will run automatically every Monday at 9 AM UTC
-5. Or manually trigger it: Actions > Master Scheduler > Run workflow
+- **Prod** — title `Prem Predictions Schedule Generate`, URL `https://api.eplpredict.com/api/v1/admin/schedule/generate`
+- **Dev** — title `Prem Predictions Schedule Generate Dev`, URL `https://premierleague-api-dev.onrender.com/api/v1/admin/schedule/generate`
+- Method `POST`, header `X-API-Key: <ExternalSync key>`, schedule Mondays 09:00 Europe/London.
+
+**5.4. Create the warm-up (health-ping) job**
+
+Render free tier cold-starts (~24s) can exceed cron-job.org's hard 30s request timeout. Add a warm-up job per environment that `GET`s `/health` (no auth) at 08:55 and 08:58 Europe/London (prod → `https://api.eplpredict.com/health`, dev → `https://premierleague-api-dev.onrender.com/health`). Title must **not** start with `EPL-`.
 
 **What the Scheduler Does:**
-- **Every Monday 9 AM UTC**: Generates weekly schedule based on upcoming gameweeks
-- **Throughout the week**: Runs scheduled jobs:
-  - Send reminders (24h, 12h, 3h before deadlines)
-  - Auto-pick for users who didn't submit picks
-  - Sync live scores every 2 minutes during matches
+- **Every Monday 09:00 Europe/London**: master job calls `generate`, which builds the weekly schedule from upcoming gameweeks and creates one cron-job.org job per task (`EPL-{week}-{jobType}-{n}`).
+- **Throughout the week**, the generated jobs run:
+  - Send reminders (24h, 12h, 3h before deadlines) → `/api/v1/admin/schedule/reminders`
+  - Auto-pick for users who didn't submit picks → `/api/v1/admin/schedule/auto-pick`
+  - Sync live scores every 2 minutes during matches → `/api/v1/admin/sync/results`
+- Generated jobs authenticate via an `?apiKey=` query parameter.
+- In the off-season (no fixtures in the next 7 days), `generate` correctly creates zero jobs.
 
-See [DEPLOYMENT.md](../../DEPLOYMENT.md#github-actions-scheduler-setup) for detailed scheduler documentation.
+See [LIVE_SCORES_SETUP.md](../LIVE_SCORES_SETUP.md) and [DEPLOYMENT.md](../DEPLOYMENT.md#cron-joborg-scheduler-setup) for detailed scheduler documentation.
 
 ## Post-Deployment
 
@@ -272,10 +264,9 @@ To upgrade from free tier:
 | `Google__ClientId` | Google OAuth Client ID | From Google Cloud |
 | `FootballData__ApiKey` | Football Data API key | From football-data.org |
 | `AllowedOrigins__0` | CORS allowed origin | Frontend URL |
-| `ApiBaseUrl` | Public API URL | `https://premierleague-api.onrender.com` |
-| `GitHub__Owner` | GitHub username | Your GitHub username |
-| `GitHub__Repository` | Repository name | `PremierLeaguePredictions` |
-| `GitHub__PersonalAccessToken` | GitHub PAT for workflow management | From GitHub settings |
+| `ApiBaseUrl` | Public API URL (base for generated job URLs) | `https://premierleague-api.onrender.com` |
+| `ExternalSync__ApiKey` | Key the cron-job.org jobs use to authenticate to the API | Random string |
+| `CronJobsOrg__ApiKey` | cron-job.org account API key (REST API Bearer token); set manually in the service's Environment tab; separate per environment | From cron-job.org settings |
 
 ### Frontend Required Variables (Vercel)
 | Variable | Description | Example |

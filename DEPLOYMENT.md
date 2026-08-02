@@ -3,209 +3,104 @@
 This guide covers deploying the Premier League Predictions application to production.
 
 ## Table of Contents
-- [GitHub Actions Scheduler Setup](#github-actions-scheduler-setup)
+- [cron-job.org Scheduler Setup](#cron-joborg-scheduler-setup)
 - [Database Migrations](#database-migrations)
 - [Render.com Deployment](#rendercom-deployment)
 - [Manual Deployment](#manual-deployment)
 - [Environment Variables](#environment-variables)
 - [Health Checks](#health-checks)
-- [Troubleshooting GitHub Actions](#troubleshooting-github-actions)
+- [Troubleshooting the cron-job.org Scheduler](#troubleshooting-the-cron-joborg-scheduler)
 
 ---
 
-## GitHub Actions Scheduler Setup
+## cron-job.org Scheduler Setup
 
-The application uses **GitHub Actions** to schedule automated tasks (reminders, auto-picks, score syncing). A master scheduler runs every Monday at 9 AM UTC and generates dynamic workflow files for the upcoming week.
+The application uses **cron-job.org** (an external cron service) to schedule automated tasks (reminders, auto-picks, score syncing). A single weekly **master job** runs every **Monday at 09:00 Europe/London** and calls our API, which then generates a precise per-week schedule as individual cron-job.org jobs.
 
-### Prerequisites
+> GitHub Actions is used **only** for CI/CD (test/build/deploy) — it no longer schedules app jobs. The old `master-scheduler.yml` / `weekly-jobs-*.yml` workflows and `GitHub__*` env vars are retired (see [Environment Variables](#environment-variables)).
 
-1. **GitHub Personal Access Token** with `workflow` scope (or fine-grained token with Contents + Workflows permissions)
-2. **API Key** for external sync operations (already exists as `EXTERNAL_SYNC_API_KEY`)
-
-### Setup Steps
-
-#### 1. Create GitHub Personal Access Token
-
-**Option A: Classic Token (Recommended - Simpler)**
-
-1. Go to [GitHub Settings > Personal Access Tokens > Tokens (classic)](https://github.com/settings/tokens)
-2. Click "Generate new token (classic)"
-3. Set description: `PremierLeague Scheduler`
-4. Set expiration: Choose your preferred expiration (90 days, 1 year, or no expiration)
-5. Select scopes:
-   - ✅ `workflow` (Update GitHub Action workflows)
-   - Note: Selecting `workflow` automatically includes necessary repository access
-6. Click "Generate token"
-7. **Copy the token immediately** (you won't see it again)
-
-**Option B: Fine-grained Token (More Secure - More Complex)**
-
-1. Go to [GitHub Settings > Personal Access Tokens > Fine-grained tokens](https://github.com/settings/personal-access-tokens/new)
-2. Set token name: `PremierLeague Scheduler`
-3. Set expiration: Choose your preferred expiration
-4. Repository access: Select "Only select repositories" → Choose `PremierLeaguePredictions`
-5. Repository permissions:
-   - **Contents**: Read and write
-   - **Workflows**: Read and write
-6. Click "Generate token"
-7. **Copy the token immediately** (you won't see it again)
-
-#### 2. Add Token to Render Environment Variables
-
-In your Render.com dashboard:
-
-1. Go to your API service
-2. Navigate to "Environment" tab
-3. Add new environment variable:
-   ```
-   Key:   GitHub__PersonalAccessToken
-   Value: ghp_your_token_here
-   ```
-4. Click "Save Changes"
-
-#### 3. Configure appsettings.json (Already Done)
-
-The following configuration is already set in `appsettings.json`:
-
-```json
-{
-  "ApiBaseUrl": "https://api.eplpredict.com",
-  "GitHub": {
-    "Owner": "your-github-username",
-    "Repository": "PremierLeaguePredictions",
-    "PersonalAccessToken": ""  // Read from environment variable
-  }
-}
-```
-
-Update `GitHub:Owner` to match your GitHub username if needed.
-
-#### 4. Verify API Key Secret Exists
-
-Check your GitHub repository secrets:
-
-1. Go to repository Settings > Secrets and variables > Actions
-2. Verify `EXTERNAL_SYNC_API_KEY` exists
-3. If not, add it:
-   ```
-   Name:  EXTERNAL_SYNC_API_KEY
-   Value: your-api-key-here
-   ```
-
-This is used by generated workflows to authenticate API calls.
+The canonical reference for this flow is [LIVE_SCORES_SETUP.md](LIVE_SCORES_SETUP.md).
 
 ### How It Works
 
-```mermaid
-flowchart TB
-    A[Monday 9 AM UTC] --> B[Master Scheduler Runs]
-    B --> C[POST /api/v1/admin/schedule/generate]
-    C --> D{Query Gameweeks<br/>Next 7 Days}
-    D --> E[Generate Schedule Plan]
-    E --> F[Create Reminders<br/>24h, 12h, 3h]
-    E --> G[Create Auto-Pick Jobs<br/>At Deadlines]
-    E --> H[Create Score Sync Jobs<br/>Every 2 min During Matches]
-    F --> I[Convert to YAML]
-    G --> I
-    H --> I
-    I --> J[Commit weekly-jobs-YYYY-WW.yml<br/>via GitHub API]
-    J --> K[Delete Previous Week File]
-    K --> L[GitHub Actions Auto-Runs<br/>Jobs at Scheduled Times]
+1. **Monday 09:00 Europe/London** — the master job `POST`s to `/api/v1/admin/schedule/generate` (authenticated with the `X-API-Key` header = ExternalSync key).
+2. `CronSchedulerService.GenerateWeeklyScheduleAsync` builds a `SchedulePlan` from unlocked gameweeks with deadlines/fixtures in the next 7 days:
+   - Reminder emails at **24h, 12h, 3h** before each deadline.
+   - **Auto-pick** at each deadline.
+   - **Live-score sync** every 2 minutes during each match window (kickoff → +2h, fixtures grouped into 15-minute kickoff windows).
+3. `CronJobsOrgService.SyncWeeklyJobsAsync` calls the cron-job.org REST API to create one cron-job.org job per (jobType, schedule).
+   - **Before** creating, it **deletes all cron-job.org jobs whose title starts with `EPL-`**. Generated jobs are titled `EPL-{weekNumber}-{jobType}-{n}`.
+   - The master job and warm-up job must **NOT** be `EPL-` prefixed, or they would delete themselves.
+4. If there are no gameweeks/fixtures in the next 7 days (pre-season/off-season), `generate` correctly creates **zero** `EPL-` jobs. This is expected, not a failure.
 
-    style A fill:#e1f5ff
-    style L fill:#d4edda
-```
+**Generated jobs hit these endpoints** (auth passed as a query parameter `?apiKey=<ExternalSync key>`, because cron-job.org REST-API jobs don't reliably support custom headers):
 
-### Generated Workflow Example
+| Job type | Method + endpoint |
+|---|---|
+| `send-reminders` | `POST /api/v1/admin/schedule/reminders` |
+| `auto-pick` | `POST /api/v1/admin/schedule/auto-pick` |
+| `sync-scores` | `POST /api/v1/admin/sync/results` |
 
-The system generates workflow files like `.github/workflows/weekly-jobs-2025-W49.yml`:
+The API's `ApiKeyAuthenticationHandler` accepts the ExternalSync key from **either** the `X-API-Key` header **or** the `apiKey` query-string parameter, validates it against config `ExternalSync:ApiKey`, and grants the Admin role for the request.
 
-```yaml
-name: Weekly Jobs - 2025-W49
-on:
-  schedule:
-    - cron: '0 15 5 12 *'      # Reminder 24h before GW14
-    - cron: '0 3 6 12 *'       # Reminder 12h before GW14
-    - cron: '0 15 6 12 *'      # Reminder 3h before GW14
-    - cron: '0 18 6 12 *'      # Auto-pick at GW14 deadline
-    - cron: '*/2 15-17 6 12 *' # Live scores during 3 PM matches
-    - cron: '*/2 19-21 6 12 *' # Live scores during 7:30 PM match
-  workflow_dispatch:           # Manual trigger support
+### One-Time Setup (per environment)
 
-jobs:
-  send-reminders:
-    if: |
-      github.event.schedule == '0 15 5 12 *' ||
-      github.event.schedule == '0 3 6 12 *' ||
-      github.event.schedule == '0 15 6 12 *'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Send pick reminders
-        run: |
-          curl -X POST https://api.eplpredict.com/api/v1/admin/schedule/reminders \
-            -H "X-API-Key: ${{ secrets.EXTERNAL_SYNC_API_KEY }}" \
-            -H "Content-Type: application/json"
+You configure two jobs per environment (production and development) in the cron-job.org dashboard.
 
-  auto-pick:
-    if: github.event.schedule == '0 18 6 12 *'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Run auto-pick assignment
-        run: |
-          curl -X POST https://api.eplpredict.com/api/v1/admin/schedule/auto-pick \
-            -H "X-API-Key: ${{ secrets.EXTERNAL_SYNC_API_KEY }}" \
-            -H "Content-Type: application/json"
+#### 1. Set environment variables (per Render service)
 
-  sync-scores:
-    if: |
-      github.event.schedule == '*/2 15-17 6 12 *' ||
-      github.event.schedule == '*/2 19-21 6 12 *'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Sync live scores
-        run: |
-          curl -X POST https://api.eplpredict.com/api/v1/dev/fixtures/sync-results \
-            -H "X-API-Key: ${{ secrets.EXTERNAL_SYNC_API_KEY }}" \
-            -H "Content-Type: application/json"
-```
+- `CronJobsOrg__ApiKey` — the cron-job.org **account** API key (Bearer token so our API can list/create/delete jobs via `api.cron-job.org`). Set **manually in each Render service's Environment tab** (in the Render dashboard). Use **separate keys for prod and dev** — a shared key makes the two environments wipe each other's `EPL-` jobs, because the delete step is account-wide.
+- `ExternalSync__ApiKey` — the key the cron-job.org jobs use to authenticate **to** our API.
+- `ApiBaseUrl` — base URL the generated jobs' target URLs are built from. Set manually in each Render service's Environment tab (prod → `https://api.eplpredict.com`, dev → `https://premierleague-api-dev.onrender.com`).
 
-### Cost Analysis
+See [Environment Variables](#environment-variables) for values.
 
-**GitHub Actions Free Tier:** 2,000 minutes/month
+#### 2. Create the master job
 
-**Estimated Usage per Week:**
-- Master scheduler: 1 run × 1 min = **1 min**
-- Reminders: ~6 gameweeks × 3 reminders × 0.5 min = **9 min**
-- Auto-pick: ~6 gameweeks × 0.5 min = **3 min**
-- Score sync: ~8 match windows × 60 min × (2 min / 2 min interval) = **240 min** (worst case, usually ~90 min)
+In the cron-job.org dashboard:
 
-**Total:** ~45-240 minutes/month (well within free tier)
+**Production**
+- Title: `Prem Predictions Schedule Generate` (must **not** start with `EPL-`)
+- URL: `https://api.eplpredict.com/api/v1/admin/schedule/generate`
+- Method: `POST`, header `X-API-Key: <ExternalSync key>`
+- Schedule: Mondays 09:00 Europe/London
+
+**Development**
+- Title: `Prem Predictions Schedule Generate Dev`
+- URL: `https://premierleague-api-dev.onrender.com/api/v1/admin/schedule/generate`
+- Method: `POST`, header `X-API-Key: <ExternalSync key>`
+- Schedule: Mondays 09:00 Europe/London
+
+#### 3. Create the warm-up (health-ping) job
+
+Render's free tier cold-starts (~24s) can cause the Monday `generate` to hit the 30s cron-job.org timeout. Add a warm-up job per environment that `GET`s `/health` (no auth, no body — warms the app process and DB connection) a few minutes before the master job, e.g. at **08:55 and 08:58 Europe/London**:
+
+- Prod → `https://api.eplpredict.com/health`
+- Dev → `https://premierleague-api-dev.onrender.com/health`
+
+Even if the first ping itself times out on a cold instance, it still triggers the Render spin-up so `generate` lands warm. The warm-up job's title must **not** start with `EPL-`. **Do not** try to raise the cron-job.org timeout — it is capped at 30s.
 
 ### Manual Trigger
 
-You can manually trigger the schedule generation:
-
-1. Go to GitHub repository > Actions tab
-2. Select "Master Scheduler" workflow
-3. Click "Run workflow" button
-4. Select branch (usually `main`)
-5. Click "Run workflow"
+To regenerate the schedule on demand, open the master job in the cron-job.org dashboard and use its "run now" / test-run option (or wait for the next Monday run).
 
 ---
 
 ## Database Migrations
 
-**IMPORTANT:** Database migrations are NOT run automatically on application startup in production. This prevents race conditions in multi-instance deployments.
+**IMPORTANT:** Running migrations on application startup is generally avoided in multi-instance deployments to prevent race conditions. On the current single-instance Render **free tier**, however, migrations intentionally run on startup via `RunMigrationsOnStartup=true` (see below), since the free tier has no `preDeployCommand`.
 
-### Automatic Migration (Render.com)
+### Automatic Migration (Render.com free tier)
 
-When deploying to Render.com, migrations are run automatically via the `preDeployCommand` in `render.yaml`:
+On Render's free tier there is no `render.yaml`/Blueprint and no `preDeployCommand` (that is a paid-tier feature). Instead, the app applies EF Core migrations at boot when the `RunMigrationsOnStartup=true` environment variable is set (configured manually in each service's Environment tab):
 
-```yaml
-preDeployCommand: "cd /app && dotnet ef database update --no-build"
+```
+RunMigrationsOnStartup=true
 ```
 
-This ensures migrations run once before the new application version starts.
+This means migrations run on every application startup, which is acceptable for the single-instance free tier.
+
+> **Paid tier (future):** a paid Render service could instead run migrations pre-deploy via `preDeployCommand: "cd /app && dotnet ef database update --no-build"` and set `RunMigrationsOnStartup=false`. This is not used today.
 
 ### Manual Migration Scripts
 
@@ -265,24 +160,16 @@ In development, migrations run automatically on startup. This is controlled by t
 
 ### Important: Free Tier Limitations
 
-**Render.com Free Tier** does not support `preDeployCommand`, which is the recommended way to run migrations before deployment. As a workaround for free tier deployments, migrations are configured to run on application startup.
+**Render.com Free Tier** does not support Blueprints (`render.yaml`) or `preDeployCommand`, which is the usual way to run migrations before deployment. Both services (`premierleague-api` = prod, `premierleague-api-dev` = dev) are therefore created and configured **manually in the Render dashboard**, and migrations are configured to run on application startup.
 
-**Configuration in render.yaml:**
-```yaml
-envVars:
-  - key: RunMigrationsOnStartup
-    value: true  # Required for Render free tier
+Set this manually in each service's Environment tab:
+```
+RunMigrationsOnStartup=true  # Required for Render free tier
 ```
 
 ⚠️ **Tradeoff:** This means migrations run on every application restart, which is acceptable for single-instance free tier deployments but should be avoided in multi-instance production deployments (paid tiers).
 
-**For Paid Tiers:** Use `preDeployCommand` instead:
-```yaml
-preDeployCommand: "cd /app && dotnet ef database update --no-build"
-envVars:
-  - key: RunMigrationsOnStartup
-    value: false  # Disable for paid tier
-```
+**For Paid Tiers (future):** a paid service could use `preDeployCommand: "cd /app && dotnet ef database update --no-build"` and set `RunMigrationsOnStartup=false`. Not used today.
 
 ### Prerequisites
 1. Render.com account (free or paid tier)
@@ -296,11 +183,12 @@ envVars:
    - Select "New Web Service"
    - Connect your GitHub repository
 
-2. **Configure Service**
-   - Render will auto-detect `render.yaml`
-   - Service name: `premierleague-api`
+2. **Configure Service** (manually — there is no Blueprint/`render.yaml`)
+   - Service name: `premierleague-api` (prod) or `premierleague-api-dev` (dev)
    - Region: Oregon (or your preferred region)
-   - Build: Uses Docker (configured in render.yaml)
+   - Root Directory: `backend`
+   - Runtime: Docker (Dockerfile Path `./Dockerfile`)
+   - Health Check Path: set under Settings → Health Check Path = `/health`
 
 3. **Set Environment Variables**
 
@@ -330,44 +218,25 @@ envVars:
    - Review logs in Render Dashboard for migration success
    - Test authentication and API endpoints
 
-### Render.yaml Configuration
+### Service Configuration (Render dashboard)
 
-**Free Tier Configuration (current):**
-```yaml
-services:
-  - type: web
-    name: premierleague-api
-    runtime: docker
-    region: oregon
-    rootDir: backend
-    dockerfilePath: ./Dockerfile
-    healthCheckPath: /health
-    envVars:
-      - key: ASPNETCORE_ENVIRONMENT
-        value: Production
-      - key: RunMigrationsOnStartup
-        value: true  # Migrations run on app startup (free tier workaround)
-      # ... other environment variables
+There is **no `render.yaml`/Blueprint**. Each service is configured by hand in the Render dashboard with the following settings:
+
+| Setting | Value |
+|---|---|
+| Runtime | Docker |
+| Root Directory | `backend` |
+| Dockerfile Path | `./Dockerfile` |
+| Health Check Path | `/health` (Settings → Health Check Path) |
+
+**Key environment variables** (set manually in the service's Environment tab — see [Environment Variables](#environment-variables) for the full list):
+
+```
+ASPNETCORE_ENVIRONMENT=Production
+RunMigrationsOnStartup=true   # Migrations run on app startup (free tier)
 ```
 
-**Paid Tier Configuration (recommended for production):**
-```yaml
-services:
-  - type: web
-    name: premierleague-api
-    runtime: docker
-    region: oregon
-    rootDir: backend
-    dockerfilePath: ./Dockerfile
-    preDeployCommand: "cd /app && dotnet ef database update --no-build"
-    healthCheckPath: /health
-    envVars:
-      - key: ASPNETCORE_ENVIRONMENT
-        value: Production
-      - key: RunMigrationsOnStartup
-        value: false  # Migrations run via preDeployCommand
-      # ... other environment variables
-```
+> **Paid tier (future):** a paid service could set `RunMigrationsOnStartup=false` and add a `preDeployCommand` to run migrations before deploy. Not used today.
 
 ---
 
@@ -452,11 +321,15 @@ FootballData__ApiKey="your-football-data-api-key"
 # CORS
 AllowedOrigins__0="https://your-frontend-url.com"
 
-# GitHub Actions Scheduler
-GitHub__Owner="your-github-username"
-GitHub__Repository="PremierLeaguePredictions"
-GitHub__PersonalAccessToken="ghp_your_token_here"
-ApiBaseUrl="https://api.eplpredict.com"
+# cron-job.org Scheduler
+CronJobsOrg__ApiKey="your-cron-job-org-account-api-key"  # Set manually in each Render service's Environment tab. Use separate keys for prod and dev.
+ExternalSync__ApiKey="your-external-sync-api-key"        # Key the cron-job.org jobs use to authenticate to our API
+ApiBaseUrl="https://api.eplpredict.com"                  # Set manually in the dashboard (dev: https://premierleague-api-dev.onrender.com)
+
+# DEPRECATED / removable — only used by the retired GitHub Actions scheduler
+# GitHub__Owner="your-github-username"
+# GitHub__Repository="PremierLeaguePredictions"
+# GitHub__PersonalAccessToken="ghp_your_token_here"
 
 # Optional: Email (for notifications)
 Email__SmtpHost="smtp.gmail.com"
@@ -522,7 +395,7 @@ Configure your monitoring tool to check `/health` endpoint:
 - **Success:** HTTP 200 status
 - **Alert:** If unhealthy for 2+ consecutive checks
 
-**Render.com:** Automatically configured via `healthCheckPath` in render.yaml
+**Render.com:** Configured manually per service under Settings → Health Check Path = `/health`
 
 ---
 
@@ -609,199 +482,86 @@ Before deploying to production:
 
 ---
 
-## Troubleshooting GitHub Actions
+## Troubleshooting the cron-job.org Scheduler
 
-### Master Scheduler Not Running
+### 401 from cron-job.org's REST API
 
-**Symptom:** No workflow files generated on Monday mornings
+**Symptom:** `generate` runs but logs a 401 when creating/deleting jobs on `api.cron-job.org`.
+
+**Cause:** Bad or missing `CronJobsOrg__ApiKey` (the cron-job.org **account** API key).
+
+**Fix:** Set a valid `CronJobsOrg__ApiKey` in the Render service. Use **separate** keys for prod and dev.
+
+### 401 from our API
+
+**Symptom:** The master job or a generated job gets 401 from `/api/v1/admin/...`.
+
+**Cause:** Bad ExternalSync key. The master job authenticates via the `X-API-Key` header; generated jobs authenticate via the `?apiKey=` query parameter. Both are validated against `ExternalSync:ApiKey`.
+
+**Fix:** Ensure the key configured in the cron-job.org job matches `ExternalSync__ApiKey` in the corresponding Render service.
+
+```bash
+# Test the master endpoint manually
+curl -X POST https://api.eplpredict.com/api/v1/admin/schedule/generate \
+  -H "X-API-Key: $EXTERNAL_SYNC_API_KEY" -v   # expect 200
+
+# Test a generated-style call (query-param auth)
+curl -X POST "https://api.eplpredict.com/api/v1/admin/sync/results?apiKey=$EXTERNAL_SYNC_API_KEY" -v
+```
+
+### 500 from `generate`
 
 **Check:**
-1. Verify `.github/workflows/master-scheduler.yml` exists in repository
-2. Check Actions tab for failed runs
-3. Verify repository has Actions enabled (Settings > Actions > General)
+1. Render logs (Dashboard > Logs > filter "schedule") for the exception.
+2. Database connectivity.
+3. `FootballData__ApiKey` is set.
 
-**Solution:**
-```bash
-# Manual trigger via GitHub CLI
-gh workflow run master-scheduler.yml
+### Zero jobs created
 
-# Or via web UI: Actions > Master Scheduler > Run workflow
-```
+**Symptom:** `generate` succeeds but no `EPL-` jobs appear.
 
-### Schedule Generation Fails
+**Cause:** No gameweeks/fixtures in the next 7 days (pre-season/off-season). **This is normal**, not a failure.
 
-**Error:** "Failed to generate workflow: GitHub API error"
+### Cold-start timeouts / master job auto-disabled
 
-**Possible Causes:**
-1. **Invalid Personal Access Token**
-   - Check token hasn't expired
-   - Verify token has `workflow` scope (classic) or Contents + Workflows permissions (fine-grained)
-   - Regenerate token if needed
+**Symptom:** `generate` times out; cron-job.org eventually auto-disables the master job.
 
-2. **Missing Environment Variable**
-   ```bash
-   # Verify in Render dashboard or logs
-   echo $GitHub__PersonalAccessToken
-   ```
+**Cause:** cron-job.org's request timeout is a hard **30s** cap. Render free tier cold-starts (~24s) can exceed it. The timeout is client-side, so Kestrel aborts the request (cancellation token threaded through `generate`) — this can abort mid-flight, possibly **after** deleting old `EPL-` jobs but **before** recreating them, leaving that week unscheduled.
 
-3. **Repository Name Mismatch**
-   - Check `appsettings.json` → `GitHub:Owner` and `GitHub:Repository`
-   - Must match your actual GitHub username/repo name
+**Fix:**
+1. Add/verify the **warm-up ping job** — a cron-job.org `GET` to `/health` at 08:55 and 08:58 Europe/London, per environment. Even if the first ping times out, it triggers the Render spin-up so `generate` lands warm.
+2. Re-enable the master job in the cron-job.org dashboard if it was auto-disabled.
+3. If a week ended up unscheduled, re-run the master job manually once the instance is warm.
+4. **Do not** try to raise the cron-job.org timeout — it cannot be raised beyond 30s.
 
-**Debug:**
-```bash
-# Check API logs for detailed error
-# Render: Dashboard > Logs > Filter "schedule"
-# Look for POST /api/v1/admin/schedule/generate requests
-```
+### A week's jobs disappeared / prod and dev interfering
 
-### Workflow Jobs Not Executing
+**Symptom:** Jobs vanish unexpectedly, or one environment wipes the other's schedule.
 
-**Symptom:** Workflow file exists but jobs don't run at scheduled times
+**Cause:** The delete step (`SyncWeeklyJobsAsync`) removes **all** account-wide cron-job.org jobs whose title starts with `EPL-` before recreating. A shared `CronJobsOrg__ApiKey` across prod and dev lets one environment delete the other's `EPL-` jobs. It also means any job you create manually with an `EPL-` prefix will be deleted.
 
-**Check:**
-1. **Verify Cron Expression Timing**
-   ```bash
-   # Cron runs on UTC time
-   # '0 15 6 12 *' = 3:00 PM UTC on Dec 6
-   # Convert to your local timezone if needed
-   ```
-
-2. **Check GitHub Actions Logs**
-   - Go to Actions tab
-   - Find the workflow run (may be hidden if it failed early)
-   - Review logs for errors
-
-3. **API Endpoint Errors**
-   ```bash
-   # Test endpoint manually
-   curl -X POST https://api.eplpredict.com/api/v1/admin/schedule/reminders \
-     -H "X-API-Key: $EXTERNAL_SYNC_API_KEY" \
-     -H "Content-Type: application/json" \
-     -v
-
-   # Should return 200 OK
-   ```
-
-**Common Issues:**
-- **401 Unauthorized:** Check `EXTERNAL_SYNC_API_KEY` secret is set correctly
-- **404 Not Found:** Verify API URL is correct (check for `/api/v1/` prefix)
-- **500 Server Error:** Check API logs for internal errors
-
-### Duplicate Jobs Running
-
-**Symptom:** Multiple workflow files executing at same time
-
-**Cause:** Old workflow files not cleaned up
-
-**Solution:**
-```bash
-# Manually delete old workflow files
-# Go to .github/workflows/ and delete weekly-jobs-*.yml files older than current week
-
-# Or trigger schedule generation to auto-cleanup
-gh workflow run master-scheduler.yml
-```
+**Fix:** Use separate `CronJobsOrg__ApiKey` accounts for prod and dev, and never prefix the master/warm-up jobs with `EPL-`.
 
 ### Reminders Not Sending
 
-**Error:** Job runs but no emails sent
-
 **Check:**
-1. **Email Configuration**
-   ```bash
-   # Verify SMTP settings in environment variables
-   Email__SmtpHost, Email__SmtpPort, Email__SmtpUsername, etc.
-   ```
-
+1. **Email Configuration** — `Email__SmtpHost`, `Email__SmtpPort`, `Email__SmtpUsername`, etc.
 2. **User Email Addresses**
    ```sql
-   -- Check users have valid email addresses
    SELECT "Email", "FirstName", "LastName" FROM "Users" WHERE "Email" IS NULL OR "Email" = '';
    ```
-
-3. **API Logs**
-   ```bash
-   # Check for errors in PickReminderService
-   # Look for "Sending pick reminders" log entries
-   ```
+3. **API Logs** — look for "Sending pick reminders" entries.
 
 ### Score Sync Not Updating
 
-**Symptom:** Live scores not refreshing during matches
-
 **Check:**
-1. **Football-Data.org API Key**
+1. The `EPL-{week}-sync-scores-*` jobs exist for the week and are enabled.
+2. **football-data.org** API key is valid and hasn't hit rate limits (10 requests/minute free tier).
+3. Fixtures have `ExternalId` values set in the database.
+4. **Test Manual Sync:**
    ```bash
-   # Verify API key is valid and hasn't hit rate limits
-   # Free tier: 10 requests/minute
+   curl -X POST "https://api.eplpredict.com/api/v1/admin/sync/results?apiKey=$EXTERNAL_SYNC_API_KEY"
    ```
-
-2. **Match Time Windows**
-   ```yaml
-   # Verify cron expression matches actual kickoff times
-   # Example: '*/2 15-17 6 12 *' syncs 3-5 PM UTC on Dec 6
-   # Premier League matches may be at different times
-   ```
-
-3. **Test Manual Sync**
-   ```bash
-   curl -X POST https://api.eplpredict.com/api/v1/dev/fixtures/sync-results \
-     -H "X-API-Key: $EXTERNAL_SYNC_API_KEY" \
-     -H "Content-Type: application/json"
-
-   # Check response for updated fixtures
-   ```
-
-### GitHub Actions Minutes Exceeded
-
-**Error:** "You have exceeded your included minutes"
-
-**Cause:** Too many workflow runs or long-running jobs
-
-**Check Usage:**
-1. Go to GitHub Settings > Billing > Plans and usage
-2. View Actions minutes consumed
-
-**Solutions:**
-1. **Optimize Score Sync Intervals**
-   - Change from every 2 minutes to every 5 minutes
-   - Reduce match window durations
-
-2. **Disable Score Sync During Off-Hours**
-   - Only sync during actual match times
-   - Skip syncing for postponed/canceled matches
-
-3. **Upgrade to GitHub Pro** ($4/month = 3,000 minutes)
-
-### Debugging Tips
-
-**View Detailed Logs:**
-```bash
-# Enable debug logging in workflow
-# Edit master-scheduler.yml or generated workflow:
-env:
-  ACTIONS_RUNNER_DEBUG: true
-  ACTIONS_STEP_DEBUG: true
-```
-
-**Test Locally:**
-```bash
-# Simulate workflow job locally
-curl -X POST http://localhost:5000/api/v1/admin/schedule/generate \
-  -H "X-API-Key: your-api-key"
-
-# Check generated SchedulePlan
-```
-
-**Common Error Messages:**
-
-| Error | Cause | Solution |
-|-------|-------|----------|
-| `Resource not accessible by integration` | Token lacks required scopes | Regenerate token with `workflow` scope or Contents + Workflows permissions |
-| `Reference does not exist` | Branch name mismatch | Check `ref` in API calls matches actual branch |
-| `Workflow does not exist` | File path wrong | Verify `.github/workflows/` path |
-| `Rate limit exceeded` | Too many API calls | Wait or upgrade GitHub plan |
 
 ---
 
@@ -813,6 +573,6 @@ For deployment issues:
 3. Verify all environment variables are set
 4. Test database connectivity
 5. Check health endpoint response
-6. Review GitHub Actions logs for scheduler issues
+6. Review the cron-job.org dashboard for job status/history
 
 For questions or issues, create a GitHub issue or contact the development team.

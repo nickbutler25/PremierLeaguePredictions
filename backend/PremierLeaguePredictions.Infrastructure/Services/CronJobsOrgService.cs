@@ -62,7 +62,6 @@ public class CronJobsOrgService : ICronJobsOrgService
             {
                 Success = true,
                 Message = $"Synced {created} jobs on cron-jobs.org for week {plan.WeekNumber}",
-                WorkflowFile = null,
                 JobCount = created
             };
         }

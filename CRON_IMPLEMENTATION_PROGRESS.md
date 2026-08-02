@@ -1,3 +1,7 @@
+> ⚠️ **SUPERSEDED — HISTORICAL DOCUMENT.** This document describes the **original GitHub Actions** scheduler implementation (a master-scheduler workflow that committed weekly `weekly-jobs-*.yml` files to the repo). That approach has since been **replaced by cron-job.org** (an external cron service). GitHub Actions is now used for CI/CD only. The `GitHub__*` env vars, `master-scheduler.yml`, and the `/api/v1/dev/fixtures/sync-results` endpoint referenced below are all outdated.
+>
+> **For the current scheduling flow, see [LIVE_SCORES_SETUP.md](LIVE_SCORES_SETUP.md).** This file is kept for historical context only.
+
 # Cron Job Scheduler Implementation Progress
 
 ## Goal
