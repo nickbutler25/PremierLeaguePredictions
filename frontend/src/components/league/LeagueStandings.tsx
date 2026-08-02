@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import { leagueService } from '@/services/league';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -11,7 +12,11 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-export function LeagueStandings() {
+interface LeagueStandingsProps {
+  compact?: boolean;
+}
+
+export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
   const { user } = useAuth();
 
   const { data, isLoading, error } = useQuery({
@@ -59,11 +64,19 @@ export function LeagueStandings() {
 
   return (
     <Card data-testid="league-standings-card">
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle>League Standings</CardTitle>
+        {compact && (
+          <Link
+            to="/league"
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Full standings →
+          </Link>
+        )}
       </CardHeader>
       <CardContent>
-        <div className="rounded-md border overflow-x-auto">
+        <div className={`rounded-md border ${compact ? '' : 'overflow-x-auto'}`}>
           <Table data-testid="standings-table">
             <TableHeader>
               <TableRow>
@@ -74,9 +87,15 @@ export function LeagueStandings() {
                 <TableHead className="text-center w-12">D</TableHead>
                 <TableHead className="text-center w-12">L</TableHead>
                 <TableHead className="text-center w-16 font-bold">PT</TableHead>
-                <TableHead className="text-center w-16 hidden md:table-cell">GF</TableHead>
-                <TableHead className="text-center w-16 hidden md:table-cell">GA</TableHead>
-                <TableHead className="text-center w-16 hidden lg:table-cell">GD</TableHead>
+                {!compact && (
+                  <TableHead className="text-center w-16 hidden md:table-cell">GF</TableHead>
+                )}
+                {!compact && (
+                  <TableHead className="text-center w-16 hidden md:table-cell">GA</TableHead>
+                )}
+                {!compact && (
+                  <TableHead className="text-center w-16 hidden lg:table-cell">GD</TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -146,24 +165,30 @@ export function LeagueStandings() {
                       >
                         {entry.totalPoints}
                       </TableCell>
-                      <TableCell className="text-center text-xs sm:text-sm hidden md:table-cell">
-                        {entry.goalsFor}
-                      </TableCell>
-                      <TableCell className="text-center text-xs sm:text-sm hidden md:table-cell">
-                        {entry.goalsAgainst}
-                      </TableCell>
-                      <TableCell
-                        className={`text-center text-xs sm:text-sm hidden lg:table-cell ${
-                          entry.goalDifference > 0
-                            ? 'text-green-600 dark:text-green-400'
-                            : entry.goalDifference < 0
-                              ? 'text-red-600 dark:text-red-400'
-                              : ''
-                        }`}
-                      >
-                        {entry.goalDifference > 0 ? '+' : ''}
-                        {entry.goalDifference}
-                      </TableCell>
+                      {!compact && (
+                        <TableCell className="text-center text-xs sm:text-sm hidden md:table-cell">
+                          {entry.goalsFor}
+                        </TableCell>
+                      )}
+                      {!compact && (
+                        <TableCell className="text-center text-xs sm:text-sm hidden md:table-cell">
+                          {entry.goalsAgainst}
+                        </TableCell>
+                      )}
+                      {!compact && (
+                        <TableCell
+                          className={`text-center text-xs sm:text-sm hidden lg:table-cell ${
+                            entry.goalDifference > 0
+                              ? 'text-green-600 dark:text-green-400'
+                              : entry.goalDifference < 0
+                                ? 'text-red-600 dark:text-red-400'
+                                : ''
+                          }`}
+                        >
+                          {entry.goalDifference > 0 ? '+' : ''}
+                          {entry.goalDifference}
+                        </TableCell>
+                      )}
                     </TableRow>
                   );
                 })}
@@ -189,17 +214,25 @@ export function LeagueStandings() {
             <div>
               <strong>PT:</strong> Points
             </div>
-            <div className="hidden md:block">
-              <strong>GF:</strong> Goals For
-            </div>
-            <div className="hidden md:block">
-              <strong>GA:</strong> Goals Against
-            </div>
-            <div className="hidden lg:block">
-              <strong>GD:</strong> Goal Difference
-            </div>
+            {!compact && (
+              <div className="hidden md:block">
+                <strong>GF:</strong> Goals For
+              </div>
+            )}
+            {!compact && (
+              <div className="hidden md:block">
+                <strong>GA:</strong> Goals Against
+              </div>
+            )}
+            {!compact && (
+              <div className="hidden lg:block">
+                <strong>GD:</strong> Goal Difference
+              </div>
+            )}
           </div>
-          <p className="text-xs mt-2 sm:hidden">Tip: View on larger screen for more stats</p>
+          {!compact && (
+            <p className="text-xs mt-2 sm:hidden">Tip: View on larger screen for more stats</p>
+          )}
         </div>
       </CardContent>
     </Card>

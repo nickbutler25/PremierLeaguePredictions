@@ -243,7 +243,7 @@ public class PickService : IPickService
             {
                 Id = team.Id,
                 Name = team.Name,
-                ShortName = team.ShortName,
+                Code = team.Code,
                 LogoUrl = team.LogoUrl
             } : null,
             GameweekName = gameweek != null ? $"Gameweek {gameweek.WeekNumber}" : null

@@ -8,6 +8,7 @@ public class User
     public string LastName { get; set; } = string.Empty;
     public string? PhotoUrl { get; set; }
     public string? GoogleId { get; set; }
+    public string? PasswordHash { get; set; }
     public bool IsActive { get; set; } = true;
     public bool IsAdmin { get; set; } = false;
     public bool IsPaid { get; set; } = false;

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PremierLeaguePredictions.Infrastructure.Data;
@@ -11,9 +12,11 @@ using PremierLeaguePredictions.Infrastructure.Data;
 namespace PremierLeaguePredictions.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260509192444_DropShortName")]
+    partial class DropShortName
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -637,9 +640,6 @@ namespace PremierLeaguePredictions.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("last_name");
-
-                    b.Property<string>("PasswordHash")
-                        .HasColumnType("text");
 
                     b.Property<string>("PhotoUrl")
                         .HasMaxLength(500)

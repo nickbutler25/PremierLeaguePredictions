@@ -16,6 +16,7 @@ import { SeasonApprovalsPage } from '@/pages/admin/SeasonApprovalsPage';
 import EliminationManagementPage from '@/pages/admin/EliminationManagementPage';
 import { BackfillPicksPage } from '@/pages/admin/BackfillPicksPage';
 import { PickRulesManagementPage } from '@/pages/admin/PickRulesManagementPage';
+import { ScheduleManagementPage } from '@/pages/admin/ScheduleManagementPage';
 import { AdminLayout } from '@/components/layout/AdminLayout';
 import { Toaster } from '@/components/ui/toaster';
 import { useSeasonApproval } from '@/hooks/useSeasonApproval';
@@ -27,11 +28,16 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function ApprovalCheckRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { needsApproval, isLoading, isApiDown } = useSeasonApproval();
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Admins are never subject to season approval checks
+  if (user?.isAdmin) {
+    return <>{children}</>;
   }
 
   if (isLoading) {
@@ -165,6 +171,18 @@ function AppRoutes() {
             <Layout>
               <AdminLayout>
                 <PickRulesManagementPage />
+              </AdminLayout>
+            </Layout>
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/schedule"
+        element={
+          <AdminRoute>
+            <Layout>
+              <AdminLayout>
+                <ScheduleManagementPage />
               </AdminLayout>
             </Layout>
           </AdminRoute>

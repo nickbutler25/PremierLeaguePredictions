@@ -197,6 +197,33 @@ public class SeasonParticipationService : ISeasonParticipationService
         return participations.Any();
     }
 
+    public async Task EnrollAdminForSeasonAsync(Guid adminUserId, string seasonId, CancellationToken cancellationToken = default)
+    {
+        var existing = await _unitOfWork.SeasonParticipations.FindAsync(
+            sp => sp.UserId == adminUserId && sp.SeasonId == seasonId,
+            cancellationToken);
+
+        if (existing.Any()) return;
+
+        var participation = new SeasonParticipation
+        {
+            Id = Guid.NewGuid(),
+            UserId = adminUserId,
+            SeasonId = seasonId,
+            IsApproved = true,
+            RequestedAt = DateTime.UtcNow,
+            ApprovedAt = DateTime.UtcNow,
+            ApprovedByUserId = adminUserId,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        await _unitOfWork.SeasonParticipations.AddAsync(participation, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Admin {AdminUserId} auto-enrolled in season {SeasonId}", adminUserId, seasonId);
+    }
+
     private async Task<SeasonParticipationDto> MapToDto(SeasonParticipation participation, CancellationToken cancellationToken)
     {
         var user = await _unitOfWork.Users.GetByIdAsync(participation.UserId, cancellationToken);

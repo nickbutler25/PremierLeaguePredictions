@@ -4,13 +4,12 @@ using Asp.Versioning;
 using PremierLeaguePredictions.API.Authorization;
 using PremierLeaguePredictions.Application.DTOs;
 using PremierLeaguePredictions.Application.Interfaces;
-using PremierLeaguePredictions.Infrastructure.Services;
 
 namespace PremierLeaguePredictions.API.Controllers.Admin;
 
 /// <summary>
 /// Controller for managing dynamic cron job schedules
-/// Used by GitHub Actions master scheduler to generate weekly job schedules
+/// Called by the master scheduler job on cron-jobs.org every Monday at 9 AM UTC
 /// </summary>
 [ApiController]
 [ApiVersion("1.0")]
@@ -19,28 +18,28 @@ namespace PremierLeaguePredictions.API.Controllers.Admin;
 public class AdminScheduleController : ControllerBase
 {
     private readonly ICronSchedulerService _cronSchedulerService;
-    private readonly IGitHubWorkflowService _workflowService;
+    private readonly ICronJobsOrgService _cronJobsOrgService;
     private readonly IPickReminderService _reminderService;
     private readonly IAutoPickService _autoPickService;
     private readonly ILogger<AdminScheduleController> _logger;
 
     public AdminScheduleController(
         ICronSchedulerService cronSchedulerService,
-        IGitHubWorkflowService workflowService,
+        ICronJobsOrgService cronJobsOrgService,
         IPickReminderService reminderService,
         IAutoPickService autoPickService,
         ILogger<AdminScheduleController> logger)
     {
         _cronSchedulerService = cronSchedulerService;
-        _workflowService = workflowService;
+        _cronJobsOrgService = cronJobsOrgService;
         _reminderService = reminderService;
         _autoPickService = autoPickService;
         _logger = logger;
     }
 
     /// <summary>
-    /// Generate weekly schedule and commit GitHub Actions workflow
-    /// Called by master scheduler every Monday at 9 AM UTC
+    /// Generate weekly schedule and sync jobs to cron-jobs.org
+    /// Called by the master scheduler job on cron-jobs.org every Monday at 9 AM UTC
     /// </summary>
     [HttpPost("generate")]
     public async Task<ActionResult<ApiResponse<ScheduleGenerationResponse>>> GenerateWeeklySchedule(CancellationToken cancellationToken)
@@ -49,19 +48,16 @@ public class AdminScheduleController : ControllerBase
         {
             _logger.LogInformation("Starting weekly schedule generation");
 
-            // Step 1: Generate schedule plan for next 7 days
             var plan = await _cronSchedulerService.GenerateWeeklyScheduleAsync(cancellationToken);
 
             _logger.LogInformation("Generated schedule plan with {JobCount} jobs for week {WeekNumber}",
                 plan.Jobs.Count, plan.WeekNumber);
 
-            // Step 2: Convert to GitHub Actions workflow and commit
-            var response = await _workflowService.GenerateAndCommitWorkflowAsync(plan, cancellationToken);
+            var response = await _cronJobsOrgService.SyncWeeklyJobsAsync(plan, cancellationToken);
 
             if (response.Success)
             {
-                _logger.LogInformation("Successfully generated and committed workflow: {WorkflowFile}",
-                    response.WorkflowFile);
+                _logger.LogInformation("Successfully synced {JobCount} jobs to cron-jobs.org", response.JobCount);
 
                 return Ok(ApiResponse<ScheduleGenerationResponse>.SuccessResult(
                     response,
@@ -69,7 +65,7 @@ public class AdminScheduleController : ControllerBase
             }
             else
             {
-                _logger.LogError("Failed to generate workflow: {Message}", response.Message);
+                _logger.LogError("Failed to sync jobs to cron-jobs.org: {Message}", response.Message);
                 return StatusCode(500, ApiResponse<ScheduleGenerationResponse>.FailureResult(
                     response.Message ?? "Unknown error occurred"));
             }

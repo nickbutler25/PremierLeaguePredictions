@@ -5,7 +5,7 @@ import { useAutoPickNotifications } from '@/hooks/useAutoPickNotifications';
 import { useResultsUpdates } from '@/hooks/useResultsUpdates';
 import { useSeasonCreatedNotification } from '@/hooks/useSeasonCreatedNotification';
 import type { ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 
 interface LayoutProps {
   children: ReactNode;
@@ -49,18 +49,54 @@ export function Layout({ children }: LayoutProps) {
                 className="h-8 sm:h-10 w-auto"
               />
             </Link>
-            {isAdmin && (
-              <nav
-                className="hidden md:flex space-x-6"
-                role="navigation"
-                aria-label="Main navigation"
-                data-testid="main-navigation"
+            <nav
+              className="hidden md:flex items-center space-x-1"
+              role="navigation"
+              aria-label="Main navigation"
+              data-testid="main-navigation"
+            >
+              <NavLink
+                to="/dashboard"
+                className={({ isActive }) =>
+                  `text-sm px-3 py-1.5 rounded-md font-medium transition-colors ${
+                    isActive
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-foreground hover:bg-accent'
+                  }`
+                }
+                data-testid="dashboard-link"
               >
-                <Link to="/admin" className="text-sm hover:text-primary" data-testid="admin-link">
+                Dashboard
+              </NavLink>
+              <NavLink
+                to="/league"
+                className={({ isActive }) =>
+                  `text-sm px-3 py-1.5 rounded-md font-medium transition-colors ${
+                    isActive
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-foreground hover:bg-accent'
+                  }`
+                }
+                data-testid="league-link"
+              >
+                League
+              </NavLink>
+              {isAdmin && (
+                <NavLink
+                  to="/admin"
+                  className={({ isActive }) =>
+                    `text-sm px-3 py-1.5 rounded-md font-medium transition-colors ${
+                      isActive
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-foreground hover:bg-accent'
+                    }`
+                  }
+                  data-testid="admin-link"
+                >
                   Admin
-                </Link>
-              </nav>
-            )}
+                </NavLink>
+              )}
+            </nav>
           </div>
           <div className="flex items-center space-x-2 sm:space-x-4">
             <Button

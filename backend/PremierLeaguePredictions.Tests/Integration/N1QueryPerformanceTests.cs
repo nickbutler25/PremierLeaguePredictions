@@ -68,7 +68,7 @@ public class N1QueryPerformanceTests
             {
                 Id = i,
                 Name = $"Team {i}",
-                ShortName = $"T{i}",
+                Code = $"T{i}",
                 ExternalId = i,
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow,
@@ -163,7 +163,7 @@ public class N1QueryPerformanceTests
             {
                 Id = i,
                 Name = $"Team {i}",
-                ShortName = $"T{i}",
+                Code = $"T{i}",
                 ExternalId = i,
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow,
@@ -330,7 +330,7 @@ public class N1QueryPerformanceTests
         {
             Id = 1,
             Name = "Team 1",
-            ShortName = "T1",
+            Code = "T1",
             ExternalId = 1,
             IsActive = true,
             CreatedAt = DateTime.UtcNow,

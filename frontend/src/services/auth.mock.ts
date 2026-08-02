@@ -40,6 +40,24 @@ export const mockAuthService = {
     };
   },
 
+  register: async (
+    email: string,
+    _firstName: string,
+    _lastName: string,
+    _password: string,
+    _confirmPassword: string
+  ): Promise<AuthResponse> => {
+    console.log('[MOCK AUTH] Register called for:', email);
+    await delay(500);
+    return { token: mockToken, user: { ...mockUser, email } };
+  },
+
+  passwordLogin: async (email: string, _password: string): Promise<AuthResponse> => {
+    console.log('[MOCK AUTH] Password login called for:', email);
+    await delay(500);
+    return { token: mockToken, user: { ...mockUser, email } };
+  },
+
   logout: async (): Promise<void> => {
     console.log('[MOCK AUTH] Logout called');
     await delay(200);

@@ -4,6 +4,7 @@ import { picksService } from '@/services/picks';
 import { dashboardService } from '@/services/dashboard';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { TeamName } from '@/components/teams/TeamName';
 import { useState } from 'react';
 import type { Fixture } from '@/types';
 
@@ -191,9 +192,12 @@ export function Fixtures() {
                           className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0"
                         />
                       )}
-                      <span className="text-xs sm:text-sm font-medium truncate">
-                        {fixture.homeTeam?.name}
-                      </span>
+                      {fixture.homeTeam && (
+                        <TeamName
+                          team={fixture.homeTeam}
+                          className="text-xs sm:text-sm font-medium"
+                        />
+                      )}
                     </div>
 
                     {/* Score or Time */}
@@ -234,9 +238,12 @@ export function Fixtures() {
                     <div
                       className={`flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0 justify-end ${awayColor}`}
                     >
-                      <span className="text-xs sm:text-sm font-medium text-right truncate">
-                        {fixture.awayTeam?.name}
-                      </span>
+                      {fixture.awayTeam && (
+                        <TeamName
+                          team={fixture.awayTeam}
+                          className="text-xs sm:text-sm font-medium text-right"
+                        />
+                      )}
                       {fixture.awayTeam?.logoUrl && (
                         <img
                           src={fixture.awayTeam.logoUrl}

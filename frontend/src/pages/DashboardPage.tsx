@@ -53,6 +53,26 @@ export function DashboardPage() {
     const axiosError = error as AxiosError;
     const isNetworkError = !axiosError.response;
     const isServerError = axiosError.response?.status && axiosError.response.status >= 500;
+    const isUnauthorized =
+      axiosError.response?.status === 401 || axiosError.response?.status === 403;
+
+    if (isUnauthorized) {
+      return (
+        <div className="container mx-auto p-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Approval Required</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Your participation in the current season is pending approval. You will have access
+                once an admin approves your request.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
 
     if (isNetworkError || isServerError) {
       return (
@@ -165,7 +185,7 @@ export function DashboardPage() {
 
         {/* Right Column - League Standings */}
         <div data-testid="dashboard-standings-column">
-          <LeagueStandings />
+          <LeagueStandings compact />
         </div>
       </div>
     </div>

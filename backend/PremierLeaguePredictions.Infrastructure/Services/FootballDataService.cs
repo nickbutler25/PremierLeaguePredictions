@@ -103,13 +103,13 @@ public class FootballDataService : IFootballDataService
             PropertyNameCaseInsensitive = true
         });
 
-        if (competition?.CurrentSeason?.Id == null)
+        if (competition?.CurrentSeason?.StartDate == default)
         {
             _logger.LogError("Failed to get current season from competition response. Content: {Content}", content);
             throw new InvalidOperationException("Failed to get current season from Football Data API");
         }
 
-        return competition.CurrentSeason.Id;
+        return competition.CurrentSeason.StartDate.Year;
     }
 
     public async Task<IEnumerable<ExternalTeam>> GetTeamsAsync(CancellationToken cancellationToken = default)

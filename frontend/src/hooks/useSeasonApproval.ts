@@ -1,9 +1,26 @@
-import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import { seasonParticipationService } from '@/services/seasonParticipation';
 import { adminService } from '@/services/admin';
+import { useSignalR } from '@/contexts/SignalRContext';
 
 export function useSeasonApproval() {
+  const queryClient = useQueryClient();
+  const { onSeasonApprovalUpdate, offSeasonApprovalUpdate, isConnected } = useSignalR();
+
+  useEffect(() => {
+    if (!isConnected) return;
+
+    const handler = () => {
+      queryClient.invalidateQueries({ queryKey: ['active-season'] });
+      queryClient.invalidateQueries({ queryKey: ['season-approval'] });
+    };
+
+    onSeasonApprovalUpdate(handler);
+    return () => offSeasonApprovalUpdate(handler);
+  }, [isConnected, onSeasonApprovalUpdate, offSeasonApprovalUpdate, queryClient]);
+
   // Get active season (using public endpoint)
   const {
     data: activeSeason,

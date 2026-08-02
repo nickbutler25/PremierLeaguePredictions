@@ -43,6 +43,14 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // SPA navigation - always serve index.html so React Router handles routing
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      caches.match('/index.html').then((cached) => cached || fetch('/index.html'))
+    );
+    return;
+  }
+
   // API calls - Network first, fallback to cache
   if (url.origin.includes('api.eplpredict.com') || url.pathname.startsWith('/api/')) {
     event.respondWith(

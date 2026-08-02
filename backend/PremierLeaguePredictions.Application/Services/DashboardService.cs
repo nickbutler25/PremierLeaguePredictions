@@ -22,11 +22,10 @@ public class DashboardService : IDashboardService
         var user = await _unitOfWork.Users.GetByIdAsync(userId, trackChanges: false, cancellationToken);
         if (user == null) throw new KeyNotFoundException("User not found");
 
-        // Check if user has approved participation for the active season (applies to all users including admins)
         var activeSeason = await _unitOfWork.Seasons.FindAsync(s => s.IsActive, trackChanges: false, cancellationToken);
         var activeSeasonId = activeSeason.FirstOrDefault()?.Name;
 
-        if (!string.IsNullOrEmpty(activeSeasonId))
+        if (!string.IsNullOrEmpty(activeSeasonId) && !user.IsAdmin)
         {
             var participation = await _unitOfWork.SeasonParticipations.FindAsync(
                 sp => sp.UserId.Equals(userId) &&

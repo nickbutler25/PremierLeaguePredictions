@@ -69,7 +69,6 @@ public class ApplicationDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd(); // Auto-increment integer
             entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(100).IsRequired();
-            entity.Property(e => e.ShortName).HasColumnName("short_name").HasMaxLength(50);
             entity.Property(e => e.Code).HasColumnName("code").HasMaxLength(10);
             entity.Property(e => e.LogoUrl).HasColumnName("logo_url").HasMaxLength(500);
             entity.Property(e => e.ExternalId).HasColumnName("external_id");

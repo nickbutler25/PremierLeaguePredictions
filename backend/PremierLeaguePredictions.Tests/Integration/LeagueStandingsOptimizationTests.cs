@@ -101,7 +101,7 @@ public class LeagueStandingsOptimizationTests
         {
             Id = Random.Shared.Next(1000, 10000),
             Name = $"Team-{Guid.NewGuid().ToString()[..8]}",
-            ShortName = "TM1",
+            Code = "TM1",
             ExternalId = Random.Shared.Next(1000, 10000),
             IsActive = true,
             CreatedAt = DateTime.UtcNow,
@@ -187,7 +187,7 @@ public class LeagueStandingsOptimizationTests
         {
             Id = Random.Shared.Next(1000, 10000),
             Name = $"Team-{Guid.NewGuid().ToString()[..8]}",
-            ShortName = "TM1",
+            Code = "TM1",
             ExternalId = Random.Shared.Next(1000, 10000),
             IsActive = true,
             CreatedAt = DateTime.UtcNow,
@@ -332,7 +332,7 @@ public class LeagueStandingsOptimizationTests
         {
             Id = Random.Shared.Next(1000, 10000),
             Name = $"Team-{Guid.NewGuid().ToString()[..8]}",
-            ShortName = "TM1",
+            Code = "TM1",
             ExternalId = Random.Shared.Next(1000, 10000),
             IsActive = true,
             CreatedAt = DateTime.UtcNow,
@@ -552,7 +552,7 @@ public class LeagueStandingsOptimizationTests
         {
             Id = 1,
             Name = "Arsenal",
-            ShortName = "ARS",
+            Code = "ARS",
             ExternalId = 1,
             IsActive = true,
             CreatedAt = DateTime.UtcNow,
@@ -798,7 +798,7 @@ public class LeagueStandingsOptimizationTests
         {
             Id = Random.Shared.Next(10000, 20000),
             Name = $"Team-Finished-{Guid.NewGuid().ToString()[..8]}",
-            ShortName = "TF1",
+            Code = "TF1",
             ExternalId = Random.Shared.Next(10000, 20000),
             IsActive = true,
             CreatedAt = DateTime.UtcNow,
@@ -810,7 +810,7 @@ public class LeagueStandingsOptimizationTests
         {
             Id = Random.Shared.Next(20000, 30000),
             Name = $"Team-Scheduled-{Guid.NewGuid().ToString()[..8]}",
-            ShortName = "TS1",
+            Code = "TS1",
             ExternalId = Random.Shared.Next(20000, 30000),
             IsActive = true,
             CreatedAt = DateTime.UtcNow,
@@ -822,7 +822,7 @@ public class LeagueStandingsOptimizationTests
         {
             Id = Random.Shared.Next(30000, 40000),
             Name = $"Team-Opposing-{Guid.NewGuid().ToString()[..8]}",
-            ShortName = "TO1",
+            Code = "TO1",
             ExternalId = Random.Shared.Next(30000, 40000),
             IsActive = true,
             CreatedAt = DateTime.UtcNow,
