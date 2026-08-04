@@ -3,7 +3,7 @@ name: Dev - Wake Render API
 on:
   workflow_dispatch:
   repository_dispatch:
-    types: [wake-render-api]
+    types: [dev-wake-render-api]
 
 jobs:
   call-api:
