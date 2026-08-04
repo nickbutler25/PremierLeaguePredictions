@@ -1,9 +1,18 @@
-name: Wake Up Api
+name: Wake Render API
+
+on:
+  workflow_dispatch:
 
 jobs:
+  call-api:
+    runs-on: ubuntu-latest
+
     steps:
-      - name: Call Reminder API
+      - name: Call health endpoint
         run: |
-          curl --fail -X GET https://premierleague-api-dev.onrender.com/health/live\
+          curl --fail-with-body \
+            --show-error \
+            --silent \
+            --max-time 120 \
             -H "X-API-Key: ${{ secrets.EXTERNAL_SYNC_API_KEY }}" \
-            -H "Content-Type: application/json
+            https://premierleague-api-dev.onrender.com/health/live
