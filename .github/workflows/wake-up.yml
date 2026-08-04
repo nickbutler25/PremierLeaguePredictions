@@ -1,0 +1,9 @@
+name: Wake Up Api
+
+jobs:
+    steps:
+      - name: Call Reminder API
+        run: |
+          curl --fail -X GET https://premierleague-api-dev.onrender.com/health/live\
+            -H "X-API-Key: ${{ secrets.EXTERNAL_SYNC_API_KEY }}" \
+            -H "Content-Type: application/json
