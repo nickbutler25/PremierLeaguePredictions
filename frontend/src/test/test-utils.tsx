@@ -19,6 +19,7 @@ function TestAuthProvider({ user = null, token = null, children }: AuthProviderP
     user,
     token,
     login: vi.fn(),
+    updateUser: vi.fn(),
     logout: vi.fn(),
     isAuthenticated: !!user && !!token,
     isAdmin: user?.isAdmin ?? false,

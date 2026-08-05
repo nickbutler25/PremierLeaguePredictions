@@ -9,6 +9,7 @@ import { queryClient } from '@/lib/queryClient';
 import { Layout } from '@/components/layout/Layout';
 import { LoginPage } from '@/pages/LoginPage';
 import { DashboardPage } from '@/pages/DashboardPage';
+import { ProfilePage } from '@/pages/ProfilePage';
 import { PendingApprovalPage } from '@/pages/PendingApprovalPage';
 import { LeagueStandings } from '@/components/league/LeagueStandings';
 import { SeasonManagementPage } from '@/pages/admin/SeasonManagementPage';
@@ -102,6 +103,16 @@ function AppRoutes() {
               <DashboardPage />
             </Layout>
           </ApprovalCheckRoute>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <ProfilePage />
+            </Layout>
+          </ProtectedRoute>
         }
       />
       <Route

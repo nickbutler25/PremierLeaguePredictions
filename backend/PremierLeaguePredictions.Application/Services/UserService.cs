@@ -91,6 +91,31 @@ public class UserService : IUserService
         };
     }
 
+    public async Task<UserDto> SetUserPhotoAsync(Guid id, string? photoUrl, CancellationToken cancellationToken = default)
+    {
+        var user = await _unitOfWork.Users.GetByIdAsync(id, cancellationToken);
+        if (user == null) throw new KeyNotFoundException("User not found");
+
+        // Nullable on purpose: passing null clears the photo (unlike UpdateUserAsync).
+        user.PhotoUrl = photoUrl;
+        user.UpdatedAt = DateTime.UtcNow;
+
+        _unitOfWork.Users.Update(user);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return new UserDto
+        {
+            Id = user.Id,
+            Email = user.Email,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            PhotoUrl = user.PhotoUrl,
+            IsActive = user.IsActive,
+            IsAdmin = user.IsAdmin,
+            IsPaid = user.IsPaid
+        };
+    }
+
     public async Task<UserDto> UpdateUserStatusAsync(Guid id, UpdateUserStatusRequest request, CancellationToken cancellationToken = default)
     {
         var user = await _unitOfWork.Users.GetByIdAsync(id, cancellationToken);

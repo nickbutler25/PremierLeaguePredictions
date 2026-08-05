@@ -295,6 +295,9 @@ builder.Services.AddScoped<ICronSchedulerService, CronSchedulerService>();
 builder.Services.AddScoped<ICronJobsOrgService, CronJobsOrgService>();
 builder.Services.AddHttpClient<CronJobsOrgClient>();
 
+// Register Supabase Storage (profile picture uploads)
+builder.Services.AddHttpClient<ISupabaseStorageService, SupabaseStorageService>();
+
 // Add SignalR
 builder.Services.AddSignalR();
 

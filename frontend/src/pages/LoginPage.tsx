@@ -7,7 +7,9 @@ import type { CredentialResponse } from '@react-oauth/google';
 import { useAuth } from '@/contexts/AuthContext';
 import { authService } from '@/services/auth';
 import { apiClient } from '@/services/api';
-import { useState } from 'react';
+import { usersService } from '@/services/users';
+import { resizeImageForUpload } from '@/lib/image';
+import { useRef, useState } from 'react';
 import type { ApiResponse, AuthResponse } from '@/types';
 
 type AuthMode = 'google' | 'email-login' | 'email-register';
@@ -23,6 +25,17 @@ export function LoginPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  const clearAvatar = () => {
+    setAvatarFile(null);
+    setAvatarPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+  };
 
   const resetForm = () => {
     setEmail('');
@@ -30,7 +43,28 @@ export function LoginPage() {
     setConfirmPassword('');
     setFirstName('');
     setLastName('');
+    clearAvatar();
     setError(null);
+  };
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setError('Please choose a JPEG, PNG, or WebP image.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image must be 5 MB or smaller.');
+      return;
+    }
+    setError(null);
+    setAvatarFile(file);
+    setAvatarPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
   };
 
   const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
@@ -81,6 +115,15 @@ export function LoginPage() {
         password,
         confirmPassword
       );
+      // The account (and auth cookie) now exist — upload the chosen picture, if any.
+      if (avatarFile) {
+        try {
+          const resized = await resizeImageForUpload(avatarFile);
+          authResponse.user = await usersService.uploadPhoto(resized);
+        } catch {
+          // Non-fatal: the account is created; a picture can be added later from Profile.
+        }
+      }
       await login(authResponse);
     } catch (err: unknown) {
       const message = (err as { response?: { data?: { message?: string } } })?.response?.data
@@ -210,6 +253,43 @@ export function LoginPage() {
           {/* Email register */}
           {mode === 'email-register' && (
             <form onSubmit={handleRegister} className="space-y-3">
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-20 h-20 rounded-full overflow-hidden bg-muted flex items-center justify-center">
+                  {avatarPreview ? (
+                    <img
+                      src={avatarPreview}
+                      alt="Selected profile"
+                      className="w-full h-full object-cover"
+                      data-testid="register-avatar-preview"
+                    />
+                  ) : (
+                    <span className="text-muted-foreground text-xs">No photo</span>
+                  )}
+                </div>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={handleAvatarChange}
+                  data-testid="register-avatar-input"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => avatarInputRef.current?.click()}
+                  >
+                    {avatarPreview ? 'Change photo' : 'Add photo (optional)'}
+                  </Button>
+                  {avatarPreview && (
+                    <Button type="button" variant="ghost" size="sm" onClick={clearAvatar}>
+                      Remove
+                    </Button>
+                  )}
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <Label htmlFor="firstName">First name</Label>
