@@ -13,8 +13,7 @@ interface UserAvatarProps {
  */
 export function UserAvatar({ firstName, lastName, photoUrl, className }: UserAvatarProps) {
   const name = [firstName, lastName].filter(Boolean).join(' ');
-  const initials =
-    `${firstName?.[0] ?? ''}${lastName?.[0] ?? ''}`.toUpperCase() || '?';
+  const initials = `${firstName?.[0] ?? ''}${lastName?.[0] ?? ''}`.toUpperCase() || '?';
 
   if (photoUrl) {
     return (

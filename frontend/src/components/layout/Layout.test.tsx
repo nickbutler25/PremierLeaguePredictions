@@ -120,16 +120,17 @@ describe('Layout Accessibility', () => {
     expect(homeLink).toHaveAttribute('href', '/dashboard');
   });
 
-  it('should have user profile image with descriptive alt text', () => {
+  it('should have a user profile avatar with a descriptive accessible name', () => {
     renderWithProviders(
       <Layout>
         <div>Content</div>
       </Layout>
     );
 
-    const profileImage = screen.getByAltText("John Doe's profile picture");
-    expect(profileImage).toBeInTheDocument();
-    expect(profileImage).toHaveAttribute('src', 'https://example.com/photo.jpg');
+    // The header avatar shows the user's initials (not their photo), exposed via
+    // role="img" + aria-label so it still carries a descriptive accessible name.
+    const profileAvatar = screen.getByRole('img', { name: "John Doe's profile picture" });
+    expect(profileAvatar).toBeInTheDocument();
   });
 
   it('should have decorative SVG icons marked with aria-hidden', () => {
