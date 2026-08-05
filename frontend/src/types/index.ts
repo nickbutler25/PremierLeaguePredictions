@@ -9,6 +9,12 @@ export interface User {
   isPaid: boolean;
 }
 
+export interface UpdateUserRequest {
+  firstName?: string;
+  lastName?: string;
+  photoUrl?: string;
+}
+
 export interface Season {
   id: string;
   name: string;

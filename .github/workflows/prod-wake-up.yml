@@ -17,4 +17,4 @@ jobs:
             --silent \
             --max-time 120 \
             -H "X-API-Key: ${{ secrets.EXTERNAL_SYNC_API_KEY }}" \
-            https://api.eplpredict.com/health
+            https://api.eplpredict.com/health/live

@@ -9,6 +9,7 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (authData: AuthResponse) => Promise<void>;
+  updateUser: (user: User) => void;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
   isAdmin: boolean;
@@ -58,6 +59,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUserContext(authData.user);
   };
 
+  const updateUser = (updated: User) => {
+    setUser(updated);
+    setUserContext(updated);
+  };
+
   const logout = async () => {
     try {
       // Call logout endpoint to clear the cookie
@@ -76,6 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     token,
     login,
+    updateUser,
     logout,
     isAuthenticated: !!token && !!user,
     isAdmin: user?.isAdmin ?? false,

@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button';
+import { UserAvatar } from '@/components/UserAvatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAutoPickNotifications } from '@/hooks/useAutoPickNotifications';
@@ -142,15 +143,17 @@ export function Layout({ children }: LayoutProps) {
             </Button>
             {user && (
               <>
-                <div className="flex items-center space-x-2" data-testid="user-info">
-                  {user.photoUrl && (
-                    <img
-                      src={user.photoUrl}
-                      alt={`${user.firstName} ${user.lastName}'s profile picture`}
-                      className="w-7 h-7 sm:w-8 sm:h-8 rounded-full"
-                      data-testid="user-avatar"
-                    />
-                  )}
+                <Link
+                  to="/profile"
+                  className="flex items-center space-x-2 rounded-md hover:bg-accent px-1 py-0.5 transition-colors"
+                  data-testid="user-info"
+                  aria-label="View profile"
+                >
+                  <UserAvatar
+                    firstName={user.firstName}
+                    lastName={user.lastName}
+                    className="w-7 h-7 sm:w-8 sm:h-8 text-xs"
+                  />
                   <span
                     className="text-xs sm:text-sm font-medium hidden sm:inline"
                     aria-label="Current user"
@@ -158,7 +161,7 @@ export function Layout({ children }: LayoutProps) {
                   >
                     {user.firstName} {user.lastName}
                   </span>
-                </div>
+                </Link>
                 <Button
                   variant="outline"
                   size="sm"

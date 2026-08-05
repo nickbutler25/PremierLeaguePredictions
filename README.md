@@ -27,7 +27,8 @@ Premier League Predictions is a competitive prediction game where users select o
 - **Google OAuth** - Single sign-on integration
 - **Repository Pattern** - Unit of Work for clean data access
 - **football-data.org API** - Live Premier League fixture and result data
-- **GitHub Actions** - Dynamic cron job scheduling for reminders and score sync
+- **cron-job.org** - External cron service for scheduling reminders, auto-picks, and score sync
+- **GitHub Actions** - CI/CD (test, build, deploy) only
 - **Render** - API hosting (Docker)
 - **Supabase** - Database hosting (PostgreSQL)
 
@@ -74,55 +75,56 @@ Statistics tracked:
 
 ### Automated Task Scheduling
 
-The application uses a **dynamic GitHub Actions scheduler** instead of traditional background services. This provides:
+The application uses **cron-job.org** (an external cron service) instead of traditional background services. This provides:
 - **Resource efficiency** - Jobs only run when needed (no 24/7 polling)
 - **Reliability** - Survives app downtime and restarts
 - **Precision** - Exact cron timing for reminders and score updates
-- **Visibility** - All scheduled jobs visible in GitHub Actions tab
-- **Cost-effective** - Uses ~45 minutes/month of GitHub's 2,000 free minutes
+- **Off-season safe** - Generates zero jobs when there are no upcoming fixtures
+
+A single weekly **master job** (Mondays 09:00 Europe/London) calls the API, which generates the per-week schedule and creates the individual jobs via the cron-job.org REST API. GitHub Actions is used for CI/CD only.
+
+> See [LIVE_SCORES_SETUP.md](LIVE_SCORES_SETUP.md) for the full flow and setup, and [DEPLOYMENT.md](DEPLOYMENT.md#cron-joborg-scheduler-setup) for deployment configuration.
 
 #### How It Works
 
 ```mermaid
 sequenceDiagram
-    participant GH as GitHub Actions
+    participant Cron as cron-job.org
     participant API as Premier League API
     participant DB as Database
     participant Users as Users
 
-    Note over GH: Every Monday 9 AM UTC
-    GH->>API: POST /admin/schedule/generate
+    Note over Cron: Master job — Mondays 09:00 Europe/London
+    Cron->>API: POST /api/v1/admin/schedule/generate
     API->>DB: Query gameweeks for next 7 days
     DB-->>API: Gameweek data
-    API->>API: Generate schedule plan<br/>(reminders, auto-pick, score sync)
-    API->>GH: Commit weekly-jobs-YYYY-WW.yml
+    API->>API: Build schedule plan<br/>(reminders, auto-pick, score sync)
+    API->>Cron: Create EPL-{week}-{jobType}-{n} jobs<br/>via cron-job.org REST API
 
-    Note over GH: Scheduled times throughout week
-    GH->>API: POST /admin/schedule/reminders<br/>(24h, 12h, 3h before deadlines)
+    Note over Cron: Generated jobs run at scheduled times
+    Cron->>API: POST /api/v1/admin/schedule/reminders<br/>(24h, 12h, 3h before deadlines)
     API->>Users: Send reminder emails
 
-    GH->>API: POST /admin/schedule/auto-pick<br/>(at gameweek deadline)
+    Cron->>API: POST /api/v1/admin/schedule/auto-pick<br/>(at gameweek deadline)
     API->>DB: Assign auto-picks for missed predictions
 
-    GH->>API: POST /dev/fixtures/sync-results<br/>(every 2 min during matches)
+    Cron->>API: POST /api/v1/admin/sync/results<br/>(every 2 min during matches)
     API->>DB: Update live scores and calculate points
 ```
 
 #### Scheduled Jobs
 - **Reminders**: Sent 24h, 12h, and 3h before each gameweek deadline
-- **Auto-Pick**: Assigns random teams to users who missed the deadline
+- **Auto-Pick**: Assigns teams to users who missed the deadline
 - **Live Score Sync**: Updates scores every 2 minutes during match windows (grouped by 15-minute kickoff intervals)
 
-All schedules are generated dynamically based on actual fixture dates from Football-Data.org.
+All schedules are generated dynamically based on actual fixture dates from Football-Data.org. Generated jobs authenticate to the API via an `?apiKey=` query parameter (the ExternalSync key).
 
 ## Project Structure
 
 ```
 PremierLeaguePredictions/
 ├── .github/
-│   └── workflows/
-│       ├── master-scheduler.yml    # Weekly cron job generator (Mon 9 AM UTC)
-│       └── weekly-jobs-*.yml       # Auto-generated weekly job schedules
+│   └── workflows/                  # CI/CD only (test, build, deploy) — scheduling is on cron-job.org
 ├── backend/
 │   ├── PremierLeaguePredictions.API/
 │   │   ├── Controllers/
@@ -138,8 +140,8 @@ PremierLeaguePredictions/
 │   ├── PremierLeaguePredictions.Core/           # Domain entities, interfaces
 │   ├── PremierLeaguePredictions.Infrastructure/
 │   │   ├── Services/
-│   │   │   ├── GitHubWorkflowService.cs  # YAML workflow generation
-│   │   │   └── GitHubApiClient.cs        # GitHub REST API client
+│   │   │   ├── CronJobsOrgService.cs     # Create/delete cron-job.org jobs
+│   │   │   └── CronJobsOrgClient.cs      # cron-job.org REST API client
 │   │   └── ...                     # EF Core, repositories, external APIs
 │   ├── PremierLeaguePredictions.Tests/          # Unit and integration tests
 │   ├── Dockerfile                               # Docker container configuration
@@ -152,7 +154,7 @@ PremierLeaguePredictions/
 │   │   ├── services/      # API client services
 │   │   └── types/         # TypeScript type definitions
 │   └── public/            # Static assets
-└── render.yaml            # Render.com blueprint for deployment
+└── ...                    # Render services configured manually in the dashboard (no render.yaml)
 ```
 
 ## Getting Started
@@ -248,23 +250,22 @@ The application is configured for deployment on [Render.com](https://render.com)
 
 See [backend/RENDER_DEPLOYMENT.md](backend/RENDER_DEPLOYMENT.md) for detailed deployment instructions.
 
-### Quick Deploy with Render Blueprint
+### Deploying to Render (manual)
+
+Render's free tier does not support Blueprints (`render.yaml`), so each service is created and configured **manually in the Render dashboard**:
 
 1. Push your code to GitHub
-2. Connect your repository to Render
-3. Render will auto-detect the `render.yaml` blueprint
-4. Configure environment variables:
+2. Create a new Web Service in Render and connect your repository
+3. Configure the service by hand: Docker runtime, Root Directory `backend`, Dockerfile `./Dockerfile`, and Settings → Health Check Path = `/health`
+4. Set environment variables manually in the service's Environment tab, e.g.:
+   - `ConnectionStrings__DefaultConnection` (Supabase)
    - `Google__ClientId`
    - `FootballData__ApiKey`
    - `AllowedOrigins__0`
-   - `VITE_GOOGLE_CLIENT_ID`
-   - `VITE_API_URL`
-5. Deploy all services (database, API, frontend) with one click
+   - `RunMigrationsOnStartup=true` (migrations run on startup on the free tier)
+5. Deploy the API (Docker) and the frontend (static site) as separate services
 
-The blueprint automatically:
-- Requires a Supabase connection string
-- Builds and deploys the .NET 9 API using Docker
-- Builds and deploys the React frontend as a static site
+See [backend/RENDER_DEPLOYMENT.md](backend/RENDER_DEPLOYMENT.md) for the full step-by-step guide.
 
 ## API Documentation
 

@@ -13,12 +13,25 @@ namespace PremierLeaguePredictions.API.Controllers;
 [Authorize]
 public class UsersController : ControllerBase
 {
+    private static readonly Dictionary<string, string> AllowedImageContentTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["image/jpeg"] = "jpg",
+        ["image/png"] = "png",
+        ["image/webp"] = "webp"
+    };
+    private const long MaxPhotoBytes = 5 * 1024 * 1024; // 5 MB
+
     private readonly IUserService _userService;
+    private readonly ISupabaseStorageService _storageService;
     private readonly ILogger<UsersController> _logger;
 
-    public UsersController(IUserService userService, ILogger<UsersController> logger)
+    public UsersController(
+        IUserService userService,
+        ISupabaseStorageService storageService,
+        ILogger<UsersController> logger)
     {
         _userService = userService;
+        _storageService = storageService;
         _logger = logger;
     }
 
@@ -88,6 +101,60 @@ public class UsersController : ControllerBase
     {
         await _userService.DeleteUserAsync(id);
         return NoContent();
+    }
+
+    [HttpPost("me/photo")]
+    public async Task<ActionResult<ApiResponse<UserDto>>> UploadPhoto(IFormFile? file, CancellationToken cancellationToken)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest(ApiResponse<UserDto>.FailureResult("No file was provided"));
+
+        if (file.Length > MaxPhotoBytes)
+            return BadRequest(ApiResponse<UserDto>.FailureResult("Image must be 5 MB or smaller"));
+
+        if (!AllowedImageContentTypes.TryGetValue(file.ContentType, out var extension))
+            return BadRequest(ApiResponse<UserDto>.FailureResult("Only JPEG, PNG, or WebP images are allowed"));
+
+        var userId = GetUserIdFromClaims();
+        var currentUser = await _userService.GetUserByIdAsync(userId, cancellationToken);
+        if (currentUser == null)
+            return NotFound(ApiResponse<UserDto>.FailureResult("User not found"));
+
+        string publicUrl;
+        await using (var stream = file.OpenReadStream())
+        {
+            publicUrl = await _storageService.UploadAvatarAsync(userId, stream, file.ContentType, extension, cancellationToken);
+        }
+
+        var updated = await _userService.SetUserPhotoAsync(userId, publicUrl, cancellationToken);
+
+        // Best-effort cleanup of the previous avatar (no-op for non-bucket URLs, e.g. Google photos).
+        if (!string.IsNullOrEmpty(currentUser.PhotoUrl))
+        {
+            try { await _storageService.DeleteByPublicUrlAsync(currentUser.PhotoUrl, cancellationToken); }
+            catch (Exception ex) { _logger.LogWarning(ex, "Failed to delete previous avatar for user {UserId}", userId); }
+        }
+
+        return Ok(ApiResponse<UserDto>.SuccessResult(updated, "Profile picture updated"));
+    }
+
+    [HttpDelete("me/photo")]
+    public async Task<ActionResult<ApiResponse<UserDto>>> DeletePhoto(CancellationToken cancellationToken)
+    {
+        var userId = GetUserIdFromClaims();
+        var currentUser = await _userService.GetUserByIdAsync(userId, cancellationToken);
+        if (currentUser == null)
+            return NotFound(ApiResponse<UserDto>.FailureResult("User not found"));
+
+        var updated = await _userService.SetUserPhotoAsync(userId, null, cancellationToken);
+
+        if (!string.IsNullOrEmpty(currentUser.PhotoUrl))
+        {
+            try { await _storageService.DeleteByPublicUrlAsync(currentUser.PhotoUrl, cancellationToken); }
+            catch (Exception ex) { _logger.LogWarning(ex, "Failed to delete avatar for user {UserId}", userId); }
+        }
+
+        return Ok(ApiResponse<UserDto>.SuccessResult(updated, "Profile picture removed"));
     }
 
     private Guid GetUserIdFromClaims()
