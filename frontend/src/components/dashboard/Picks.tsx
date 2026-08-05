@@ -92,12 +92,26 @@ export function Picks() {
     },
     onError: (error: unknown) => {
       haptics.error();
-      // Display error message from the backend validation
-      const errorMessage =
-        (error as { response?: { data?: { message?: string } }; message?: string }).response?.data
-          ?.message ||
-        (error as { message?: string }).message ||
-        'Failed to create pick';
+      const err = error as {
+        response?: { status?: number; data?: { message?: string } };
+        message?: string;
+      };
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to create pick';
+
+      // A 404 (e.g. "Team not found") means this tab is holding stale team/gameweek IDs
+      // from before an admin re-sync. Refetch the picker data so it self-heals with the
+      // current IDs, and ask the user to re-pick rather than leaving them stuck.
+      if (err.response?.status === 404) {
+        queryClient.invalidateQueries({ queryKey: ['teams'] });
+        queryClient.invalidateQueries({ queryKey: ['gameweeks'] });
+        queryClient.invalidateQueries({ queryKey: ['fixtures'] });
+        setSelectedGameweek(null);
+        alert(
+          'The fixtures were just updated — your selections have been refreshed. Please make your pick again.'
+        );
+        return;
+      }
+
       alert(errorMessage); // You might want to use a toast notification instead
     },
   });
