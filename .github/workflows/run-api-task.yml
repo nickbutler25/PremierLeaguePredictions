@@ -1,0 +1,117 @@
+name: Run API Task
+
+# Single orchestrator for scheduled API work. cron-job.org (or a human) triggers this
+# via repository_dispatch; GitHub Actions then WAKES the spun-down Render API (held curl,
+# which cron-job.org itself cannot do) and CALLS the requested endpoint with retries.
+#
+# Trigger from cron-job.org:
+#   POST https://api.github.com/repos/<owner>/<repo>/dispatches
+#   Authorization: Bearer <PAT>
+#   body: {"event_type":"run-api-task","client_payload":{"environment":"dev","action":"auto-pick"}}
+#
+# action = wake | generate | reminders | auto-pick
+#   (sync-scores intentionally stays a direct cron-job.org -> API call to protect the
+#    GitHub Actions minutes budget; a "wake" task is scheduled just before each sync window.)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options: [dev, prod]
+      action:
+        description: 'Task to run'
+        required: true
+        default: 'wake'
+        type: choice
+        options: [wake, generate, reminders, auto-pick]
+  repository_dispatch:
+    types: [run-api-task]
+
+jobs:
+  run:
+    name: Wake and run API task
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve environment and action
+        id: cfg
+        env:
+          ENVIRONMENT: ${{ github.event.inputs.environment || github.event.client_payload.environment }}
+          ACTION: ${{ github.event.inputs.action || github.event.client_payload.action }}
+        run: |
+          set -euo pipefail
+          ENVIRONMENT="${ENVIRONMENT:-dev}"
+          ACTION="${ACTION:-wake}"
+
+          case "$ENVIRONMENT" in
+            dev)  BASE="https://premierleague-api-dev.onrender.com" ;;
+            prod) BASE="https://api.eplpredict.com" ;;
+            *) echo "Unknown environment: $ENVIRONMENT"; exit 1 ;;
+          esac
+
+          case "$ACTION" in
+            wake)      ENDPOINT="" ;;
+            generate)  ENDPOINT="/api/v1/admin/schedule/generate" ;;
+            reminders) ENDPOINT="/api/v1/admin/schedule/reminders" ;;
+            auto-pick) ENDPOINT="/api/v1/admin/schedule/auto-pick" ;;
+            *) echo "Unknown action: $ACTION"; exit 1 ;;
+          esac
+
+          echo "environment=$ENVIRONMENT" >> "$GITHUB_OUTPUT"
+          echo "action=$ACTION"           >> "$GITHUB_OUTPUT"
+          echo "base=$BASE"               >> "$GITHUB_OUTPUT"
+          echo "endpoint=$ENDPOINT"       >> "$GITHUB_OUTPUT"
+          echo "Task: '$ACTION' on '$ENVIRONMENT' ($BASE$ENDPOINT)"
+
+      - name: Wake API (hold connection through Render cold start)
+        env:
+          BASE: ${{ steps.cfg.outputs.base }}
+        run: |
+          set -euo pipefail
+          echo "Warming $BASE ..."
+          for i in $(seq 1 12); do
+            # --max-time 120 holds the connection through the ~20s cold start, which is
+            # exactly what wakes the free-tier Render service (a single ping cannot).
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 120 "$BASE/health/live" || echo "000")
+            echo "Attempt $i: HTTP $code"
+            if [ "$code" = "200" ]; then
+              echo "API is awake."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "API did not wake after retries."
+          exit 1
+
+      - name: Call endpoint
+        if: steps.cfg.outputs.action != 'wake'
+        env:
+          BASE: ${{ steps.cfg.outputs.base }}
+          ENDPOINT: ${{ steps.cfg.outputs.endpoint }}
+          ENVIRONMENT: ${{ steps.cfg.outputs.environment }}
+          DEV_KEY: ${{ secrets.DEV_EXTERNAL_SYNC_API_KEY }}
+          PROD_KEY: ${{ secrets.PROD_EXTERNAL_SYNC_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ "$ENVIRONMENT" = "prod" ]; then KEY="$PROD_KEY"; else KEY="$DEV_KEY"; fi
+          if [ -z "$KEY" ]; then echo "No API key secret for environment '$ENVIRONMENT'"; exit 1; fi
+
+          echo "POST $BASE$ENDPOINT"
+          for i in $(seq 1 3); do
+            resp=$(curl -sS -X POST --max-time 120 -H "X-API-Key: $KEY" \
+              -w $'\nHTTP_STATUS:%{http_code}' "$BASE$ENDPOINT" || true)
+            status=$(printf '%s' "$resp" | sed -n 's/.*HTTP_STATUS://p')
+            printf '%s\n' "$resp" | sed '/HTTP_STATUS:/d'
+            echo "Status: ${status:-none}"
+            if [ "$status" = "200" ]; then
+              echo "Task completed."
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying..."
+            sleep 10
+          done
+          echo "Task failed after retries."
+          exit 1

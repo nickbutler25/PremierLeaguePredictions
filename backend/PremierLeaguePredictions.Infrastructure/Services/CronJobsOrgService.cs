@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using PremierLeaguePredictions.Application.DTOs;
@@ -11,14 +12,30 @@ public class CronJobsOrgService : ICronJobsOrgService
     private readonly IConfiguration _configuration;
     private readonly ILogger<CronJobsOrgService> _logger;
 
-    // Jobs created by this app are prefixed so they can be found and cleaned up
-    private const string JobTitlePrefix = "EPL-";
+    // Jobs created by this app are prefixed so they can be found and cleaned up.
+    // The prefix includes the environment (e.g. "EPL-DEV-", "EPL-PROD-") so that when
+    // dev and prod share a cron-job.org account, each environment's generate only
+    // deletes/replaces its own jobs and never interferes with the other's.
+    private const string JobTitlePrefixBase = "EPL-";
 
-    private static readonly Dictionary<string, string> JobEndpoints = new()
+    private static string BuildJobPrefix(string environment) =>
+        $"{JobTitlePrefixBase}{environment.ToUpperInvariant()}-";
+
+    // sync-scores stays a direct cron-job.org -> API call (protects the GitHub Actions
+    // minutes budget: every-2-min syncs would burn thousands of minutes). It self-warms
+    // once running, so we only need one wake shortly before each window.
+    private const string SyncEndpoint = "/api/v1/admin/sync/results";
+
+    // How far ahead of a sync window to fire the wake, allowing for GitHub queue +
+    // runner spin-up + the ~20s Render cold start before the first sync call lands.
+    private static readonly TimeSpan SyncWakeLeadTime = TimeSpan.FromMinutes(5);
+
+    // Job types that run through GitHub Actions (wake + call), mapped to the
+    // orchestrator workflow's "action" value.
+    private static readonly Dictionary<string, string> DispatchActions = new()
     {
-        ["send-reminders"] = "/api/v1/admin/schedule/reminders",
-        ["auto-pick"]      = "/api/v1/admin/schedule/auto-pick",
-        ["sync-scores"]    = "/api/v1/admin/sync/results",
+        ["send-reminders"] = "reminders",
+        ["auto-pick"]      = "auto-pick",
     };
 
     public CronJobsOrgService(
@@ -42,11 +59,14 @@ public class CronJobsOrgService : ICronJobsOrgService
             var apiKey = _configuration["ExternalSync:ApiKey"]
                 ?? throw new InvalidOperationException("ExternalSync:ApiKey not configured");
 
-            // Delete all existing EPL-prefixed jobs before creating new ones
-            await DeleteExistingEplJobsAsync(cancellationToken);
+            var gitHub = ReadGitHubConfig();
+            var jobPrefix = BuildJobPrefix(gitHub.Environment);
 
-            // Build one cron-jobs.org job per unique (jobType, schedule) combination
-            var jobs = BuildJobRequests(plan, apiBaseUrl, apiKey);
+            // Delete only THIS environment's existing jobs before creating new ones
+            await DeleteExistingEplJobsAsync(jobPrefix, cancellationToken);
+
+            // Build the cron-jobs.org jobs for this week's plan
+            var jobs = BuildJobRequests(plan, apiBaseUrl, apiKey, gitHub, jobPrefix);
 
             _logger.LogInformation("Creating {Count} cron-jobs.org jobs for week {Week}",
                 jobs.Count, plan.WeekNumber);
@@ -77,38 +97,100 @@ public class CronJobsOrgService : ICronJobsOrgService
         }
     }
 
-    private List<CronJobRequest> BuildJobRequests(SchedulePlan plan, string apiBaseUrl, string apiKey)
+    private List<CronJobRequest> BuildJobRequests(
+        SchedulePlan plan, string apiBaseUrl, string apiKey, GitHubDispatchConfig gitHub, string jobPrefix)
     {
         var requests = new List<CronJobRequest>();
-        var index = new Dictionary<string, int>(); // job type → counter for unique titles
+        var index = new Dictionary<string, int>(); // title-part → counter for unique titles
+
+        int Next(string key)
+        {
+            index.TryGetValue(key, out var n);
+            index[key] = n + 1;
+            return n + 1;
+        }
 
         foreach (var job in plan.Jobs)
         {
-            if (!JobEndpoints.TryGetValue(job.JobType, out var endpoint))
+            if (job.JobType == "sync-scores")
+            {
+                // 1. Direct sync job — stays on cron-job.org (hits the API with the key in the URL).
+                var url = $"{apiBaseUrl}{SyncEndpoint}?apiKey={Uri.EscapeDataString(apiKey)}";
+                requests.Add(new CronJobRequest
+                {
+                    Title = $"{jobPrefix}{plan.WeekNumber}-sync-scores-{Next("sync-scores")}",
+                    Url = url,
+                    Schedule = BuildSchedule(job),
+                });
+
+                // 2. One wake shortly before the window so the first sync hits a warm API.
+                var wakeTime = job.ScheduledTime - SyncWakeLeadTime;
+                requests.Add(BuildDispatchJob(
+                    $"{jobPrefix}{plan.WeekNumber}-wake-{Next("wake")}",
+                    wakeTime, "wake", gitHub));
+            }
+            else if (DispatchActions.TryGetValue(job.JobType, out var action))
+            {
+                // Reminders / auto-pick run through GitHub Actions (wake + call).
+                requests.Add(BuildDispatchJob(
+                    $"{jobPrefix}{plan.WeekNumber}-{job.JobType}-{Next(job.JobType)}",
+                    job.ScheduledTime, action, gitHub));
+            }
+            else
             {
                 _logger.LogWarning("Unknown job type: {JobType} — skipping", job.JobType);
-                continue;
             }
-
-            index.TryGetValue(job.JobType, out var n);
-            index[job.JobType] = n + 1;
-
-            var title = $"{JobTitlePrefix}{plan.WeekNumber}-{job.JobType}-{n + 1}";
-
-            // Embed the API key as a query parameter — cron-job.org free tier does not support
-            // custom request headers via extendedData, so auth is passed in the URL instead.
-            var url = $"{apiBaseUrl}{endpoint}?apiKey={Uri.EscapeDataString(apiKey)}";
-
-            requests.Add(new CronJobRequest
-            {
-                Title = title,
-                Url = url,
-                Schedule = BuildSchedule(job),
-            });
         }
 
         return requests;
     }
+
+    /// <summary>
+    /// Builds a cron-job.org job that POSTs to GitHub's repository_dispatch API, triggering
+    /// the run-api-task workflow which wakes the Render API and calls the given action.
+    /// </summary>
+    private static CronJobRequest BuildDispatchJob(
+        string title, DateTime scheduledTimeUtc, string action, GitHubDispatchConfig gitHub)
+    {
+        var url = $"https://api.github.com/repos/{gitHub.Owner}/{gitHub.Repo}/dispatches";
+
+        var body = JsonSerializer.Serialize(new
+        {
+            event_type = gitHub.EventType,
+            client_payload = new { environment = gitHub.Environment, action },
+        });
+
+        return new CronJobRequest
+        {
+            Title = title,
+            Url = url,
+            RequestMethod = 1, // POST
+            Schedule = BuildOneOffSchedule(scheduledTimeUtc),
+            ExtendedData = new CronJobExtendedData
+            {
+                Headers = new Dictionary<string, string>
+                {
+                    ["Authorization"] = $"Bearer {gitHub.Token}",
+                    ["Accept"] = "application/vnd.github+json",
+                    ["X-GitHub-Api-Version"] = "2022-11-28",
+                    ["Content-Type"] = "application/json",
+                    ["User-Agent"] = "cron-job.org",
+                },
+                Body = body,
+            },
+        };
+    }
+
+    private GitHubDispatchConfig ReadGitHubConfig() => new(
+        Owner: _configuration["GitHub:Owner"]
+            ?? throw new InvalidOperationException("GitHub:Owner not configured"),
+        Repo: _configuration["GitHub:Repo"]
+            ?? throw new InvalidOperationException("GitHub:Repo not configured"),
+        Token: _configuration["GitHub:Token"]
+            ?? throw new InvalidOperationException("GitHub:Token not configured"),
+        Environment: _configuration["GitHub:Environment"]
+            ?? throw new InvalidOperationException("GitHub:Environment not configured"),
+        EventType: _configuration["GitHub:EventType"] ?? "run-api-task");
 
     private static CronJobSchedule BuildSchedule(ScheduledJob job)
     {
@@ -135,23 +217,23 @@ public class CronJobsOrgService : ICronJobsOrgService
                 Wdays = [-1]
             };
         }
-        else
-        {
-            return new CronJobSchedule
-            {
-                Hours = [job.ScheduledTime.Hour],
-                Minutes = [job.ScheduledTime.Minute],
-                Mdays = [job.ScheduledTime.Day],
-                Months = [job.ScheduledTime.Month],
-                Wdays = [-1]
-            };
-        }
+
+        return BuildOneOffSchedule(job.ScheduledTime);
     }
 
-    private async Task DeleteExistingEplJobsAsync(CancellationToken cancellationToken)
+    private static CronJobSchedule BuildOneOffSchedule(DateTime timeUtc) => new()
+    {
+        Hours = [timeUtc.Hour],
+        Minutes = [timeUtc.Minute],
+        Mdays = [timeUtc.Day],
+        Months = [timeUtc.Month],
+        Wdays = [-1]
+    };
+
+    private async Task DeleteExistingEplJobsAsync(string jobPrefix, CancellationToken cancellationToken)
     {
         var allJobs = await _client.GetJobsAsync(cancellationToken);
-        var eplJobs = allJobs.Where(j => j.Title.StartsWith(JobTitlePrefix)).ToList();
+        var eplJobs = allJobs.Where(j => j.Title.StartsWith(jobPrefix)).ToList();
 
         if (eplJobs.Count == 0)
         {
@@ -173,4 +255,7 @@ public class CronJobsOrgService : ICronJobsOrgService
             }
         }
     }
+
+    private sealed record GitHubDispatchConfig(
+        string Owner, string Repo, string Token, string Environment, string EventType);
 }
