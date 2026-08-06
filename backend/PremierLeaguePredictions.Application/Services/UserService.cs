@@ -26,9 +26,8 @@ public class UserService : IUserService
             FirstName = user.FirstName,
             LastName = user.LastName,
             PhotoUrl = user.PhotoUrl,
-            IsActive = user.IsActive,
             IsAdmin = user.IsAdmin,
-            IsPaid = user.IsPaid
+            ThemePreference = user.ThemePreference
         } : null;
     }
 
@@ -43,9 +42,8 @@ public class UserService : IUserService
             FirstName = user.FirstName,
             LastName = user.LastName,
             PhotoUrl = user.PhotoUrl,
-            IsActive = user.IsActive,
             IsAdmin = user.IsAdmin,
-            IsPaid = user.IsPaid
+            ThemePreference = user.ThemePreference
         } : null;
     }
 
@@ -58,9 +56,7 @@ public class UserService : IUserService
             Email = u.Email,
             FirstName = u.FirstName,
             LastName = u.LastName,
-            IsActive = u.IsActive,
             IsAdmin = u.IsAdmin,
-            IsPaid = u.IsPaid,
             CreatedAt = u.CreatedAt
         });
     }
@@ -85,9 +81,8 @@ public class UserService : IUserService
             FirstName = user.FirstName,
             LastName = user.LastName,
             PhotoUrl = user.PhotoUrl,
-            IsActive = user.IsActive,
             IsAdmin = user.IsAdmin,
-            IsPaid = user.IsPaid
+            ThemePreference = user.ThemePreference
         };
     }
 
@@ -110,18 +105,17 @@ public class UserService : IUserService
             FirstName = user.FirstName,
             LastName = user.LastName,
             PhotoUrl = user.PhotoUrl,
-            IsActive = user.IsActive,
             IsAdmin = user.IsAdmin,
-            IsPaid = user.IsPaid
+            ThemePreference = user.ThemePreference
         };
     }
 
-    public async Task<UserDto> UpdateUserStatusAsync(Guid id, UpdateUserStatusRequest request, CancellationToken cancellationToken = default)
+    public async Task<UserDto> SetThemePreferenceAsync(Guid id, string theme, CancellationToken cancellationToken = default)
     {
         var user = await _unitOfWork.Users.GetByIdAsync(id, cancellationToken);
         if (user == null) throw new KeyNotFoundException("User not found");
 
-        user.IsActive = request.IsActive;
+        user.ThemePreference = theme;
         user.UpdatedAt = DateTime.UtcNow;
 
         _unitOfWork.Users.Update(user);
@@ -134,18 +128,17 @@ public class UserService : IUserService
             FirstName = user.FirstName,
             LastName = user.LastName,
             PhotoUrl = user.PhotoUrl,
-            IsActive = user.IsActive,
             IsAdmin = user.IsAdmin,
-            IsPaid = user.IsPaid
+            ThemePreference = user.ThemePreference
         };
     }
 
-    public async Task<UserDto> UpdateUserPaymentStatusAsync(Guid id, UpdatePaymentStatusRequest request, CancellationToken cancellationToken = default)
+    public async Task<UserDto> SetUserAdminAsync(Guid id, bool isAdmin, CancellationToken cancellationToken = default)
     {
         var user = await _unitOfWork.Users.GetByIdAsync(id, cancellationToken);
         if (user == null) throw new KeyNotFoundException("User not found");
 
-        user.IsPaid = request.IsPaid;
+        user.IsAdmin = isAdmin;
         user.UpdatedAt = DateTime.UtcNow;
 
         _unitOfWork.Users.Update(user);
@@ -158,9 +151,8 @@ public class UserService : IUserService
             FirstName = user.FirstName,
             LastName = user.LastName,
             PhotoUrl = user.PhotoUrl,
-            IsActive = user.IsActive,
             IsAdmin = user.IsAdmin,
-            IsPaid = user.IsPaid
+            ThemePreference = user.ThemePreference
         };
     }
 

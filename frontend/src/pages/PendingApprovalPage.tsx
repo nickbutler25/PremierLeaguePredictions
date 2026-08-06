@@ -277,13 +277,11 @@ export function PendingApprovalPage() {
               to the dashboard once your participation is approved.
             </p>
 
-            {!user?.isPaid && (
-              <div className="bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
-                <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                  <strong>Note:</strong> Make sure you've completed payment before approval.
-                </p>
-              </div>
-            )}
+            <div className="bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+              <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                <strong>Note:</strong> Make sure you've completed payment before approval.
+              </p>
+            </div>
           </div>
 
           <div className="pt-4 border-t space-y-2">

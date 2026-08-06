@@ -37,9 +37,7 @@ public class EliminationManagementTests
                 FirstName = "Admin",
                 LastName = "User",
                 GoogleId = "admin-google-id",
-                IsActive = true,
                 IsAdmin = true,
-                IsPaid = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -144,9 +142,7 @@ public class EliminationManagementTests
                 FirstName = "Admin",
                 LastName = "User",
                 GoogleId = "admin-google-id",
-                IsActive = true,
                 IsAdmin = true,
-                IsPaid = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -249,9 +245,7 @@ public class EliminationManagementTests
                 FirstName = "Admin",
                 LastName = "User",
                 GoogleId = "admin-google-id",
-                IsActive = true,
                 IsAdmin = true,
-                IsPaid = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -264,9 +258,7 @@ public class EliminationManagementTests
                 FirstName = "Test",
                 LastName = "User",
                 GoogleId = "user-google-id",
-                IsActive = true,
                 IsAdmin = false,
-                IsPaid = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -373,9 +365,7 @@ public class EliminationManagementTests
                 FirstName = "Regular",
                 LastName = "User",
                 GoogleId = "user-google-id",
-                IsActive = true,
                 IsAdmin = false,
-                IsPaid = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -433,9 +423,7 @@ public class EliminationManagementTests
                 FirstName = "Admin",
                 LastName = "User",
                 GoogleId = "admin-google-id",
-                IsActive = true,
                 IsAdmin = true,
-                IsPaid = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -448,9 +436,7 @@ public class EliminationManagementTests
                 FirstName = "Test",
                 LastName = "User",
                 GoogleId = "user-google-id",
-                IsActive = true,
                 IsAdmin = false,
-                IsPaid = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };

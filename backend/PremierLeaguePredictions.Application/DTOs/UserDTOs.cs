@@ -9,21 +9,9 @@ public class UpdateUserRequest
     public string? PhotoUrl { get; set; }
 }
 
-public class UserListDto
+public class UpdateThemeRequest
 {
-    public Guid Id { get; set; }
-    public string Email { get; set; } = string.Empty;
-    public string FirstName { get; set; } = string.Empty;
-    public string LastName { get; set; } = string.Empty;
-    public bool IsActive { get; set; }
-    public bool IsAdmin { get; set; }
-    public bool IsPaid { get; set; }
-    public DateTime CreatedAt { get; set; }
-}
-
-public class UpdateUserStatusRequest
-{
-    public bool IsActive { get; set; }
+    public string Theme { get; set; } = string.Empty;
 }
 
 public class UpdateUserAdminRequest
@@ -31,12 +19,12 @@ public class UpdateUserAdminRequest
     public bool IsAdmin { get; set; }
 }
 
-public class UpdateUserPaidRequest
+public class UserListDto
 {
-    public bool IsPaid { get; set; }
-}
-
-public class UpdatePaymentStatusRequest
-{
-    public bool IsPaid { get; set; }
+    public Guid Id { get; set; }
+    public string Email { get; set; } = string.Empty;
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public bool IsAdmin { get; set; }
+    public DateTime CreatedAt { get; set; }
 }

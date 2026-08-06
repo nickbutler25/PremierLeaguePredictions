@@ -93,10 +93,19 @@ export function Picks() {
     onError: (error: unknown) => {
       haptics.error();
       const err = error as {
-        response?: { status?: number; data?: { message?: string } };
+        response?: {
+          status?: number;
+          data?: { message?: string; errors?: Record<string, string[]> };
+        };
         message?: string;
       };
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to create pick';
+      // Surface the specific FluentValidation field errors instead of the opaque
+      // "Validation failed" wrapper message.
+      const fieldErrors = err.response?.data?.errors
+        ? Object.values(err.response.data.errors).flat().join(' ')
+        : '';
+      const errorMessage =
+        fieldErrors || err.response?.data?.message || err.message || 'Failed to create pick';
 
       // A 404 (e.g. "Team not found") means this tab is holding stale team/gameweek IDs
       // from before an admin re-sync. Refetch the picker data so it self-heals with the
@@ -214,7 +223,13 @@ export function Picks() {
 
     setSelectedGameweek(null); // Close dropdown immediately
     const gameweek = allGameweeks.find((gw) => gw.weekNumber === gameweekNumber);
-    const seasonId = gameweek?.seasonId || activeSeason?.name || '2024/2025';
+    // Prefer the active season as the source of truth (a cached gameweek may hold a
+    // stale season name). No hardcoded fallback — bail if we genuinely have no season.
+    const seasonId = activeSeason?.name || gameweek?.seasonId;
+    if (!seasonId) {
+      alert('No active season found. Please refresh and try again.');
+      return;
+    }
 
     createPickMutation.mutate({ gameweekNumber, teamId, seasonId });
   };
@@ -299,16 +314,20 @@ export function Picks() {
                         isEditing ? (
                           <select
                             data-testid={`team-select-gw${gw}`}
-                            className="w-full border rounded px-1.5 sm:px-2 py-1 text-xs sm:text-sm"
+                            className="w-full border rounded px-1.5 sm:px-2 py-1 text-xs sm:text-sm bg-background text-foreground"
                             onChange={(e) => handleTeamSelect(gw, e.target.value)}
                             defaultValue=""
                             disabled={createPickMutation.isPending}
                           >
-                            <option value="" disabled>
+                            <option value="" disabled className="text-muted-foreground">
                               Select team...
                             </option>
                             {availableTeams.map((team) => (
-                              <option key={team.id} value={team.id}>
+                              <option
+                                key={team.id}
+                                value={team.id}
+                                className="bg-background text-foreground"
+                              >
                                 {team.name}
                               </option>
                             ))}

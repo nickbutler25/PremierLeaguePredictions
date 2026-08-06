@@ -11,4 +11,6 @@ public interface ISeasonParticipationService
     Task<SeasonParticipationDto?> GetParticipationAsync(Guid userId, string seasonId, CancellationToken cancellationToken = default);
     Task<bool> IsUserApprovedForSeasonAsync(Guid userId, string seasonId, CancellationToken cancellationToken = default);
     Task EnrollAdminForSeasonAsync(Guid adminUserId, string seasonId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<SeasonParticipationDto>> GetSeasonParticipantsAsync(string seasonId, CancellationToken cancellationToken = default);
+    Task<SeasonParticipationDto> SetParticipationPaymentAsync(Guid participationId, bool isPaid, CancellationToken cancellationToken = default);
 }

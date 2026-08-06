@@ -83,7 +83,7 @@ public class UnitOfWork : IUnitOfWork
         var now = DateTime.UtcNow;
 
         var standings = await _context.Users
-            .Where(u => u.IsActive && approvedUserIds.Contains(u.Id))
+            .Where(u => approvedUserIds.Contains(u.Id))
             .Select(u => new
             {
                 User = u,

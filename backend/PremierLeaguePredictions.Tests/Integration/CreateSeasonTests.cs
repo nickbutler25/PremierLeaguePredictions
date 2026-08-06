@@ -36,9 +36,7 @@ public class CreateSeasonTests
                 FirstName = "Admin",
                 LastName = "User",
                 GoogleId = "admin-google-id",
-                IsActive = true,
                 IsAdmin = true,
-                IsPaid = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -99,9 +97,7 @@ public class CreateSeasonTests
                 FirstName = "Regular",
                 LastName = "User",
                 GoogleId = "user-google-id",
-                IsActive = true,
                 IsAdmin = false,
-                IsPaid = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -174,9 +170,7 @@ public class CreateSeasonTests
                 FirstName = "Admin",
                 LastName = "User",
                 GoogleId = "admin-google-id",
-                IsActive = true,
                 IsAdmin = true,
-                IsPaid = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -245,9 +239,7 @@ public class CreateSeasonTests
                 FirstName = "Admin",
                 LastName = "User",
                 GoogleId = "admin-google-id",
-                IsActive = true,
                 IsAdmin = true,
-                IsPaid = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -301,9 +293,7 @@ public class CreateSeasonTests
                 FirstName = "Admin",
                 LastName = "User",
                 GoogleId = "admin-google-id",
-                IsActive = true,
                 IsAdmin = true,
-                IsPaid = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };

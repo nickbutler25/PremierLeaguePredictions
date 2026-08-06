@@ -210,7 +210,7 @@ describe('PendingApprovalPage - No Active Season', () => {
 
   it('should show payment warning for unpaid users', async () => {
     // Arrange
-    const unpaidUser = createMockUser({ isPaid: false });
+    const unpaidUser = createMockUser();
     const mockSeason = {
       id: 'season-id',
       name: '2025-26',
@@ -242,43 +242,5 @@ describe('PendingApprovalPage - No Active Season', () => {
         screen.getByText(/Make sure you've completed payment before approval/i)
       ).toBeInTheDocument();
     });
-  });
-
-  it('should NOT show payment warning for paid users', async () => {
-    // Arrange
-    const paidUser = createMockUser({ isPaid: true });
-    const mockSeason = {
-      id: 'season-id',
-      name: '2025-26',
-      startDate: '2025-08-01',
-      endDate: '2026-05-31',
-      isActive: true,
-      isArchived: false,
-      createdAt: '2025-01-01',
-      updatedAt: '2025-01-01',
-    };
-
-    const mockParticipation = {
-      id: 'participation-id',
-      userId: paidUser.id,
-      seasonId: mockSeason.name,
-      isApproved: false,
-      requestedAt: new Date().toISOString(),
-    };
-
-    vi.mocked(adminService.getActiveSeason).mockResolvedValue(mockSeason);
-    vi.mocked(seasonParticipationService.getParticipation).mockResolvedValue(mockParticipation);
-
-    // Act
-    render(<PendingApprovalPage />, { user: paidUser, token: mockToken });
-
-    // Assert
-    await waitFor(() => {
-      expect(screen.getByText('Approval Pending')).toBeInTheDocument();
-    });
-
-    expect(
-      screen.queryByText(/Make sure you've completed payment before approval/i)
-    ).not.toBeInTheDocument();
   });
 });

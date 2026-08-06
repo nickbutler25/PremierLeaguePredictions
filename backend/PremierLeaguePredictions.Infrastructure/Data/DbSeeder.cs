@@ -47,9 +47,7 @@ public class DbSeeder
                 Email = "admin@plpredictions.com",
                 FirstName = "Admin",
                 LastName = "User",
-                IsActive = true,
                 IsAdmin = true,
-                IsPaid = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -69,9 +67,7 @@ public class DbSeeder
                 Email = "test@plpredictions.com",
                 FirstName = "Test",
                 LastName = "User",
-                IsActive = true,
                 IsAdmin = false,
-                IsPaid = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };

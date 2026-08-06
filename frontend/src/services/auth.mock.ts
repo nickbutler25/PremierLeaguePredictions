@@ -8,9 +8,7 @@ const mockUser = {
   lastName: 'Doe',
   photoUrl: 'https://i.pravatar.cc/150?img=3',
   googleId: 'mock-google-id',
-  isActive: true,
   isAdmin: false,
-  isPaid: true,
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 };

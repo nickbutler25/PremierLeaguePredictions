@@ -83,8 +83,6 @@ export const createMockUser = (overrides?: Partial<User>): User => ({
   firstName: 'Test',
   lastName: 'User',
   photoUrl: 'https://example.com/photo.jpg',
-  isActive: true,
   isAdmin: false,
-  isPaid: true,
   ...overrides,
 });

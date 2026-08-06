@@ -95,8 +95,8 @@ public class AdminSeasonsController : ControllerBase
         }
     }
 
-    [HttpPost("{seasonId}/enroll-admin")]
-    public async Task<ActionResult<ApiResponse<string>>> EnrollAdmin(string seasonId)
+    [HttpPost("enroll-admin")]
+    public async Task<ActionResult<ApiResponse<string>>> EnrollAdmin([FromQuery] string seasonId)
     {
         var adminUserIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (!Guid.TryParse(adminUserIdClaim, out var adminUserId))

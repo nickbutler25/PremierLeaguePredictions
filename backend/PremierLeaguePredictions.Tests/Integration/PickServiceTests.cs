@@ -38,9 +38,7 @@ public class PickServiceTests
                 FirstName = "Pick",
                 LastName = "Tester",
                 GoogleId = "pick-test-google-id",
-                IsActive = true,
                 IsAdmin = false,
-                IsPaid = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -274,9 +272,7 @@ public class PickServiceTests
                 FirstName = "No",
                 LastName = "Picks",
                 GoogleId = "no-picks-google-id",
-                IsActive = true,
                 IsAdmin = false,
-                IsPaid = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -326,9 +322,7 @@ public class PickServiceTests
                 FirstName = "Many",
                 LastName = "Picks",
                 GoogleId = "many-picks-google-id",
-                IsActive = true,
                 IsAdmin = false,
-                IsPaid = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };

@@ -2,6 +2,7 @@ namespace PremierLeaguePredictions.Application.DTOs;
 
 public class SeasonDto
 {
+    public string Id { get; set; } = string.Empty; // Mirrors Name (Name is the identifier)
     public string Name { get; set; } = string.Empty; // Primary identifier
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }

@@ -68,9 +68,7 @@ public class AuthController : ControllerBase
                     LastName = googleUserInfo.LastName,
                     PhotoUrl = googleUserInfo.PhotoUrl,
                     GoogleId = googleUserInfo.GoogleId,
-                    IsActive = true,
                     IsAdmin = false,
-                    IsPaid = false,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 };
@@ -99,12 +97,6 @@ public class AuthController : ControllerBase
                     user.UpdatedAt = DateTime.UtcNow;
                     await _context.SaveChangesAsync();
                 }
-            }
-
-            // Check if user is active
-            if (!user.IsActive)
-            {
-                return Unauthorized(ApiResponse<AuthResponse>.FailureResult("Your account has been deactivated. Please contact an administrator."));
             }
 
             var token = _tokenService.GenerateToken(user);
@@ -162,9 +154,7 @@ public class AuthController : ControllerBase
                     PhotoUrl = request.PhotoUrl,
                     GoogleId = request.GoogleId,
                     PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-                    IsActive = true,
                     IsAdmin = false,
-                    IsPaid = false,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 };
@@ -201,11 +191,6 @@ public class AuthController : ControllerBase
                 return Unauthorized(ApiResponse<AuthResponse>.FailureResult("Invalid email or password"));
             }
 
-            if (!user.IsActive)
-            {
-                return Unauthorized(ApiResponse<AuthResponse>.FailureResult("Your account has been deactivated. Please contact an administrator."));
-            }
-
             var token = _tokenService.GenerateToken(user);
             Response.Cookies.Append("auth_token", token, GetCookieOptions());
 
@@ -237,9 +222,8 @@ public class AuthController : ControllerBase
             FirstName = user.FirstName,
             LastName = user.LastName,
             PhotoUrl = user.PhotoUrl,
-            IsActive = user.IsActive,
             IsAdmin = user.IsAdmin,
-            IsPaid = user.IsPaid
+            ThemePreference = user.ThemePreference
         }
     };
 

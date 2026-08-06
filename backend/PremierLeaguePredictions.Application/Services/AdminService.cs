@@ -183,6 +183,7 @@ public class AdminService : IAdminService
             .OrderByDescending(s => s.StartDate)
             .Select(s => new SeasonDto
             {
+                Id = s.Name,
                 Name = s.Name,
                 StartDate = s.StartDate,
                 EndDate = s.EndDate,

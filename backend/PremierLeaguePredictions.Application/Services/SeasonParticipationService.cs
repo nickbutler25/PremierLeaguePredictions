@@ -150,7 +150,7 @@ public class SeasonParticipationService : ISeasonParticipationService
                     SeasonId = season.Name,
                     SeasonName = season.Name,
                     RequestedAt = participation.RequestedAt,
-                    IsPaid = user.IsPaid
+                    IsPaid = participation.IsPaid
                 });
             }
         }
@@ -199,6 +199,12 @@ public class SeasonParticipationService : ISeasonParticipationService
 
     public async Task EnrollAdminForSeasonAsync(Guid adminUserId, string seasonId, CancellationToken cancellationToken = default)
     {
+        var season = await _unitOfWork.Seasons.FirstOrDefaultAsync(s => s.Name == seasonId, cancellationToken);
+        if (season == null)
+        {
+            throw new InvalidOperationException($"Season '{seasonId}' not found");
+        }
+
         var existing = await _unitOfWork.SeasonParticipations.FindAsync(
             sp => sp.UserId == adminUserId && sp.SeasonId == seasonId,
             cancellationToken);
@@ -224,6 +230,40 @@ public class SeasonParticipationService : ISeasonParticipationService
         _logger.LogInformation("Admin {AdminUserId} auto-enrolled in season {SeasonId}", adminUserId, seasonId);
     }
 
+    public async Task<IEnumerable<SeasonParticipationDto>> GetSeasonParticipantsAsync(string seasonId, CancellationToken cancellationToken = default)
+    {
+        var participations = await _unitOfWork.SeasonParticipations.FindAsync(
+            sp => sp.SeasonId == seasonId,
+            cancellationToken);
+
+        var dtos = new List<SeasonParticipationDto>();
+        foreach (var participation in participations)
+        {
+            dtos.Add(await MapToDto(participation, cancellationToken));
+        }
+
+        return dtos.OrderBy(d => d.UserLastName).ThenBy(d => d.UserFirstName);
+    }
+
+    public async Task<SeasonParticipationDto> SetParticipationPaymentAsync(Guid participationId, bool isPaid, CancellationToken cancellationToken = default)
+    {
+        var participation = await _unitOfWork.SeasonParticipations.GetByIdAsync(participationId, cancellationToken);
+        if (participation == null)
+        {
+            throw new KeyNotFoundException("Participation request not found");
+        }
+
+        participation.IsPaid = isPaid;
+        participation.UpdatedAt = DateTime.UtcNow;
+
+        _unitOfWork.SeasonParticipations.Update(participation);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Participation {ParticipationId} payment set to {IsPaid}", participationId, isPaid);
+
+        return await MapToDto(participation, cancellationToken);
+    }
+
     private async Task<SeasonParticipationDto> MapToDto(SeasonParticipation participation, CancellationToken cancellationToken)
     {
         var user = await _unitOfWork.Users.GetByIdAsync(participation.UserId, cancellationToken);
@@ -245,6 +285,7 @@ public class SeasonParticipationService : ISeasonParticipationService
             UserId = participation.UserId,
             SeasonId = participation.SeasonId,
             IsApproved = participation.IsApproved,
+            IsPaid = participation.IsPaid,
             RequestedAt = participation.RequestedAt,
             ApprovedAt = participation.ApprovedAt,
             ApprovedByUserId = participation.ApprovedByUserId,

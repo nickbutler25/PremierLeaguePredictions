@@ -6,6 +6,7 @@ public class SeasonParticipationDto
     public Guid UserId { get; set; }
     public string SeasonId { get; set; } = string.Empty;
     public bool IsApproved { get; set; }
+    public bool IsPaid { get; set; }
     public DateTime RequestedAt { get; set; }
     public DateTime? ApprovedAt { get; set; }
     public Guid? ApprovedByUserId { get; set; }
@@ -27,6 +28,11 @@ public class ApproveSeasonParticipationRequest
 {
     public Guid ParticipationId { get; set; }
     public bool IsApproved { get; set; }
+}
+
+public class SetParticipationPaymentRequest
+{
+    public bool IsPaid { get; set; }
 }
 
 public class PendingApprovalDto

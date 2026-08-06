@@ -79,19 +79,23 @@ public class UsersController : ControllerBase
         return Ok(ApiResponse<UserDto>.SuccessResult(user));
     }
 
-    [HttpPatch("{id}/status")]
-    [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<ApiResponse<UserDto>>> UpdateUserStatus(Guid id, [FromBody] UpdateUserStatusRequest request)
+    [HttpPut("me/theme")]
+    public async Task<ActionResult<ApiResponse<UserDto>>> UpdateTheme([FromBody] UpdateThemeRequest request)
     {
-        var user = await _userService.UpdateUserStatusAsync(id, request);
+        var theme = request.Theme?.ToLowerInvariant();
+        if (theme != "light" && theme != "dark")
+            return BadRequest(ApiResponse<UserDto>.FailureResult("Theme must be 'light' or 'dark'"));
+
+        var userId = GetUserIdFromClaims();
+        var user = await _userService.SetThemePreferenceAsync(userId, theme);
         return Ok(ApiResponse<UserDto>.SuccessResult(user));
     }
 
-    [HttpPatch("{id}/payment-status")]
+    [HttpPatch("{id}/admin")]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<ApiResponse<UserDto>>> UpdatePaymentStatus(Guid id, [FromBody] UpdatePaymentStatusRequest request)
+    public async Task<ActionResult<ApiResponse<UserDto>>> UpdateUserAdmin(Guid id, [FromBody] UpdateUserAdminRequest request)
     {
-        var user = await _userService.UpdateUserPaymentStatusAsync(id, request);
+        var user = await _userService.SetUserAdminAsync(id, request.IsAdmin);
         return Ok(ApiResponse<UserDto>.SuccessResult(user));
     }
 

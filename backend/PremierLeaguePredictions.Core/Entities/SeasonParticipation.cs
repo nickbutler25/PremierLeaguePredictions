@@ -6,6 +6,7 @@ public class SeasonParticipation
     public Guid UserId { get; set; }
     public string SeasonId { get; set; } = string.Empty;
     public bool IsApproved { get; set; } = false;
+    public bool IsPaid { get; set; } = false;
     public DateTime RequestedAt { get; set; }
     public DateTime? ApprovedAt { get; set; }
     public Guid? ApprovedByUserId { get; set; }

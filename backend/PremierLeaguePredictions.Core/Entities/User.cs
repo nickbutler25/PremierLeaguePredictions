@@ -9,9 +9,8 @@ public class User
     public string? PhotoUrl { get; set; }
     public string? GoogleId { get; set; }
     public string? PasswordHash { get; set; }
-    public bool IsActive { get; set; } = true;
     public bool IsAdmin { get; set; } = false;
-    public bool IsPaid { get; set; } = false;
+    public string? ThemePreference { get; set; } // "light" or "dark"; null = follow device
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 

@@ -10,7 +10,10 @@ public class CreateSeasonRequestValidator : AbstractValidator<CreateSeasonReques
     {
         RuleFor(x => x.Name)
             .NotEmpty().WithMessage("Season name is required")
-            .MaximumLength(ValidationRules.MaxSeasonNameLength).WithMessage($"Season name must not exceed {ValidationRules.MaxSeasonNameLength} characters");
+            .MaximumLength(ValidationRules.MaxSeasonNameLength).WithMessage($"Season name must not exceed {ValidationRules.MaxSeasonNameLength} characters")
+            // The season name is used as the identifier in URL paths; a "/" becomes %2F,
+            // which ASP.NET does not decode in route values. Use e.g. "2026-2027".
+            .Must(name => name == null || !name.Contains('/')).WithMessage("Season name cannot contain '/' (use a hyphen, e.g. 2026-2027)");
 
         RuleFor(x => x.StartDate)
             .NotEmpty().WithMessage("Start date is required");

@@ -83,9 +83,8 @@ public class DevController : ControllerBase
                 FirstName = adminUser.FirstName,
                 LastName = adminUser.LastName,
                 PhotoUrl = adminUser.PhotoUrl,
-                IsActive = adminUser.IsActive,
                 IsAdmin = adminUser.IsAdmin,
-                IsPaid = adminUser.IsPaid
+                ThemePreference = adminUser.ThemePreference
             }
         };
 
@@ -118,9 +117,8 @@ public class DevController : ControllerBase
                 FirstName = testUser.FirstName,
                 LastName = testUser.LastName,
                 PhotoUrl = testUser.PhotoUrl,
-                IsActive = testUser.IsActive,
                 IsAdmin = testUser.IsAdmin,
-                IsPaid = testUser.IsPaid
+                ThemePreference = testUser.ThemePreference
             }
         };
 
