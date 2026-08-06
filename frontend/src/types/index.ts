@@ -4,9 +4,8 @@ export interface User {
   firstName: string;
   lastName: string;
   photoUrl?: string;
-  isActive: boolean;
   isAdmin: boolean;
-  isPaid: boolean;
+  themePreference?: 'light' | 'dark';
 }
 
 export interface UpdateUserRequest {
@@ -174,6 +173,7 @@ export interface SeasonParticipation {
   userId: string;
   seasonId: string;
   isApproved: boolean;
+  isPaid?: boolean;
   requestedAt: string;
   approvedAt?: string;
   approvedByUserId?: string;

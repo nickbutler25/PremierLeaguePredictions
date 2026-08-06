@@ -21,21 +21,3 @@ public class UpdateUserRequestValidator : AbstractValidator<UpdateUserRequest>
         });
     }
 }
-
-public class UpdateUserStatusRequestValidator : AbstractValidator<UpdateUserStatusRequest>
-{
-    public UpdateUserStatusRequestValidator()
-    {
-        RuleFor(x => x.IsActive)
-            .NotNull().WithMessage("IsActive status is required");
-    }
-}
-
-public class UpdatePaymentStatusRequestValidator : AbstractValidator<UpdatePaymentStatusRequest>
-{
-    public UpdatePaymentStatusRequestValidator()
-    {
-        RuleFor(x => x.IsPaid)
-            .NotNull().WithMessage("Payment status is required");
-    }
-}

@@ -192,6 +192,38 @@ public class ValidatorTests
         private readonly CreateSeasonRequestValidator _validator = new();
 
         [Fact]
+        public void SeasonName_WithSlash_ShouldHaveValidationError()
+        {
+            // Slashes break seasonId-in-URL-path routing (%2F), so they are rejected.
+            var request = new CreateSeasonRequest
+            {
+                Name = "2026/2027",
+                StartDate = DateTime.UtcNow,
+                EndDate = DateTime.UtcNow.AddMonths(9),
+            };
+
+            var result = _validator.TestValidate(request);
+
+            result.ShouldHaveValidationErrorFor(x => x.Name)
+                .WithErrorMessage("Season name cannot contain '/' (use a hyphen, e.g. 2026-2027)");
+        }
+
+        [Fact]
+        public void SeasonName_WithHyphen_ShouldNotHaveValidationError()
+        {
+            var request = new CreateSeasonRequest
+            {
+                Name = "2026-2027",
+                StartDate = DateTime.UtcNow,
+                EndDate = DateTime.UtcNow.AddMonths(9),
+            };
+
+            var result = _validator.TestValidate(request);
+
+            result.ShouldNotHaveValidationErrorFor(x => x.Name);
+        }
+
+        [Fact]
         public void SeasonName_WithValidLength_ShouldNotHaveValidationError()
         {
             // Arrange

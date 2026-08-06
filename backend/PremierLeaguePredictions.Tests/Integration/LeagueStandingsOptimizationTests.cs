@@ -79,9 +79,7 @@ public class LeagueStandingsOptimizationTests
             FirstName = "Test",
             LastName = "User",
             GoogleId = $"google-{Guid.NewGuid()}",
-            IsActive = true,
             IsAdmin = false,
-            IsPaid = true,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -223,9 +221,7 @@ public class LeagueStandingsOptimizationTests
                 FirstName = userData.FirstName,
                 LastName = userData.LastName,
                 GoogleId = $"google-{userData.FirstName}",
-                IsActive = true,
                 IsAdmin = false,
-                IsPaid = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -311,9 +307,7 @@ public class LeagueStandingsOptimizationTests
             FirstName = "Test",
             LastName = "User",
             GoogleId = $"google-{Guid.NewGuid()}",
-            IsActive = true,
             IsAdmin = false,
-            IsPaid = true,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -440,9 +434,7 @@ public class LeagueStandingsOptimizationTests
             FirstName = "Eliminated",
             LastName = "User",
             GoogleId = "google-elim",
-            IsActive = true,
             IsAdmin = false,
-            IsPaid = true,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -455,9 +447,7 @@ public class LeagueStandingsOptimizationTests
             FirstName = "Active",
             LastName = "User",
             GoogleId = "google-active",
-            IsActive = true,
             IsAdmin = false,
-            IsPaid = true,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -584,9 +574,7 @@ public class LeagueStandingsOptimizationTests
                 FirstName = $"User",
                 LastName = $"{i}",
                 GoogleId = $"google-{i}",
-                IsActive = true,
                 IsAdmin = false,
-                IsPaid = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -693,9 +681,7 @@ public class LeagueStandingsOptimizationTests
             FirstName = "Approved",
             LastName = "User",
             GoogleId = "google-approved",
-            IsActive = true,
             IsAdmin = false,
-            IsPaid = true,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -708,9 +694,7 @@ public class LeagueStandingsOptimizationTests
             FirstName = "Unapproved",
             LastName = "User",
             GoogleId = "google-unapproved",
-            IsActive = true,
             IsAdmin = false,
-            IsPaid = true,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -777,9 +761,7 @@ public class LeagueStandingsOptimizationTests
             FirstName = "Fixture",
             LastName = "Tester",
             GoogleId = $"google-fixture-status",
-            IsActive = true,
             IsAdmin = false,
-            IsPaid = true,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };

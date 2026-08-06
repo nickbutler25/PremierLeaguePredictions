@@ -25,9 +25,20 @@ public class FixtureService : IFixtureService
 
     public async Task<IEnumerable<FixtureDto>> GetAllFixturesAsync(CancellationToken cancellationToken = default)
     {
-        var fixtures = await _unitOfWork.Fixtures.GetAllAsync(cancellationToken);
+        // Scope to the active season. Gameweek numbers (1–38) repeat every season, so
+        // returning fixtures from previous seasons makes them collide in the fixtures view.
+        var activeSeason = (await _unitOfWork.Seasons.FindAsync(s => s.IsActive, cancellationToken))
+            .FirstOrDefault();
+        if (activeSeason == null)
+        {
+            return Enumerable.Empty<FixtureDto>();
+        }
+
+        var fixtures = await _unitOfWork.Fixtures.FindAsync(
+            f => f.SeasonId == activeSeason.Name, cancellationToken);
         var teams = await _unitOfWork.Teams.GetAllAsync(cancellationToken);
-        var gameweeks = await _unitOfWork.Gameweeks.GetAllAsync(cancellationToken);
+        var gameweeks = await _unitOfWork.Gameweeks.FindAsync(
+            g => g.SeasonId == activeSeason.Name, cancellationToken);
 
         var teamDict = teams.ToDictionary(t => t.Id);
         var gameweekDict = gameweeks.ToDictionary(g => $"{g.SeasonId}-{g.WeekNumber}");

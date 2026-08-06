@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminService, type TeamStatus } from '@/services/admin';
+import { seasonParticipationService } from '@/services/seasonParticipation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -19,6 +20,13 @@ export function SeasonManagementPage() {
     queryKey: ['admin', 'seasons'],
     queryFn: () => adminService.getSeasons(),
   });
+
+  // Seasons the current admin is already enrolled in (hide "Enroll Me" for those).
+  const { data: myParticipations = [] } = useQuery({
+    queryKey: ['my-participations'],
+    queryFn: () => seasonParticipationService.getMyParticipations(),
+  });
+  const enrolledSeasonIds = new Set(myParticipations.map((p) => p.seasonId));
 
   const { data: teams, isLoading: loadingTeams } = useQuery({
     queryKey: ['admin', 'teams'],
@@ -141,6 +149,7 @@ export function SeasonManagementPage() {
     mutationFn: (seasonId: string) => adminService.enrollAdminForSeason(seasonId),
     onSuccess: () => {
       toast({ title: 'Enrolled', description: 'You are now enrolled in this season.' });
+      queryClient.invalidateQueries({ queryKey: ['my-participations'] });
       queryClient.invalidateQueries({ queryKey: ['league-standings'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
@@ -371,7 +380,7 @@ export function SeasonManagementPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    {season.isActive && (
+                    {season.isActive && !enrolledSeasonIds.has(season.name) && (
                       <Button
                         size="sm"
                         variant="outline"

@@ -26,8 +26,6 @@ const mockAuthContextValue = {
     email: 'john@example.com',
     photoUrl: 'https://example.com/photo.jpg',
     isAdmin: false,
-    isActive: true,
-    isPaid: true,
   },
   token: 'mock-token',
   isAuthenticated: true,

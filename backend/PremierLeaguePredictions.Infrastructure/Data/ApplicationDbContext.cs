@@ -38,9 +38,8 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.LastName).HasColumnName("last_name").HasMaxLength(100).IsRequired();
             entity.Property(e => e.PhotoUrl).HasColumnName("photo_url").HasMaxLength(500);
             entity.Property(e => e.GoogleId).HasColumnName("google_id").HasMaxLength(255);
-            entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
             entity.Property(e => e.IsAdmin).HasColumnName("is_admin").HasDefaultValue(false);
-            entity.Property(e => e.IsPaid).HasColumnName("is_paid").HasDefaultValue(false);
+            entity.Property(e => e.ThemePreference).HasColumnName("theme_preference").HasMaxLength(10);
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
 
@@ -265,6 +264,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.UserId).HasColumnName("user_id").IsRequired();
             entity.Property(e => e.SeasonId).HasColumnName("season_id").IsRequired();
             entity.Property(e => e.IsApproved).HasColumnName("is_approved").HasDefaultValue(false);
+            entity.Property(e => e.IsPaid).HasColumnName("is_paid").HasDefaultValue(false);
             entity.Property(e => e.RequestedAt).HasColumnName("requested_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(e => e.ApprovedAt).HasColumnName("approved_at");
             entity.Property(e => e.ApprovedByUserId).HasColumnName("approved_by_user_id");

@@ -80,6 +80,22 @@ public class SeasonParticipationController : ControllerBase
         return Ok(ApiResponse<SeasonParticipationDto>.SuccessResult(participation));
     }
 
+    [HttpGet("participants")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<SeasonParticipationDto>>>> GetSeasonParticipants([FromQuery] string seasonId)
+    {
+        var participants = await _seasonParticipationService.GetSeasonParticipantsAsync(seasonId);
+        return Ok(ApiResponse<IEnumerable<SeasonParticipationDto>>.SuccessResult(participants));
+    }
+
+    [HttpPatch("{participationId}/payment")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<ApiResponse<SeasonParticipationDto>>> SetParticipationPayment(Guid participationId, [FromBody] SetParticipationPaymentRequest request)
+    {
+        var participation = await _seasonParticipationService.SetParticipationPaymentAsync(participationId, request.IsPaid);
+        return Ok(ApiResponse<SeasonParticipationDto>.SuccessResult(participation, request.IsPaid ? "Marked as paid" : "Marked as not paid"));
+    }
+
     private Guid GetUserId()
     {
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;

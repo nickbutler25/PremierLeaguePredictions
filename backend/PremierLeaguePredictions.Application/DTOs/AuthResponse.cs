@@ -13,7 +13,6 @@ public class UserDto
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public string? PhotoUrl { get; set; }
-    public bool IsActive { get; set; }
     public bool IsAdmin { get; set; }
-    public bool IsPaid { get; set; }
+    public string? ThemePreference { get; set; }
 }

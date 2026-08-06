@@ -37,9 +37,7 @@ public class DashboardNoActiveSeasonTests
                 FirstName = "Test",
                 LastName = "User",
                 GoogleId = "test-google-id",
-                IsActive = true,
                 IsAdmin = false,
-                IsPaid = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -123,9 +121,7 @@ public class DashboardNoActiveSeasonTests
                 FirstName = "Test",
                 LastName = "User",
                 GoogleId = "test-google-id",
-                IsActive = true,
                 IsAdmin = false,
-                IsPaid = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -208,9 +204,7 @@ public class DashboardNoActiveSeasonTests
                 FirstName = "Admin",
                 LastName = "User",
                 GoogleId = "admin-google-id",
-                IsActive = true,
                 IsAdmin = true,
-                IsPaid = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };

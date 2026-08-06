@@ -5,7 +5,8 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useAutoPickNotifications } from '@/hooks/useAutoPickNotifications';
 import { useResultsUpdates } from '@/hooks/useResultsUpdates';
 import { useSeasonCreatedNotification } from '@/hooks/useSeasonCreatedNotification';
-import type { ReactNode } from 'react';
+import { usersService } from '@/services/users';
+import { useEffect, type ReactNode } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 
 interface LayoutProps {
@@ -14,8 +15,23 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const { user, logout, isAdmin } = useAuth();
-  const { theme, toggleTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
+
+  // Apply the user's saved (server-side) theme preference once it's known.
+  useEffect(() => {
+    if (user?.themePreference && user.themePreference !== theme) {
+      setTheme(user.themePreference);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.themePreference]);
+
+  const handleToggleTheme = () => {
+    const next = theme === 'light' ? 'dark' : 'light';
+    setTheme(next);
+    // Persist to the account (best-effort); ThemeContext handles localStorage + <html> class.
+    usersService.updateTheme(next).catch(() => {});
+  };
 
   // Subscribe to real-time updates
   useResultsUpdates();
@@ -35,7 +51,11 @@ export function Layout({ children }: LayoutProps) {
       >
         Skip to main content
       </a>
-      <header className="border-b" role="banner" data-testid="main-header">
+      <header
+        className="border-b pt-[env(safe-area-inset-top)]"
+        role="banner"
+        data-testid="main-header"
+      >
         <div className="container mx-auto px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between">
           <div className="flex items-center space-x-4 sm:space-x-8">
             <Link
@@ -104,7 +124,7 @@ export function Layout({ children }: LayoutProps) {
               data-testid="theme-toggle-button"
               variant="outline"
               size="sm"
-              onClick={toggleTheme}
+              onClick={handleToggleTheme}
               className="w-9 px-0"
               aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
               title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}

@@ -6,9 +6,7 @@ export interface UserListItem {
   email: string;
   firstName: string;
   lastName: string;
-  isActive: boolean;
   isAdmin: boolean;
-  isPaid: boolean;
   createdAt: string;
 }
 
@@ -28,6 +26,11 @@ export const usersService = {
     return response.data.data!;
   },
 
+  async updateTheme(theme: 'light' | 'dark'): Promise<User> {
+    const response = await apiClient.put<ApiResponse<User>>('/api/v1/users/me/theme', { theme });
+    return response.data.data!;
+  },
+
   async uploadPhoto(file: File): Promise<User> {
     const formData = new FormData();
     formData.append('file', file);
@@ -44,5 +47,18 @@ export const usersService = {
   async deletePhoto(): Promise<User> {
     const response = await apiClient.delete<ApiResponse<User>>('/api/v1/users/me/photo');
     return response.data.data!;
+  },
+
+  // --- Admin-only operations (require Admin role) ---
+
+  async updateAdmin(userId: string, isAdmin: boolean): Promise<User> {
+    const response = await apiClient.patch<ApiResponse<User>>(`/api/v1/users/${userId}/admin`, {
+      isAdmin,
+    });
+    return response.data.data!;
+  },
+
+  async deleteUser(userId: string): Promise<void> {
+    await apiClient.delete(`/api/v1/users/${userId}`);
   },
 };

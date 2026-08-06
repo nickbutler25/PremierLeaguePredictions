@@ -40,9 +40,7 @@ public class N1QueryPerformanceTests
             FirstName = "Test",
             LastName = "User",
             GoogleId = "test-google-id",
-            IsActive = true,
             IsAdmin = false,
-            IsPaid = true,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -193,9 +191,7 @@ public class N1QueryPerformanceTests
                 FirstName = $"User",
                 LastName = $"{i}",
                 GoogleId = $"user-{i}-google-id",
-                IsActive = true,
                 IsAdmin = false,
-                IsPaid = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -248,9 +244,7 @@ public class N1QueryPerformanceTests
             FirstName = "Dashboard",
             LastName = "User",
             GoogleId = "dashboard-google-id",
-            IsActive = true,
             IsAdmin = false,
-            IsPaid = true,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -359,9 +353,7 @@ public class N1QueryPerformanceTests
                 FirstName = $"League",
                 LastName = $"User{i}",
                 GoogleId = $"league-{i}-google-id",
-                IsActive = true,
                 IsAdmin = false,
-                IsPaid = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };

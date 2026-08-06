@@ -55,6 +55,27 @@ const realSeasonParticipationService = {
     );
     return response.data.data!;
   },
+
+  // Admin: all participations for a season (approved + pending), with per-season payment.
+  getSeasonParticipants: async (seasonId: string): Promise<SeasonParticipation[]> => {
+    const response = await apiClient.get<ApiResponse<SeasonParticipation[]>>(
+      '/api/v1/seasonparticipation/participants',
+      { params: { seasonId } }
+    );
+    return response.data.data!;
+  },
+
+  // Admin: set a participant's per-season payment status.
+  updateParticipationPayment: async (
+    participationId: string,
+    isPaid: boolean
+  ): Promise<SeasonParticipation> => {
+    const response = await apiClient.patch<ApiResponse<SeasonParticipation>>(
+      `/api/v1/seasonparticipation/${participationId}/payment`,
+      { isPaid }
+    );
+    return response.data.data!;
+  },
 };
 
 export const seasonParticipationService = realSeasonParticipationService;

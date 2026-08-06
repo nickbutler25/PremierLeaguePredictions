@@ -202,6 +202,10 @@ export const adminService = {
   },
 
   async enrollAdminForSeason(seasonId: string) {
-    await apiClient.post(`/api/v1/admin/seasons/${encodeURIComponent(seasonId)}/enroll-admin`);
+    // seasonId (the season Name, e.g. "2026/2027") is passed as a query param — a path
+    // segment would percent-encode the "/" to %2F which ASP.NET does not decode back.
+    await apiClient.post('/api/v1/admin/seasons/enroll-admin', null, {
+      params: { seasonId },
+    });
   },
 };

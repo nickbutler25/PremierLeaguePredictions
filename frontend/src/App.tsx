@@ -18,6 +18,7 @@ import EliminationManagementPage from '@/pages/admin/EliminationManagementPage';
 import { BackfillPicksPage } from '@/pages/admin/BackfillPicksPage';
 import { PickRulesManagementPage } from '@/pages/admin/PickRulesManagementPage';
 import { ScheduleManagementPage } from '@/pages/admin/ScheduleManagementPage';
+import { UsersManagementPage } from '@/pages/admin/UsersManagementPage';
 import { AdminLayout } from '@/components/layout/AdminLayout';
 import { Toaster } from '@/components/ui/toaster';
 import { useSeasonApproval } from '@/hooks/useSeasonApproval';
@@ -146,6 +147,18 @@ function AppRoutes() {
             <Layout>
               <AdminLayout>
                 <SeasonApprovalsPage />
+              </AdminLayout>
+            </Layout>
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/users"
+        element={
+          <AdminRoute>
+            <Layout>
+              <AdminLayout>
+                <UsersManagementPage />
               </AdminLayout>
             </Layout>
           </AdminRoute>
