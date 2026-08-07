@@ -25,7 +25,10 @@
 
     <!-- iOS Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!-- "default" (not black-translucent) makes iOS reserve the status-bar/notch area in
+         the home-screen app, so content starts below the Dynamic Island instead of under it.
+         The status-bar background follows the theme-color metas below. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="EPL Predict" />
 
     <!-- Apple Touch Icons -->

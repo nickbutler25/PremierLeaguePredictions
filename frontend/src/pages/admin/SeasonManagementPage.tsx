@@ -33,18 +33,26 @@ export function SeasonManagementPage() {
     queryFn: () => adminService.getTeamStatuses(),
   });
 
-  // Generate available season options (only past and current seasons)
-  const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth(); // 0-indexed (0 = January, 7 = August)
+  // A season's fixtures are released ~mid-June of its starting year (historically
+  // 15-19 June, e.g. 2026/27 on 19 Jun 2026). There are no fixtures/teams to sync before
+  // then, so only offer a season to create once its fixtures are out — the creatable
+  // season rolls over in mid-June, not August.
+  const today = new Date();
+  const FIXTURES_RELEASE_MONTH = 5; // June (0-indexed)
+  // Historical releases fell 15-19 June; use 20 so the season is only offered *after*
+  // fixtures are actually out (tune this if a future release lands later).
+  const FIXTURES_RELEASE_DAY = 20;
+  const fixturesReleasedThisYear =
+    today >= new Date(today.getFullYear(), FIXTURES_RELEASE_MONTH, FIXTURES_RELEASE_DAY);
+  const availableStartYear = fixturesReleasedThisYear
+    ? today.getFullYear()
+    : today.getFullYear() - 1;
 
-  // Determine the current season year (if before August, current season started last year)
-  const currentSeasonYear = currentMonth < 7 ? currentYear - 1 : currentYear;
-
-  // Generate seasons from 2020 to current season, ordered newest to oldest
-  const availableSeasons = Array.from({ length: currentSeasonYear - 2019 }, (_, i) => {
-    const year = currentSeasonYear - i;
-    return `${year}/${year + 1}`;
-  }).filter((seasonName) => !seasons?.some((s) => s.name === seasonName));
+  // Offer only the season whose fixtures are available, excluding it if already created.
+  // Hyphen format (e.g. "2026-2027") — a slash breaks seasonId-in-URL routing.
+  const availableSeasons = [`${availableStartYear}-${availableStartYear + 1}`].filter(
+    (seasonName) => !seasons?.some((s) => s.name === seasonName)
+  );
 
   const createSeasonMutation = useMutation({
     mutationFn: adminService.createSeason,
@@ -213,8 +221,8 @@ export function SeasonManagementPage() {
       return;
     }
 
-    // Extract the starting year from the season name (e.g., "2025/2026" -> 2025)
-    const startYear = parseInt(selectedSeasonName.split('/')[0]);
+    // Extract the starting year from the season name (e.g., "2026-2027" -> 2026)
+    const startYear = parseInt(selectedSeasonName, 10);
     const endYear = startYear + 1;
 
     // Create start and end dates (August 1st to May 31st)
@@ -254,7 +262,17 @@ export function SeasonManagementPage() {
         </CardHeader>
         <CardContent>
           {!isCreatingseason ? (
-            <Button onClick={() => setIsCreatingSeason(true)}>Create New Season</Button>
+            availableSeasons.length > 0 ? (
+              <Button onClick={() => setIsCreatingSeason(true)}>Create New Season</Button>
+            ) : (
+              <div className="space-y-2">
+                <Button disabled>Create New Season</Button>
+                <p className="text-sm text-muted-foreground" data-testid="no-season-available">
+                  No new season to create yet — the latest season is already set up. A new season
+                  becomes available once its fixtures are released (mid-June).
+                </p>
+              </div>
+            )
           ) : createSeasonMutation.isPending ? (
             <div className="flex flex-col items-center justify-center p-8 space-y-4">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>

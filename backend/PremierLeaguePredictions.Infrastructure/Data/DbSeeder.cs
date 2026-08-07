@@ -107,7 +107,10 @@ public class DbSeeder
     /// <summary>
     /// Creates a dedicated E2E test season with rolling future gameweek deadlines.
     /// Uses a fixed season name to avoid polluting production seasons.
-    /// IsActive = false so it doesn't conflict with the real active season.
+    /// The E2E season is made active whenever no real active season exists (always the
+    /// case in the isolated E2E/CI database), so picks/fixtures/gameweeks — all scoped to
+    /// the active season — have a working current season. In dev, where a real active
+    /// season exists, it stays inactive so it never shadows the real one.
     /// Gameweek deadlines are always regenerated to be in the future so the
     /// dashboard always has upcoming content regardless of when CI runs.
     /// </summary>
@@ -115,25 +118,38 @@ public class DbSeeder
     {
         var now = DateTime.UtcNow;
 
-        var seasonExists = await _context.Seasons.AnyAsync(s => s.Name == E2eSeasonName);
+        var season = await _context.Seasons.FirstOrDefaultAsync(s => s.Name == E2eSeasonName);
 
-        if (!seasonExists)
+        if (season == null)
         {
-            var season = new Season
+            season = new Season
             {
                 Name = E2eSeasonName,
                 StartDate = now.Date,
                 EndDate = now.Date.AddYears(1),
-                IsActive = false, // Not a real active season — only used to provide future gameweeks
+                IsActive = false, // set below once we know whether a real active season exists
                 CreatedAt = now,
                 UpdatedAt = now
             };
 
             _context.Seasons.Add(season);
-            await _context.SaveChangesAsync();
-
             _logger.LogInformation("E2E test season created: {SeasonName}", E2eSeasonName);
         }
+
+        // Idempotently ensure the E2E season is active iff there's no real active season.
+        // Runs whether the season was just created or already existed (e.g. a local re-seed
+        // where it was previously left inactive), so the E2E database always has exactly one
+        // active season for the app to scope against.
+        var otherActiveSeasonExists = await _context.Seasons
+            .AnyAsync(s => s.IsActive && s.Name != E2eSeasonName);
+        var shouldBeActive = !otherActiveSeasonExists;
+        if (season.IsActive != shouldBeActive)
+        {
+            season.IsActive = shouldBeActive;
+            season.UpdatedAt = now;
+        }
+
+        await _context.SaveChangesAsync();
 
         // Ensure there are upcoming gameweeks with future deadlines.
         // If none exist with a future deadline, add new ones (rolling forward).

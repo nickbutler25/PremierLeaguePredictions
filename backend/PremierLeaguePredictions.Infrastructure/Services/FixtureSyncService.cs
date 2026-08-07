@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using PremierLeaguePredictions.Core.Entities;
 using PremierLeaguePredictions.Core.Interfaces;
@@ -16,15 +17,22 @@ public class FixtureSyncService : IFixtureSyncService
     private readonly IFootballDataService _footballDataService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<FixtureSyncService> _logger;
+    private readonly IMemoryCache _cache;
+
+    // Must match TeamService.TeamsCacheKey — this service mutates teams directly (bypassing
+    // TeamService), so it invalidates the cached /teams list itself.
+    private const string TeamsCacheKey = "all_teams";
 
     public FixtureSyncService(
         IFootballDataService footballDataService,
         IUnitOfWork unitOfWork,
-        ILogger<FixtureSyncService> logger)
+        ILogger<FixtureSyncService> logger,
+        IMemoryCache cache)
     {
         _footballDataService = footballDataService;
         _unitOfWork = unitOfWork;
         _logger = logger;
+        _cache = cache;
     }
 
     public async Task<(int created, int updated)> SyncTeamsAsync(CancellationToken cancellationToken = default)
@@ -95,8 +103,31 @@ public class FixtureSyncService : IFixtureSyncService
             }
         }
 
+        // Deactivate teams no longer in the league (relegated), and reactivate any that have
+        // returned (promoted). externalTeams is the current season's team list from the API.
+        var currentExternalIds = externalTeams.Select(t => t.Id).ToHashSet();
+        int deactivated = 0;
+        int reactivated = 0;
+        foreach (var existingTeam in existingTeams)
+        {
+            var shouldBeActive = currentExternalIds.Contains(existingTeam.ExternalId);
+            if (existingTeam.IsActive != shouldBeActive)
+            {
+                existingTeam.IsActive = shouldBeActive;
+                existingTeam.UpdatedAt = DateTime.UtcNow;
+                _unitOfWork.Teams.Update(existingTeam);
+                if (shouldBeActive) reactivated++;
+                else deactivated++;
+            }
+        }
+
         await _unitOfWork.SaveChangesAsync(cancellationToken);
-        _logger.LogInformation("Teams sync completed. Created: {Created}, Updated: {Updated}", created, updated);
+        // Team activity changed — invalidate the cached /teams list.
+        _cache.Remove(TeamsCacheKey);
+
+        _logger.LogInformation(
+            "Teams sync completed. Created: {Created}, Updated: {Updated}, Deactivated: {Deactivated}, Reactivated: {Reactivated}",
+            created, updated, deactivated, reactivated);
 
         return (created, updated);
     }
