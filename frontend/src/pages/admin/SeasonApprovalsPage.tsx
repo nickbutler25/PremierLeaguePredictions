@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { seasonParticipationService } from '@/services/seasonParticipation';
 import { adminService } from '@/services/admin';
@@ -20,16 +19,11 @@ import { ErrorDisplay } from '@/components/ErrorDisplay';
 export function SeasonApprovalsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [selectedSeasonId, setSelectedSeasonId] = useState<string | undefined>(undefined);
 
-  const {
-    data: seasons = [],
-    isError: seasonsError,
-    error: seasonsErrorObj,
-    refetch: refetchSeasons,
-  } = useQuery({
-    queryKey: ['admin', 'seasons'],
-    queryFn: () => adminService.getSeasons(),
+  // Approvals are always scoped to the active season — no season filter.
+  const { data: activeSeason, isLoading: loadingSeason } = useQuery({
+    queryKey: ['active-season'],
+    queryFn: () => adminService.getActiveSeason(),
   });
 
   const {
@@ -39,8 +33,9 @@ export function SeasonApprovalsPage() {
     error: approvalsErrorObj,
     refetch: refetchApprovals,
   } = useQuery({
-    queryKey: ['season-approvals', selectedSeasonId],
-    queryFn: () => seasonParticipationService.getPendingApprovals(selectedSeasonId),
+    queryKey: ['season-approvals', activeSeason?.id],
+    queryFn: () => seasonParticipationService.getPendingApprovals(activeSeason?.id),
+    enabled: !!activeSeason,
   });
 
   const approveMutation = useMutation({
@@ -99,48 +94,23 @@ export function SeasonApprovalsPage() {
     });
   };
 
-  const activeSeason = seasons.find((s) => s.isActive);
-
   return (
     <div>
       <Card>
         <CardHeader>
           <CardTitle>Season Participation Approvals</CardTitle>
           <CardDescription>
-            Review and approve user requests to participate in seasons
+            Review and approve requests to participate in the current season
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {/* Season Filter */}
-          {seasonsError ? (
-            <div className="mb-6">
-              <ErrorDisplay
-                title="Failed to Load Seasons"
-                message="Could not load season data for filtering"
-                error={seasonsErrorObj}
-                onRetry={refetchSeasons}
-              />
+          {loadingSeason ? (
+            <div className="text-center py-8 text-muted-foreground">Loading...</div>
+          ) : !activeSeason ? (
+            <div className="text-center py-12 text-muted-foreground">
+              No active season. Create one to manage participation approvals.
             </div>
-          ) : (
-            <div className="mb-6 flex gap-2 items-center">
-              <label className="font-medium">Filter by Season:</label>
-              <select
-                className="border rounded px-3 py-2 min-w-[200px]"
-                value={selectedSeasonId || ''}
-                onChange={(e) => setSelectedSeasonId(e.target.value || undefined)}
-              >
-                <option value="">All Seasons</option>
-                {seasons.map((season) => (
-                  <option key={season.id} value={season.id}>
-                    {season.name} {season.isActive && '(Active)'}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Pending Approvals Table */}
-          {approvalsError ? (
+          ) : approvalsError ? (
             <ErrorDisplay
               title="Failed to Load Pending Approvals"
               message="Could not load pending approval requests"
@@ -154,7 +124,7 @@ export function SeasonApprovalsPage() {
               <CheckCircle2 className="w-12 h-12 mx-auto text-green-500" />
               <p className="text-lg font-medium">All caught up!</p>
               <p className="text-muted-foreground">
-                No pending approval requests for {selectedSeasonId ? 'this season' : 'any season'}.
+                No pending approval requests for the current season.
               </p>
             </div>
           ) : (
@@ -164,7 +134,6 @@ export function SeasonApprovalsPage() {
                   <TableRow>
                     <TableHead>User</TableHead>
                     <TableHead>Email</TableHead>
-                    <TableHead>Season</TableHead>
                     <TableHead>Requested</TableHead>
                     <TableHead>Payment Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -190,13 +159,6 @@ export function SeasonApprovalsPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-muted-foreground">{approval.email}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={approval.seasonId === activeSeason?.id ? 'default' : 'outline'}
-                        >
-                          {approval.seasonName}
-                        </Badge>
-                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1 text-sm text-muted-foreground">
                           <Clock className="w-4 h-4" />

@@ -31,7 +31,18 @@ public class GameweekService : IGameweekService
 
     public async Task<IEnumerable<GameweekDto>> GetAllGameweeksAsync(CancellationToken cancellationToken = default)
     {
-        var gameweeks = await _unitOfWork.Gameweeks.GetAllAsync(cancellationToken);
+        // Scope to the active season. Gameweek numbers (1-38) repeat every season, and the
+        // frontend keys deadlines by week number — returning all seasons lets a previous
+        // season's past deadlines overwrite the current season's, locking every week.
+        var activeSeason = (await _unitOfWork.Seasons.FindAsync(s => s.IsActive, cancellationToken))
+            .FirstOrDefault();
+        if (activeSeason == null)
+        {
+            return Enumerable.Empty<GameweekDto>();
+        }
+
+        var gameweeks = await _unitOfWork.Gameweeks.FindAsync(
+            g => g.SeasonId == activeSeason.Name, cancellationToken);
         return gameweeks.Select(g => new GameweekDto
         {
             SeasonId = g.SeasonId,

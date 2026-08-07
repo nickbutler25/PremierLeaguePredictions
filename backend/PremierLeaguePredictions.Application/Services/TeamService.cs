@@ -37,7 +37,9 @@ public class TeamService : ITeamService
         }
 
         _logger.LogDebug("Cache miss - fetching teams from database");
-        var teams = await _unitOfWork.Teams.GetAllAsync(trackChanges: false, cancellationToken);
+        // Only active (current-season) teams — relegated teams are deactivated on season sync,
+        // so they must not appear in pick/fixture selectors. Admin uses /teams/status for all.
+        var teams = await _unitOfWork.Teams.FindAsync(t => t.IsActive, trackChanges: false, cancellationToken);
         var teamDtos = teams.Select(MapToDto).ToList();
 
         _cache.Set(TeamsCacheKey, teamDtos, CacheDuration);

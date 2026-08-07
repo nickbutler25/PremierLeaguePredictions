@@ -22,6 +22,13 @@ describe('SeasonManagementPage - Create New Season', () => {
   const mockAdminUser = createMockUser({ isAdmin: true });
   const mockToken = 'admin-token';
 
+  // The dropdown only offers the current + next season (hyphen format). Compute the
+  // current season the same way the component does, so these tests aren't date-brittle.
+  const now = new Date();
+  const currentSeasonStartYear =
+    now >= new Date(now.getFullYear(), 5, 20) ? now.getFullYear() : now.getFullYear() - 1;
+  const currentSeason = `${currentSeasonStartYear}-${currentSeasonStartYear + 1}`;
+
   beforeEach(() => {
     vi.clearAllMocks();
 
@@ -49,6 +56,28 @@ describe('SeasonManagementPage - Create New Season', () => {
 
       // Assert
       expect(screen.getByRole('button', { name: /create new season/i })).toBeInTheDocument();
+    });
+
+    it('should disable "Create New Season" and explain when no new season is available', async () => {
+      // The only creatable season already exists → nothing new to create.
+      vi.mocked(adminService.getSeasons).mockResolvedValue([
+        {
+          id: currentSeason,
+          name: currentSeason,
+          startDate: `${currentSeasonStartYear}-08-01`,
+          endDate: `${currentSeasonStartYear + 1}-05-31`,
+          isActive: true,
+          isArchived: false,
+          createdAt: `${currentSeasonStartYear}-01-01`,
+        },
+      ]);
+
+      render(<SeasonManagementPage />, { user: mockAdminUser, token: mockToken });
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /create new season/i })).toBeDisabled();
+      });
+      expect(screen.getByTestId('no-season-available')).toBeInTheDocument();
     });
 
     it('should load existing seasons on mount', async () => {
@@ -124,6 +153,17 @@ describe('SeasonManagementPage - Create New Season', () => {
         // Should have at least current season option
         const options = select.querySelectorAll('option');
         expect(options.length).toBeGreaterThan(1); // Including "-- Select a season --"
+
+        // Generated season options must be hyphen-format (e.g. "2026-2027"), never
+        // slash-format — a "/" breaks seasonId-in-URL routing and is rejected server-side.
+        const seasonValues = Array.from(options)
+          .map((o) => (o as HTMLOptionElement).value)
+          .filter((v) => v !== '');
+        expect(seasonValues.length).toBeGreaterThan(0);
+        seasonValues.forEach((v) => {
+          expect(v).not.toContain('/');
+          expect(v).toMatch(/^\d{4}-\d{4}$/);
+        });
       });
     });
 
@@ -188,7 +228,7 @@ describe('SeasonManagementPage - Create New Season', () => {
       });
 
       const select = screen.getByLabelText(/select season/i);
-      await user.selectOptions(select, '2025/2026');
+      await user.selectOptions(select, currentSeason);
 
       // Assert
       const createButton = screen.getByRole('button', { name: /^create season$/i });
@@ -218,7 +258,7 @@ describe('SeasonManagementPage - Create New Season', () => {
 
       // Act
       const select = screen.getByLabelText(/select season/i);
-      await user.selectOptions(select, '2025/2026');
+      await user.selectOptions(select, currentSeason);
 
       const createButton = screen.getByRole('button', { name: /^create season$/i });
       await user.click(createButton);
@@ -227,10 +267,10 @@ describe('SeasonManagementPage - Create New Season', () => {
       await waitFor(() => {
         expect(adminService.createSeason).toHaveBeenCalledWith(
           expect.objectContaining({
-            name: '2025/2026',
-            startDate: expect.stringContaining('2025'),
-            endDate: expect.stringContaining('2026'),
-            externalSeasonYear: 2025,
+            name: currentSeason,
+            startDate: expect.stringContaining(String(currentSeasonStartYear)),
+            endDate: expect.stringContaining(String(currentSeasonStartYear + 1)),
+            externalSeasonYear: currentSeasonStartYear,
           }),
           expect.anything() // QueryClient context
         );
@@ -257,7 +297,7 @@ describe('SeasonManagementPage - Create New Season', () => {
       });
 
       const select = screen.getByLabelText(/select season/i);
-      await user.selectOptions(select, '2025/2026');
+      await user.selectOptions(select, currentSeason);
 
       // Act
       const createButton = screen.getByRole('button', { name: /^create season$/i });
@@ -300,7 +340,7 @@ describe('SeasonManagementPage - Create New Season', () => {
       });
 
       const select = screen.getByLabelText(/select season/i);
-      await user.selectOptions(select, '2025/2026');
+      await user.selectOptions(select, currentSeason);
 
       // Act
       const createButton = screen.getByRole('button', { name: /^create season$/i });
@@ -339,7 +379,7 @@ describe('SeasonManagementPage - Create New Season', () => {
       });
 
       const select = screen.getByLabelText(/select season/i);
-      await user.selectOptions(select, '2025/2026');
+      await user.selectOptions(select, currentSeason);
 
       // Act
       const createButton = screen.getByRole('button', { name: /^create season$/i });
@@ -364,7 +404,7 @@ describe('SeasonManagementPage - Create New Season', () => {
       });
 
       const select = screen.getByLabelText(/select season/i);
-      await user.selectOptions(select, '2025/2026');
+      await user.selectOptions(select, currentSeason);
 
       // Act
       const cancelButton = screen.getByRole('button', { name: /cancel/i });
@@ -439,7 +479,7 @@ describe('SeasonManagementPage - Create New Season', () => {
       });
 
       const select = screen.getByLabelText(/select season/i);
-      await user.selectOptions(select, '2025/2026');
+      await user.selectOptions(select, currentSeason);
 
       // Act
       const createButton = screen.getByRole('button', { name: /^create season$/i });
@@ -449,8 +489,8 @@ describe('SeasonManagementPage - Create New Season', () => {
       await waitFor(() => {
         expect(adminService.createSeason).toHaveBeenCalledWith(
           expect.objectContaining({
-            name: '2025/2026',
-            externalSeasonYear: 2025,
+            name: currentSeason,
+            externalSeasonYear: currentSeasonStartYear,
             startDate: expect.any(String),
             endDate: expect.any(String),
           }),
