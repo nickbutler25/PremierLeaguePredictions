@@ -121,8 +121,12 @@ export function PendingApprovalPage() {
     }
   }, [participation, user, navigate, toast]);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    // Await the logout so the httpOnly auth cookie is actually cleared server-side
+    // before we do a full-page navigation. Otherwise window.location.href unloads the
+    // page and aborts the in-flight logout request, leaving the cookie valid — on reload
+    // checkAuth() re-authenticates and bounces the user straight back off /login.
+    await logout();
     window.location.href = '/login';
   };
 
