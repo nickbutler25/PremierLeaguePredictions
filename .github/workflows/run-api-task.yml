@@ -92,6 +92,7 @@ jobs:
           BASE: ${{ steps.cfg.outputs.base }}
           ENDPOINT: ${{ steps.cfg.outputs.endpoint }}
           ENVIRONMENT: ${{ steps.cfg.outputs.environment }}
+          ACTION: ${{ steps.cfg.outputs.action }}
           DEV_KEY: ${{ secrets.DEV_EXTERNAL_SYNC_API_KEY }}
           PROD_KEY: ${{ secrets.PROD_EXTERNAL_SYNC_API_KEY }}
         run: |
@@ -99,19 +100,66 @@ jobs:
           if [ "$ENVIRONMENT" = "prod" ]; then KEY="$PROD_KEY"; else KEY="$DEV_KEY"; fi
           if [ -z "$KEY" ]; then echo "No API key secret for environment '$ENVIRONMENT'"; exit 1; fi
 
+          # 'generate' returns 202 and runs in the background — it paces its calls to
+          # cron-job.org to stay under that API's rate limit, so it is far too slow to hold a
+          # request open for. Accept the 202, then poll the status endpoint for the outcome.
+          if [ "$ACTION" = "generate" ]; then OK_STATUS=202; else OK_STATUS=200; fi
+
           echo "POST $BASE$ENDPOINT"
+          accepted=false
           for i in $(seq 1 3); do
             resp=$(curl -sS -X POST --max-time 120 -H "X-API-Key: $KEY" \
               -w $'\nHTTP_STATUS:%{http_code}' "$BASE$ENDPOINT" || true)
             status=$(printf '%s' "$resp" | sed -n 's/.*HTTP_STATUS://p')
             printf '%s\n' "$resp" | sed '/HTTP_STATUS:/d'
             echo "Status: ${status:-none}"
-            if [ "$status" = "200" ]; then
-              echo "Task completed."
-              exit 0
+            if [ "$status" = "$OK_STATUS" ]; then
+              accepted=true
+              break
+            fi
+            # 409 means a generate is already running — poll that one rather than starting
+            # a second, which would delete the jobs the first is creating.
+            if [ "$status" = "409" ] && [ "$ACTION" = "generate" ]; then
+              echo "A generate run is already in progress — following it."
+              accepted=true
+              break
             fi
             echo "Attempt $i failed, retrying..."
             sleep 10
           done
-          echo "Task failed after retries."
+
+          if [ "$accepted" != "true" ]; then
+            echo "Task failed after retries."
+            exit 1
+          fi
+
+          if [ "$ACTION" != "generate" ]; then
+            echo "Task completed."
+            exit 0
+          fi
+
+          echo "Polling $BASE$ENDPOINT/status ..."
+          for i in $(seq 1 120); do   # up to ~20 minutes at 10s intervals
+            sleep 10
+            body=$(curl -sS --max-time 30 -H "X-API-Key: $KEY" "$BASE$ENDPOINT/status" || true)
+            state=$(printf '%s' "$body" | sed -n 's/.*"state":"\([^"]*\)".*/\1/p')
+            created=$(printf '%s' "$body" | sed -n 's/.*"jobsCreated":\([0-9]*\).*/\1/p')
+            planned=$(printf '%s' "$body" | sed -n 's/.*"jobsToCreate":\([0-9]*\).*/\1/p')
+            echo "  [$i] state=${state:-unknown} created=${created:-0}/${planned:-?}"
+
+            case "${state:-}" in
+              Succeeded|succeeded)
+                printf '%s\n' "$body"
+                echo "Task completed."
+                exit 0
+                ;;
+              Failed|failed)
+                printf '%s\n' "$body"
+                echo "Schedule generation failed."
+                exit 1
+                ;;
+            esac
+          done
+
+          echo "Timed out waiting for schedule generation to finish."
           exit 1

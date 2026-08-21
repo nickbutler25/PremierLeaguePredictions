@@ -50,8 +50,11 @@ public class CronJobsOrgService : ICronJobsOrgService
 
     public async Task<ScheduleGenerationResponse> SyncWeeklyJobsAsync(
         SchedulePlan plan,
+        Action<ScheduleSyncProgress>? onProgress = null,
         CancellationToken cancellationToken = default)
     {
+        var progress = new SyncProgressReporter(onProgress);
+
         try
         {
             var apiBaseUrl = _configuration["ApiBaseUrl"]
@@ -63,26 +66,27 @@ public class CronJobsOrgService : ICronJobsOrgService
             var jobPrefix = BuildJobPrefix(gitHub.Environment);
 
             // Delete only THIS environment's existing jobs before creating new ones
-            await DeleteExistingEplJobsAsync(jobPrefix, cancellationToken);
+            await DeleteExistingEplJobsAsync(jobPrefix, progress, cancellationToken);
 
             // Build the cron-jobs.org jobs for this week's plan
             var jobs = BuildJobRequests(plan, apiBaseUrl, apiKey, gitHub, jobPrefix);
 
-            _logger.LogInformation("Creating {Count} cron-jobs.org jobs for week {Week}",
-                jobs.Count, plan.WeekNumber);
+            _logger.LogInformation("Creating {Count} cron-jobs.org jobs for {Scope}",
+                jobs.Count, plan.Label);
 
-            var created = 0;
+            progress.SetJobsToCreate(jobs.Count);
+
             foreach (var job in jobs)
             {
                 await _client.CreateJobAsync(job, cancellationToken);
-                created++;
+                progress.JobCreated();
             }
 
             return new ScheduleGenerationResponse
             {
                 Success = true,
-                Message = $"Synced {created} jobs on cron-jobs.org for week {plan.WeekNumber}",
-                JobCount = created
+                Message = $"Synced {progress.Created} jobs on cron-jobs.org for {plan.Label}",
+                JobCount = progress.Created
             };
         }
         catch (Exception ex)
@@ -110,15 +114,23 @@ public class CronJobsOrgService : ICronJobsOrgService
             return n + 1;
         }
 
+        // Titles read "EPL-DEV-2026-27-GW1-auto-pick-1": the season and gameweek the job serves,
+        // not the calendar week the plan happened to be generated in.
+        string Scope(ScheduledJob job) => job.GameweekNumber is { } week
+            ? $"{SchedulePlan.FormatSeason(job.SeasonId)}-GW{week}"
+            : plan.IsoWeek;
+
         foreach (var job in plan.Jobs)
         {
+            var scope = Scope(job);
+
             if (job.JobType == "sync-scores")
             {
                 // 1. Direct sync job — stays on cron-job.org (hits the API with the key in the URL).
                 var url = $"{apiBaseUrl}{SyncEndpoint}?apiKey={Uri.EscapeDataString(apiKey)}";
                 requests.Add(new CronJobRequest
                 {
-                    Title = $"{jobPrefix}{plan.WeekNumber}-sync-scores-{Next("sync-scores")}",
+                    Title = $"{jobPrefix}{scope}-sync-scores-{Next($"{scope}-sync-scores")}",
                     Url = url,
                     Schedule = BuildSchedule(job),
                 });
@@ -126,14 +138,14 @@ public class CronJobsOrgService : ICronJobsOrgService
                 // 2. One wake shortly before the window so the first sync hits a warm API.
                 var wakeTime = job.ScheduledTime - SyncWakeLeadTime;
                 requests.Add(BuildDispatchJob(
-                    $"{jobPrefix}{plan.WeekNumber}-wake-{Next("wake")}",
+                    $"{jobPrefix}{scope}-wake-{Next($"{scope}-wake")}",
                     wakeTime, "wake", gitHub));
             }
             else if (DispatchActions.TryGetValue(job.JobType, out var action))
             {
                 // Reminders / auto-pick run through GitHub Actions (wake + call).
                 requests.Add(BuildDispatchJob(
-                    $"{jobPrefix}{plan.WeekNumber}-{job.JobType}-{Next(job.JobType)}",
+                    $"{jobPrefix}{scope}-{job.JobType}-{Next($"{scope}-{job.JobType}")}",
                     job.ScheduledTime, action, gitHub));
             }
             else
@@ -230,7 +242,8 @@ public class CronJobsOrgService : ICronJobsOrgService
         Wdays = [-1]
     };
 
-    private async Task DeleteExistingEplJobsAsync(string jobPrefix, CancellationToken cancellationToken)
+    private async Task DeleteExistingEplJobsAsync(
+        string jobPrefix, SyncProgressReporter progress, CancellationToken cancellationToken)
     {
         var allJobs = await _client.GetJobsAsync(cancellationToken);
         var eplJobs = allJobs.Where(j => j.Title.StartsWith(jobPrefix)).ToList();
@@ -243,6 +256,8 @@ public class CronJobsOrgService : ICronJobsOrgService
 
         _logger.LogInformation("Removing {Count} existing EPL cron jobs", eplJobs.Count);
 
+        progress.SetJobsToDelete(eplJobs.Count);
+
         foreach (var j in eplJobs)
         {
             try
@@ -253,7 +268,33 @@ public class CronJobsOrgService : ICronJobsOrgService
             {
                 _logger.LogWarning(ex, "Failed to delete cron job {JobId} ({Title}) — continuing", j.JobId, j.Title);
             }
+            finally
+            {
+                // Counted either way: this is "jobs processed", so a job we failed to delete
+                // does not stall the progress the caller is polling.
+                progress.JobDeleted();
+            }
         }
+    }
+
+    /// <summary>
+    /// Accumulates sync counters and pushes a snapshot to the caller's callback after each step.
+    /// </summary>
+    private sealed class SyncProgressReporter(Action<ScheduleSyncProgress>? onProgress)
+    {
+        private int _toDelete;
+        private int _deleted;
+        private int _toCreate;
+
+        public int Created { get; private set; }
+
+        public void SetJobsToDelete(int count) { _toDelete = count; Report(); }
+        public void SetJobsToCreate(int count) { _toCreate = count; Report(); }
+        public void JobDeleted() { _deleted++; Report(); }
+        public void JobCreated() { Created++; Report(); }
+
+        private void Report() =>
+            onProgress?.Invoke(new ScheduleSyncProgress(_deleted, _toDelete, Created, _toCreate));
     }
 
     private sealed record GitHubDispatchConfig(
