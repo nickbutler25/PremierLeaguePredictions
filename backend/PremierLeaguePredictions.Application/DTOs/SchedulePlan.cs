@@ -7,20 +7,57 @@ public class SchedulePlan
 {
     public List<ScheduledJob> Jobs { get; set; } = new();
     public DateTime StartDate { get; set; } = DateTime.UtcNow;
-    public string WeekNumber => $"{StartDate.Year}-W{System.Globalization.ISOWeek.GetWeekOfYear(StartDate):D2}";
 
-    public void AddJob(DateTime scheduledTime, string jobType, string? gameweekId = null)
+    /// <summary>
+    /// Human-readable summary of what this plan covers, e.g. "2026-27 GW1". Used in job titles
+    /// and log messages. Falls back to the ISO calendar week when the plan has no gameweeks,
+    /// which only happens off-season when there is nothing to schedule.
+    /// </summary>
+    public string Label
+    {
+        get
+        {
+            var gameweeks = Jobs
+                .Where(j => j.GameweekNumber.HasValue)
+                .Select(j => $"{FormatSeason(j.SeasonId)}-GW{j.GameweekNumber}")
+                .Distinct()
+                .ToList();
+
+            return gameweeks.Count > 0 ? string.Join("+", gameweeks) : IsoWeek;
+        }
+    }
+
+    /// <summary>ISO calendar week the plan was built in, e.g. "2026-W34".</summary>
+    public string IsoWeek => $"{StartDate.Year}-W{System.Globalization.ISOWeek.GetWeekOfYear(StartDate):D2}";
+
+    /// <summary>
+    /// Turns a season name into a label safe for a cron-job.org job title:
+    /// "2026/2027" becomes "2026-27".
+    /// </summary>
+    public static string FormatSeason(string seasonId)
+    {
+        var parts = seasonId.Split('/');
+        if (parts.Length == 2 && parts[0].Length == 4 && parts[1].Length == 4)
+            return $"{parts[0]}-{parts[1][2..]}";
+
+        return seasonId.Replace('/', '-');
+    }
+
+    public void AddJob(DateTime scheduledTime, string jobType, string seasonId, int gameweekNumber)
     {
         Jobs.Add(new ScheduledJob
         {
             ScheduledTime = scheduledTime,
             JobType = jobType,
-            GameweekId = gameweekId,
+            SeasonId = seasonId,
+            GameweekNumber = gameweekNumber,
             IsRecurring = false
         });
     }
 
-    public void AddRecurringJob(DateTime startTime, DateTime endTime, TimeSpan interval, string jobType, string? gameweekId = null)
+    public void AddRecurringJob(
+        DateTime startTime, DateTime endTime, TimeSpan interval, string jobType,
+        string seasonId, int gameweekNumber)
     {
         Jobs.Add(new ScheduledJob
         {
@@ -28,7 +65,8 @@ public class SchedulePlan
             EndTime = endTime,
             Interval = interval,
             JobType = jobType,
-            GameweekId = gameweekId,
+            SeasonId = seasonId,
+            GameweekNumber = gameweekNumber,
             IsRecurring = true
         });
     }
@@ -60,9 +98,14 @@ public class ScheduledJob
     public string JobType { get; set; } = string.Empty;
 
     /// <summary>
-    /// Optional gameweek ID if this job is specific to a gameweek
+    /// Season this job belongs to, e.g. "2026/2027" (matches Season.Name)
     /// </summary>
-    public string? GameweekId { get; set; }
+    public string SeasonId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gameweek this job belongs to, e.g. 1
+    /// </summary>
+    public int? GameweekNumber { get; set; }
 
     /// <summary>
     /// Whether this is a one-time or recurring job

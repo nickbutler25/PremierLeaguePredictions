@@ -24,6 +24,12 @@ public class CronJobsOrgClient
         var apiKey = configuration["CronJobsOrg:ApiKey"]
             ?? throw new InvalidOperationException("CronJobsOrg:ApiKey not configured");
 
+        // Tunable without a redeploy: raise if cron-job.org starts 429ing, lower to make a
+        // full generate finish faster. Every job costs one paced request, so a generate takes
+        // roughly (jobs to delete + jobs to create) * this interval.
+        var intervalMs = configuration.GetValue<int?>("CronJobsOrg:MinRequestIntervalMs") ?? 1100;
+        _minRequestInterval = TimeSpan.FromMilliseconds(Math.Max(0, intervalMs));
+
         _httpClient.BaseAddress = new Uri("https://api.cron-job.org/");
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
@@ -131,8 +137,8 @@ public class CronJobsOrgClient
         try
         {
             var sinceLast = DateTimeOffset.UtcNow - _lastRequestAt;
-            if (sinceLast < MinRequestInterval)
-                await Task.Delay(MinRequestInterval - sinceLast, cancellationToken);
+            if (sinceLast < _minRequestInterval)
+                await Task.Delay(_minRequestInterval - sinceLast, cancellationToken);
 
             _lastRequestAt = DateTimeOffset.UtcNow;
         }
@@ -149,9 +155,9 @@ public class CronJobsOrgClient
     }
 
     private const int MaxRateLimitRetries = 5;
-    private static readonly TimeSpan MinRequestInterval = TimeSpan.FromMilliseconds(1100);
     private static readonly TimeSpan MaxBackoff = TimeSpan.FromSeconds(30);
 
+    private readonly TimeSpan _minRequestInterval;
     private readonly SemaphoreSlim _rateLimitGate = new(1, 1);
     private DateTimeOffset _lastRequestAt = DateTimeOffset.MinValue;
 

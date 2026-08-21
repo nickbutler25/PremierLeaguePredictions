@@ -17,65 +17,65 @@ namespace PremierLeaguePredictions.API.Controllers.Admin;
 [Authorize(Policy = AdminPolicies.ExternalSync)]
 public class AdminScheduleController : ControllerBase
 {
-    private readonly ICronSchedulerService _cronSchedulerService;
-    private readonly ICronJobsOrgService _cronJobsOrgService;
+    private readonly IScheduleGenerationRunner _generationRunner;
     private readonly IPickReminderService _reminderService;
     private readonly IAutoPickService _autoPickService;
     private readonly ILogger<AdminScheduleController> _logger;
 
     public AdminScheduleController(
-        ICronSchedulerService cronSchedulerService,
-        ICronJobsOrgService cronJobsOrgService,
+        IScheduleGenerationRunner generationRunner,
         IPickReminderService reminderService,
         IAutoPickService autoPickService,
         ILogger<AdminScheduleController> logger)
     {
-        _cronSchedulerService = cronSchedulerService;
-        _cronJobsOrgService = cronJobsOrgService;
+        _generationRunner = generationRunner;
         _reminderService = reminderService;
         _autoPickService = autoPickService;
         _logger = logger;
     }
 
     /// <summary>
-    /// Generate weekly schedule and sync jobs to cron-jobs.org
-    /// Called by the master scheduler job on cron-jobs.org every Monday at 9 AM UTC
+    /// Start weekly schedule generation and syncing of jobs to cron-jobs.org.
+    /// Returns 202 immediately — the run happens in the background because syncing is paced to
+    /// stay under the cron-job.org API rate limit, which takes seconds per job. Poll
+    /// GET generate/status for progress and the final outcome.
     /// </summary>
     [HttpPost("generate")]
-    public async Task<ActionResult<ApiResponse<ScheduleGenerationResponse>>> GenerateWeeklySchedule(CancellationToken cancellationToken)
+    [ProducesResponseType(StatusCodes.Status202Accepted)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public ActionResult<ApiResponse<ScheduleGenerationStatus>> GenerateWeeklySchedule()
     {
-        try
+        if (!_generationRunner.TryStart(out var status))
         {
-            _logger.LogInformation("Starting weekly schedule generation");
+            _logger.LogWarning("Schedule generation already in progress (run {RunId}) — ignoring new request",
+                status.RunId);
 
-            var plan = await _cronSchedulerService.GenerateWeeklyScheduleAsync(cancellationToken);
-
-            _logger.LogInformation("Generated schedule plan with {JobCount} jobs for week {WeekNumber}",
-                plan.Jobs.Count, plan.WeekNumber);
-
-            var response = await _cronJobsOrgService.SyncWeeklyJobsAsync(plan, cancellationToken);
-
-            if (response.Success)
-            {
-                _logger.LogInformation("Successfully synced {JobCount} jobs to cron-jobs.org", response.JobCount);
-
-                return Ok(ApiResponse<ScheduleGenerationResponse>.SuccessResult(
-                    response,
-                    $"Weekly schedule generated successfully with {response.JobCount} jobs"));
-            }
-            else
-            {
-                _logger.LogError("Failed to sync jobs to cron-jobs.org: {Message}", response.Message);
-                return StatusCode(500, ApiResponse<ScheduleGenerationResponse>.FailureResult(
-                    response.Message ?? "Unknown error occurred"));
-            }
+            // Concurrent runs would delete the jobs each other is creating.
+            return Conflict(ApiResponse<ScheduleGenerationStatus>.FailureResult(
+                $"Schedule generation is already in progress (started {status.StartedAt:O})"));
         }
-        catch (Exception ex)
+
+        return Accepted(ApiResponse<ScheduleGenerationStatus>.SuccessResult(
+            status, "Schedule generation started — poll generate/status for progress"));
+    }
+
+    /// <summary>
+    /// Progress and outcome of the current or most recent schedule generation run.
+    /// </summary>
+    [HttpGet("generate/status")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public ActionResult<ApiResponse<ScheduleGenerationStatus>> GetGenerateStatus()
+    {
+        var status = _generationRunner.GetStatus();
+
+        if (status is null)
         {
-            _logger.LogError(ex, "Error generating weekly schedule");
-            return StatusCode(500, ApiResponse<ScheduleGenerationResponse>.FailureResult(
-                $"Failed to generate schedule: {ex.Message}"));
+            return NotFound(ApiResponse<ScheduleGenerationStatus>.FailureResult(
+                "No schedule generation has been started since the API last restarted"));
         }
+
+        return Ok(ApiResponse<ScheduleGenerationStatus>.SuccessResult(status));
     }
 
     /// <summary>

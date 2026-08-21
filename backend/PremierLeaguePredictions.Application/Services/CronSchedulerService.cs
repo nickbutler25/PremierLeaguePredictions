@@ -63,26 +63,26 @@ public class CronSchedulerService : ICronSchedulerService
             // Only schedule reminders that are in the future
             if (reminder24h > now)
             {
-                plan.AddJob(reminder24h, "send-reminders");
+                plan.AddJob(reminder24h, "send-reminders", gameweek.SeasonId, gameweek.WeekNumber);
                 _logger.LogDebug("Scheduled 24h reminder for {Time}", reminder24h);
             }
 
             if (reminder12h > now)
             {
-                plan.AddJob(reminder12h, "send-reminders");
+                plan.AddJob(reminder12h, "send-reminders", gameweek.SeasonId, gameweek.WeekNumber);
                 _logger.LogDebug("Scheduled 12h reminder for {Time}", reminder12h);
             }
 
             if (reminder3h > now)
             {
-                plan.AddJob(reminder3h, "send-reminders");
+                plan.AddJob(reminder3h, "send-reminders", gameweek.SeasonId, gameweek.WeekNumber);
                 _logger.LogDebug("Scheduled 3h reminder for {Time}", reminder3h);
             }
 
             // Schedule auto-pick assignment at deadline
             if (gameweek.Deadline > now)
             {
-                plan.AddJob(gameweek.Deadline, "auto-pick");
+                plan.AddJob(gameweek.Deadline, "auto-pick", gameweek.SeasonId, gameweek.WeekNumber);
                 _logger.LogDebug("Scheduled auto-pick for {Time}", gameweek.Deadline);
             }
 
@@ -138,7 +138,9 @@ public class CronSchedulerService : ICronSchedulerService
                         effectiveSyncStart,
                         syncEnd,
                         TimeSpan.FromMinutes(2),
-                        "sync-scores"
+                        "sync-scores",
+                        gameweek.SeasonId,
+                        gameweek.WeekNumber
                     );
 
                     if (syncStart <= now)

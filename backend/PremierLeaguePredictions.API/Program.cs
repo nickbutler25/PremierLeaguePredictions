@@ -293,6 +293,9 @@ builder.Services.AddScoped<IResultsService>(sp =>
 // Register Cron Scheduler services
 builder.Services.AddScoped<ICronSchedulerService, CronSchedulerService>();
 builder.Services.AddScoped<ICronJobsOrgService, CronJobsOrgService>();
+// Singleton: holds the state of the in-flight schedule generation run, which outlives the
+// request that started it and is polled via GET admin/schedule/generate/status.
+builder.Services.AddSingleton<IScheduleGenerationRunner, ScheduleGenerationRunner>();
 builder.Services.AddHttpClient<CronJobsOrgClient>();
 
 // Register Supabase Storage (profile picture uploads)
