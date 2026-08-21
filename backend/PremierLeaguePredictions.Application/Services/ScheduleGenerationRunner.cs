@@ -82,6 +82,8 @@ public class ScheduleGenerationRunner : IScheduleGenerationRunner
             var scheduler = scope.ServiceProvider.GetRequiredService<ICronSchedulerService>();
             var cronJobs = scope.ServiceProvider.GetRequiredService<ICronJobsOrgService>();
 
+            Update(runId, s => s.Message = "Building schedule plan");
+
             var plan = await scheduler.GenerateWeeklyScheduleAsync(cts.Token);
 
             _logger.LogInformation("Generated schedule plan with {JobCount} jobs for {Scope} (run {RunId})",
@@ -101,6 +103,12 @@ public class ScheduleGenerationRunner : IScheduleGenerationRunner
                     s.JobsDeleted = progress.JobsDeleted;
                     s.JobsToCreate = progress.JobsToCreate;
                     s.JobsCreated = progress.JobsCreated;
+
+                    // Which phase we are in, so a poller can tell a slow delete pass from a
+                    // slow create pass rather than watching "created=0/0" and guessing.
+                    s.Message = progress.JobsToCreate == 0
+                        ? $"Removing existing jobs ({progress.JobsDeleted}/{progress.JobsToDelete})"
+                        : $"Creating jobs ({progress.JobsCreated}/{progress.JobsToCreate})";
                 }),
                 cts.Token);
 

@@ -8,6 +8,12 @@ using Microsoft.Extensions.Logging;
 
 namespace PremierLeaguePredictions.Infrastructure.Services;
 
+/// <summary>
+/// Thrown when cron-job.org keeps returning 429 after the client has exhausted its backoff,
+/// which means an account-level quota rather than a burst the client can pace around.
+/// </summary>
+public class CronJobsOrgRateLimitedException(string message) : Exception(message);
+
 public class CronJobsOrgClient
 {
     private readonly HttpClient _httpClient;
@@ -107,8 +113,21 @@ public class CronJobsOrgClient
 
             var response = await _httpClient.SendAsync(requestFactory(), cancellationToken);
 
-            if (response.StatusCode != HttpStatusCode.TooManyRequests || attempt > MaxRateLimitRetries)
+            if (response.StatusCode != HttpStatusCode.TooManyRequests)
                 return response;
+
+            if (attempt > MaxRateLimitRetries)
+            {
+                response.Dispose();
+
+                // Spacing requests cannot rescue an exhausted quota — if even the first call
+                // of a run is still 429ing after the full backoff, the account has hit a
+                // longer-window limit and the only fix is to stop calling for a while.
+                throw new CronJobsOrgRateLimitedException(
+                    $"cron-job.org rate-limited '{description}' on every attempt " +
+                    $"({MaxRateLimitRetries} retries over ~{TotalBackoffSeconds}s). The account's " +
+                    "API quota is likely exhausted — wait before running generate again.");
+            }
 
             // Retry-After if present, otherwise exponential backoff: 2s, 4s, 8s, 16s, 32s.
             var delay = response.Headers.RetryAfter?.Delta
@@ -155,6 +174,7 @@ public class CronJobsOrgClient
     }
 
     private const int MaxRateLimitRetries = 5;
+    private const int TotalBackoffSeconds = 62; // 2 + 4 + 8 + 16 + 32
     private static readonly TimeSpan MaxBackoff = TimeSpan.FromSeconds(30);
 
     private readonly TimeSpan _minRequestInterval;
