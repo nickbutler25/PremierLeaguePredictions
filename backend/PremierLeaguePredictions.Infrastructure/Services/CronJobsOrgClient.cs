@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -30,7 +31,8 @@ public class CronJobsOrgClient
 
     public async Task<List<CronJobSummary>> GetJobsAsync(CancellationToken cancellationToken = default)
     {
-        var response = await _httpClient.GetAsync("jobs", cancellationToken);
+        var response = await SendWithRetryAsync(
+            () => new HttpRequestMessage(HttpMethod.Get, "jobs"), "list jobs", cancellationToken);
         response.EnsureSuccessStatusCode();
 
         var content = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -41,19 +43,25 @@ public class CronJobsOrgClient
     public async Task<long> CreateJobAsync(CronJobRequest job, CancellationToken cancellationToken = default)
     {
         var json = JsonSerializer.Serialize(new { job }, JsonOptions);
-        var httpContent = new StringContent(json, Encoding.UTF8, "application/json");
-        // cron-job.org rejects "application/json; charset=utf-8" — strip the charset
-        httpContent.Headers.ContentType!.CharSet = null;
 
         _logger.LogDebug("Creating cron-jobs.org job: {Title}", job.Title);
 
-        var response = await _httpClient.PutAsync("jobs", httpContent, cancellationToken);
+        // The content is rebuilt per attempt — an HttpContent cannot be resent after a retry.
+        var response = await SendWithRetryAsync(() =>
+        {
+            var httpContent = new StringContent(json, Encoding.UTF8, "application/json");
+            // cron-job.org rejects "application/json; charset=utf-8" — strip the charset
+            httpContent.Headers.ContentType!.CharSet = null;
+            return new HttpRequestMessage(HttpMethod.Put, "jobs") { Content = httpContent };
+        }, $"create job '{job.Title}'", cancellationToken);
 
         if (!response.IsSuccessStatusCode)
         {
             var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
-            _logger.LogError("cron-jobs.org returned {StatusCode} for job '{Title}'. Request: {Request} Response: {Response}",
-                (int)response.StatusCode, job.Title, json, errorBody);
+            // NEVER log the request body or raw URL: they carry the GitHub PAT (dispatch job
+            // headers) and the ExternalSync API key (sync-scores query string).
+            _logger.LogError("cron-jobs.org returned {StatusCode} for job '{Title}' ({Url}). Response: {Response}",
+                (int)response.StatusCode, job.Title, Redact(job.Url), errorBody);
             response.EnsureSuccessStatusCode();
         }
 
@@ -68,11 +76,84 @@ public class CronJobsOrgClient
     {
         _logger.LogDebug("Deleting cron-jobs.org job {JobId}", jobId);
 
-        var response = await _httpClient.DeleteAsync($"jobs/{jobId}", cancellationToken);
+        var response = await SendWithRetryAsync(
+            () => new HttpRequestMessage(HttpMethod.Delete, $"jobs/{jobId}"),
+            $"delete job {jobId}", cancellationToken);
         response.EnsureSuccessStatusCode();
 
         _logger.LogInformation("Deleted cron-jobs.org job {JobId}", jobId);
     }
+
+    /// <summary>
+    /// Sends a request, pacing calls so we stay under cron-job.org's API rate limit and
+    /// backing off on 429. The API rejects rapid bursts (a second PUT ~150ms after the first
+    /// can already 429), so every call is spaced by <see cref="MinRequestInterval"/> and a
+    /// 429 is retried, honouring Retry-After when the response supplies it.
+    /// </summary>
+    private async Task<HttpResponseMessage> SendWithRetryAsync(
+        Func<HttpRequestMessage> requestFactory,
+        string description,
+        CancellationToken cancellationToken)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            await WaitForRateLimitSlotAsync(cancellationToken);
+
+            var response = await _httpClient.SendAsync(requestFactory(), cancellationToken);
+
+            if (response.StatusCode != HttpStatusCode.TooManyRequests || attempt > MaxRateLimitRetries)
+                return response;
+
+            // Retry-After if present, otherwise exponential backoff: 2s, 4s, 8s, 16s, 32s.
+            var delay = response.Headers.RetryAfter?.Delta
+                ?? (response.Headers.RetryAfter?.Date is { } date
+                    ? date - DateTimeOffset.UtcNow
+                    : TimeSpan.FromSeconds(Math.Pow(2, attempt)));
+
+            if (delay < TimeSpan.Zero) delay = TimeSpan.FromSeconds(2);
+            if (delay > MaxBackoff) delay = MaxBackoff;
+
+            _logger.LogWarning(
+                "cron-job.org rate-limited '{Description}' (attempt {Attempt}/{Max}); retrying in {Delay}s",
+                description, attempt, MaxRateLimitRetries, delay.TotalSeconds);
+
+            response.Dispose();
+            await Task.Delay(delay, cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// Serialises calls through this client and enforces a minimum gap between them.
+    /// </summary>
+    private async Task WaitForRateLimitSlotAsync(CancellationToken cancellationToken)
+    {
+        await _rateLimitGate.WaitAsync(cancellationToken);
+        try
+        {
+            var sinceLast = DateTimeOffset.UtcNow - _lastRequestAt;
+            if (sinceLast < MinRequestInterval)
+                await Task.Delay(MinRequestInterval - sinceLast, cancellationToken);
+
+            _lastRequestAt = DateTimeOffset.UtcNow;
+        }
+        finally
+        {
+            _rateLimitGate.Release();
+        }
+    }
+
+    private static string Redact(string url)
+    {
+        var queryStart = url.IndexOf('?');
+        return queryStart < 0 ? url : string.Concat(url.AsSpan(0, queryStart), "?<redacted>");
+    }
+
+    private const int MaxRateLimitRetries = 5;
+    private static readonly TimeSpan MinRequestInterval = TimeSpan.FromMilliseconds(1100);
+    private static readonly TimeSpan MaxBackoff = TimeSpan.FromSeconds(30);
+
+    private readonly SemaphoreSlim _rateLimitGate = new(1, 1);
+    private DateTimeOffset _lastRequestAt = DateTimeOffset.MinValue;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {

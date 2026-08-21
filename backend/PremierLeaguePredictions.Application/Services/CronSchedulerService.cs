@@ -28,15 +28,27 @@ public class CronSchedulerService : ICronSchedulerService
 
         var plan = new SchedulePlan();
 
-        // Get gameweeks that have fixtures in the next 7 days OR deadlines in the next 7 days
-        // This ensures we don't miss score syncs for gameweeks where the deadline passed but fixtures are still upcoming
+        // Only gameweeks in play over the next 7 days. The deadline sits just before the
+        // gameweek's first kickoff, so a window of [now - 7d, now + 7d] on the deadline covers
+        // both the gameweek whose deadline is coming up and the one currently in progress
+        // (deadline just passed, fixtures still to be synced).
+        //
+        // Without this bound, EVERY unlocked gameweek in the season qualifies — each one's
+        // reminders (24h/12h/3h before deadline) and auto-pick are all "in the future" — which
+        // produced 158 jobs for a full season and hit cron-job.org's API rate limit.
+        var windowStart = now.AddDays(-7);
+
         var allGameweeks = await _unitOfWork.Gameweeks.FindAsync(
-            g => !g.IsLocked, // Only get gameweeks that aren't finalized yet
+            g => !g.IsLocked // Only get gameweeks that aren't finalized yet
+                 && g.Deadline >= windowStart
+                 && g.Deadline <= nextWeek,
             cancellationToken);
 
         var gameweeksList = allGameweeks.OrderBy(g => g.Deadline).ToList();
 
-        _logger.LogInformation("Found {Count} unlocked gameweeks to check for upcoming fixtures/deadlines", gameweeksList.Count);
+        _logger.LogInformation(
+            "Found {Count} unlocked gameweeks with deadlines between {WindowStart} and {WindowEnd}",
+            gameweeksList.Count, windowStart, nextWeek);
 
         foreach (var gameweek in gameweeksList)
         {
