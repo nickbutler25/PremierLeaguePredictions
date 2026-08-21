@@ -142,10 +142,14 @@ jobs:
           for i in $(seq 1 120); do   # up to ~20 minutes at 10s intervals
             sleep 10
             body=$(curl -sS --max-time 30 -H "X-API-Key: $KEY" "$BASE$ENDPOINT/status" || true)
+            field() { printf '%s' "$body" | sed -n "s/.*\"$1\":\([0-9]*\).*/\1/p"; }
             state=$(printf '%s' "$body" | sed -n 's/.*"state":"\([^"]*\)".*/\1/p')
-            created=$(printf '%s' "$body" | sed -n 's/.*"jobsCreated":\([0-9]*\).*/\1/p')
-            planned=$(printf '%s' "$body" | sed -n 's/.*"jobsToCreate":\([0-9]*\).*/\1/p')
-            echo "  [$i] state=${state:-unknown} created=${created:-0}/${planned:-?}"
+            scope=$(printf '%s' "$body" | sed -n 's/.*"scope":"\([^"]*\)".*/\1/p')
+            msg=$(printf '%s' "$body" | sed -n 's/.*"message":"\([^"]*\)".*/\1/p')
+            echo "  [$i] state=${state:-unknown} scope=${scope:-?}" \
+                 "deleted=$(field jobsDeleted)/$(field jobsToDelete)" \
+                 "created=$(field jobsCreated)/$(field jobsToCreate)" \
+                 "- ${msg:-}"
 
             case "${state:-}" in
               Succeeded|succeeded)

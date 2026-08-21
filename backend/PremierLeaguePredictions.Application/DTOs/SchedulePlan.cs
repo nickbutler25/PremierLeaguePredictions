@@ -31,17 +31,10 @@ public class SchedulePlan
     public string IsoWeek => $"{StartDate.Year}-W{System.Globalization.ISOWeek.GetWeekOfYear(StartDate):D2}";
 
     /// <summary>
-    /// Turns a season name into a label safe for a cron-job.org job title:
-    /// "2026/2027" becomes "2026-27".
+    /// Turns a season name into a label safe for a cron-job.org job title. Only the slash
+    /// needs replacing: "2026/2027" and "2026-2027" both become "2026-2027".
     /// </summary>
-    public static string FormatSeason(string seasonId)
-    {
-        var parts = seasonId.Split('/');
-        if (parts.Length == 2 && parts[0].Length == 4 && parts[1].Length == 4)
-            return $"{parts[0]}-{parts[1][2..]}";
-
-        return seasonId.Replace('/', '-');
-    }
+    public static string FormatSeason(string seasonId) => seasonId.Replace('/', '-');
 
     public void AddJob(DateTime scheduledTime, string jobType, string seasonId, int gameweekNumber)
     {
