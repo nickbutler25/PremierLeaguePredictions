@@ -93,6 +93,11 @@ public class ScheduleGenerationRunner : IScheduleGenerationRunner
             {
                 s.Scope = plan.Label;
                 s.JobsPlanned = plan.Jobs.Count;
+
+                // The first progress callback only fires once the existing jobs have been
+                // listed, and that listing can spend a full backoff ladder on 429. Without
+                // this, the status would still read "Building schedule plan" throughout.
+                s.Message = "Listing existing jobs on cron-job.org";
             });
 
             var result = await cronJobs.SyncWeeklyJobsAsync(

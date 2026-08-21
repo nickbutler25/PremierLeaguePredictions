@@ -43,8 +43,13 @@ public class CronJobsOrgClient
 
     public async Task<List<CronJobSummary>> GetJobsAsync(CancellationToken cancellationToken = default)
     {
+        // No retries: this is the opening call of a sync, so a 429 here means the quota is
+        // already gone rather than that we out-paced a burst. Retrying would spend six
+        // requests instead of one and, on a rolling window, hold the quota shut for longer.
+        // Nothing has been changed at this point, so failing immediately is safe.
         var response = await SendWithRetryAsync(
-            () => new HttpRequestMessage(HttpMethod.Get, "jobs"), "list jobs", cancellationToken);
+            () => new HttpRequestMessage(HttpMethod.Get, "jobs"), "list jobs", cancellationToken,
+            maxRateLimitRetries: 0);
         response.EnsureSuccessStatusCode();
 
         var content = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -99,14 +104,21 @@ public class CronJobsOrgClient
     /// <summary>
     /// Sends a request, pacing calls so we stay under cron-job.org's API rate limit and
     /// backing off on 429. The API rejects rapid bursts (a second PUT ~150ms after the first
-    /// can already 429), so every call is spaced by <see cref="MinRequestInterval"/> and a
+    /// can already 429), so every call is spaced by the configured minimum interval and a
     /// 429 is retried, honouring Retry-After when the response supplies it.
     /// </summary>
+    /// <param name="maxRateLimitRetries">
+    /// Retries to spend on a 429. Pass 0 where a rate limit means the quota is gone rather
+    /// than a burst to pace around, and where failing changes nothing.
+    /// </param>
     private async Task<HttpResponseMessage> SendWithRetryAsync(
         Func<HttpRequestMessage> requestFactory,
         string description,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int? maxRateLimitRetries = null)
     {
+        var maxRetries = maxRateLimitRetries ?? MaxRateLimitRetries;
+
         for (var attempt = 1; ; attempt++)
         {
             await WaitForRateLimitSlotAsync(cancellationToken);
@@ -116,17 +128,19 @@ public class CronJobsOrgClient
             if (response.StatusCode != HttpStatusCode.TooManyRequests)
                 return response;
 
-            if (attempt > MaxRateLimitRetries)
+            if (attempt > maxRetries)
             {
                 response.Dispose();
 
-                // Spacing requests cannot rescue an exhausted quota — if even the first call
-                // of a run is still 429ing after the full backoff, the account has hit a
-                // longer-window limit and the only fix is to stop calling for a while.
+                // Spacing requests cannot rescue an exhausted quota — a 429 that survives the
+                // retries means an account-level limit, and the only fix is to stop calling.
+                var spent = maxRetries == 0
+                    ? "on the first attempt (not retried, as each retry spends more of the quota)"
+                    : $"on every attempt ({maxRetries} retries over ~{TotalBackoffSeconds}s)";
+
                 throw new CronJobsOrgRateLimitedException(
-                    $"cron-job.org rate-limited '{description}' on every attempt " +
-                    $"({MaxRateLimitRetries} retries over ~{TotalBackoffSeconds}s). The account's " +
-                    "API quota is likely exhausted — wait before running generate again.");
+                    $"cron-job.org rate-limited '{description}' {spent}. The account's API " +
+                    "quota is likely exhausted — wait before running generate again.");
             }
 
             // Retry-After if present, otherwise exponential backoff: 2s, 4s, 8s, 16s, 32s.
@@ -140,7 +154,7 @@ public class CronJobsOrgClient
 
             _logger.LogWarning(
                 "cron-job.org rate-limited '{Description}' (attempt {Attempt}/{Max}); retrying in {Delay}s",
-                description, attempt, MaxRateLimitRetries, delay.TotalSeconds);
+                description, attempt, maxRetries, delay.TotalSeconds);
 
             response.Dispose();
             await Task.Delay(delay, cancellationToken);
