@@ -142,14 +142,16 @@ jobs:
           for i in $(seq 1 120); do   # up to ~20 minutes at 10s intervals
             sleep 10
             body=$(curl -sS --max-time 30 -H "X-API-Key: $KEY" "$BASE$ENDPOINT/status" || true)
-            field() { printf '%s' "$body" | sed -n "s/.*\"$1\":\([0-9]*\).*/\1/p"; }
-            state=$(printf '%s' "$body" | sed -n 's/.*"state":"\([^"]*\)".*/\1/p')
-            scope=$(printf '%s' "$body" | sed -n 's/.*"scope":"\([^"]*\)".*/\1/p')
-            msg=$(printf '%s' "$body" | sed -n 's/.*"message":"\([^"]*\)".*/\1/p')
-            echo "  [$i] state=${state:-unknown} scope=${scope:-?}" \
+
+            # Read from .data explicitly: the envelope has its own "message" ("Request
+            # successful") that a looser match picks up instead of the run's own.
+            # '// empty' keeps a malformed or error body from aborting the step.
+            field() { printf '%s' "$body" | jq -r ".data.$1 // empty" 2>/dev/null || true; }
+            state=$(field state)
+            echo "  [$i] state=${state:-unknown} scope=$(field scope)" \
                  "deleted=$(field jobsDeleted)/$(field jobsToDelete)" \
                  "created=$(field jobsCreated)/$(field jobsToCreate)" \
-                 "- ${msg:-}"
+                 "- $(field message)"
 
             case "${state:-}" in
               Succeeded|succeeded)
