@@ -17,10 +17,16 @@ public class SmtpEmailService : IEmailService
         _logger = logger;
     }
 
-    public async Task<bool> SendEmailAsync(string toEmail, string subject, string htmlBody, string? plainTextBody = null)
+    public async Task<EmailSendResult> SendEmailAsync(string toEmail, string subject, string htmlBody, string? plainTextBody = null)
     {
         try
         {
+            if (NoSendAddresses.ShouldSkip(toEmail, _configuration))
+            {
+                _logger.LogInformation("Skipping email to {ToEmail} — non-deliverable test address", toEmail);
+                return EmailSendResult.Skipped;
+            }
+
             var smtpHost = _configuration["Email:SmtpHost"];
             var smtpPort = int.Parse(_configuration["Email:SmtpPort"] ?? "587");
             var smtpUsername = _configuration["Email:SmtpUsername"];
@@ -38,18 +44,9 @@ public class SmtpEmailService : IEmailService
                 if (string.IsNullOrEmpty(smtpPassword)) missingConfig.Add("Email:SmtpPassword");
                 if (string.IsNullOrEmpty(fromEmail)) missingConfig.Add("Email:FromEmail");
 
-                var errorMessage = $"Email configuration is incomplete. Missing: {string.Join(", ", missingConfig)}";
-                _logger.LogError(errorMessage);
-                throw new InvalidOperationException(errorMessage);
-            }
-
-            var devOverride = _configuration["Email:DevOverrideAddress"];
-            var actualRecipient = toEmail;
-            if (!string.IsNullOrEmpty(devOverride))
-            {
-                _logger.LogInformation("Dev email override: redirecting {OriginalTo} → {DevAddress}", toEmail, devOverride);
-                actualRecipient = devOverride;
-                subject = $"[DEV → {toEmail}] {subject}";
+                _logger.LogError("Email configuration is incomplete. Missing: {Missing}",
+                    string.Join(", ", missingConfig));
+                return EmailSendResult.Failed;
             }
 
             using var message = new MailMessage
@@ -60,7 +57,7 @@ public class SmtpEmailService : IEmailService
                 IsBodyHtml = true
             };
 
-            message.To.Add(new MailAddress(actualRecipient));
+            message.To.Add(new MailAddress(toEmail));
 
             // Add plain text alternative if provided
             if (!string.IsNullOrEmpty(plainTextBody))
@@ -84,16 +81,16 @@ public class SmtpEmailService : IEmailService
 
             await smtpClient.SendMailAsync(message);
 
-            _logger.LogInformation("Email sent successfully to {ToEmail} with subject: {Subject}", actualRecipient, subject);
-            return true;
+            _logger.LogInformation("Email sent successfully to {ToEmail} with subject: {Subject}", toEmail, subject);
+            return EmailSendResult.Sent;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send email to {ToEmail} with subject: {Subject}", toEmail, subject);
             // Don't throw - we don't want email failures to break the application. The false
-            // return is how the caller learns this failed; without it a rejected send counts
-            // as delivered and "0 failed" hides the problem entirely.
-            return false;
+            // returned result is how the caller learns this failed; without it a rejected send
+            // counts as delivered and "0 failed" hides the problem entirely.
+            return EmailSendResult.Failed;
         }
     }
 }

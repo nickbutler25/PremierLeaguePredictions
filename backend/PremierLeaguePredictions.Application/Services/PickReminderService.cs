@@ -29,6 +29,7 @@ public class PickReminderService : IPickReminderService
         var now = DateTime.UtcNow;
         var totalEmailsSent = 0;
         var totalEmailsFailed = 0;
+        var totalEmailsSkipped = 0;
 
         _logger.LogInformation("Starting pick reminder check at {Time}", now);
 
@@ -51,25 +52,27 @@ public class PickReminderService : IPickReminderService
                 // This gives us a window to send the reminder even if the background service doesn't run exactly on time
                 if (hoursUntilDeadline <= reminderWindow && hoursUntilDeadline >= (reminderWindow - 0.5))
                 {
-                    var (sent, failed) = await SendRemindersForGameweekAsync(gameweek, reminderWindow, cancellationToken);
+                    var (sent, failed, skipped) = await SendRemindersForGameweekAsync(gameweek, reminderWindow, cancellationToken);
                     totalEmailsSent += sent;
                     totalEmailsFailed += failed;
+                    totalEmailsSkipped += skipped;
                     break; // Only send one reminder per check
                 }
             }
         }
 
-        _logger.LogInformation("Pick reminder check completed: {Sent} sent, {Failed} failed",
-            totalEmailsSent, totalEmailsFailed);
+        _logger.LogInformation("Pick reminder check completed: {Sent} sent, {Failed} failed, {Skipped} skipped",
+            totalEmailsSent, totalEmailsFailed, totalEmailsSkipped);
 
         return new ReminderResult
         {
             EmailsSent = totalEmailsSent,
-            EmailsFailed = totalEmailsFailed
+            EmailsFailed = totalEmailsFailed,
+            EmailsSkipped = totalEmailsSkipped
         };
     }
 
-    private async Task<(int sent, int failed)> SendRemindersForGameweekAsync(
+    private async Task<(int sent, int failed, int skipped)> SendRemindersForGameweekAsync(
         Core.Entities.Gameweek gameweek,
         int hoursBeforeDeadline,
         CancellationToken cancellationToken)
@@ -107,7 +110,7 @@ public class PickReminderService : IPickReminderService
         {
             _logger.LogInformation("No users need reminders for GW{WeekNumber} ({Hours}h)",
                 gameweek.WeekNumber, hoursBeforeDeadline);
-            return (0, 0);
+            return (0, 0, 0);
         }
 
         _logger.LogInformation("Sending {Count} reminder emails for GW{WeekNumber} ({Hours}h before deadline)",
@@ -115,6 +118,7 @@ public class PickReminderService : IPickReminderService
 
         int emailsSent = 0;
         int emailsFailed = 0;
+        int emailsSkipped = 0;
 
         foreach (var userId in usersNeedingReminders)
         {
@@ -127,7 +131,7 @@ public class PickReminderService : IPickReminderService
                     continue;
                 }
 
-                var delivered = await SendPickReminderEmailAsync(
+                var outcome = await SendPickReminderEmailAsync(
                     user.Email,
                     $"{user.FirstName} {user.LastName}",
                     gameweek.WeekNumber,
@@ -135,17 +139,27 @@ public class PickReminderService : IPickReminderService
                     hoursBeforeDeadline,
                     cancellationToken);
 
-                if (delivered)
+                switch (outcome)
                 {
-                    emailsSent++;
-                    _logger.LogInformation("Sent pick reminder to {Email} for GW{WeekNumber}",
-                        user.Email, gameweek.WeekNumber);
-                }
-                else
-                {
-                    emailsFailed++;
-                    _logger.LogError("Pick reminder to {Email} for GW{WeekNumber} was not accepted by SMTP",
-                        user.Email, gameweek.WeekNumber);
+                    case EmailSendResult.Sent:
+                        emailsSent++;
+                        _logger.LogInformation("Sent pick reminder to {Email} for GW{WeekNumber}",
+                            user.Email, gameweek.WeekNumber);
+                        break;
+
+                    case EmailSendResult.Skipped:
+                        emailsSkipped++;
+                        _logger.LogInformation(
+                            "Skipped pick reminder for {Email} (GW{WeekNumber}) — test address",
+                            user.Email, gameweek.WeekNumber);
+                        break;
+
+                    default:
+                        emailsFailed++;
+                        _logger.LogError(
+                            "Pick reminder to {Email} for GW{WeekNumber} was not accepted by the email provider",
+                            user.Email, gameweek.WeekNumber);
+                        break;
                 }
             }
             catch (Exception ex)
@@ -156,13 +170,13 @@ public class PickReminderService : IPickReminderService
             }
         }
 
-        _logger.LogInformation("Pick reminders for GW{WeekNumber}: {Sent} sent, {Failed} failed",
-            gameweek.WeekNumber, emailsSent, emailsFailed);
+        _logger.LogInformation("Pick reminders for GW{WeekNumber}: {Sent} sent, {Failed} failed, {Skipped} skipped",
+            gameweek.WeekNumber, emailsSent, emailsFailed, emailsSkipped);
 
-        return (emailsSent, emailsFailed);
+        return (emailsSent, emailsFailed, emailsSkipped);
     }
 
-    private async Task<bool> SendPickReminderEmailAsync(
+    private async Task<EmailSendResult> SendPickReminderEmailAsync(
         string toEmail,
         string userName,
         int gameweekNumber,

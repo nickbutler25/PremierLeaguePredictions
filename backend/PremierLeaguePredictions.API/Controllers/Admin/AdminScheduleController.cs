@@ -97,7 +97,13 @@ public class AdminScheduleController : ControllerBase
                     result.EmailsSent, result.EmailsFailed);
 
                 return Ok(ApiResponse<object>.SuccessResult(
-                    new { emailsSent = result.EmailsSent, emailsFailed = result.EmailsFailed, timestamp = DateTime.UtcNow },
+                    new
+                    {
+                        emailsSent = result.EmailsSent,
+                        emailsFailed = result.EmailsFailed,
+                        emailsSkipped = result.EmailsSkipped,
+                        timestamp = DateTime.UtcNow
+                    },
                     result.Message));
             }
             else

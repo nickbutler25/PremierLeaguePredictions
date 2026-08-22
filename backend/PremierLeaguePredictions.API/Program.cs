@@ -121,8 +121,11 @@ builder.Services.AddAuthentication(options =>
 {
     options.ForwardDefaultSelector = context =>
     {
-        // If the request has an X-API-Key header, use ApiKey authentication
-        if (context.Request.Headers.ContainsKey("X-API-Key"))
+        // Route to ApiKey for either form the handler accepts. Matching only the header sent
+        // every "?apiKey=" request to JWT Bearer, which has no token to validate — so the
+        // handler's query-string support could never fire and those calls always 401'd.
+        if (context.Request.Headers.ContainsKey("X-API-Key")
+            || context.Request.Query.ContainsKey("apiKey"))
         {
             return "ApiKey";
         }
@@ -331,6 +334,17 @@ builder.Services.AddSwaggerGen(options =>
         Description = "JWT Authorization header using the Bearer scheme. Enter 'Bearer' [space] and then your token in the text input below.\r\n\r\nExample: \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\""
     });
 
+    // Admin endpoints also accept the ExternalSync API key. Offering it here makes them
+    // testable from Swagger without a raw JWT — the app's token lives in an httpOnly cookie,
+    // so there is nothing to paste into the Bearer box.
+    options.AddSecurityDefinition("ApiKey", new OpenApiSecurityScheme
+    {
+        Name = "X-API-Key",
+        Type = SecuritySchemeType.ApiKey,
+        In = ParameterLocation.Header,
+        Description = "ExternalSync API key. Grants the Admin role for admin endpoints."
+    });
+
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
@@ -340,6 +354,17 @@ builder.Services.AddSwaggerGen(options =>
                 {
                     Type = ReferenceType.SecurityScheme,
                     Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        },
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "ApiKey"
                 }
             },
             Array.Empty<string>()

@@ -1,13 +1,31 @@
 namespace PremierLeaguePredictions.Application.Interfaces;
 
+/// <summary>
+/// Outcome of an attempted send. Distinguishing skipped from sent matters: counting a
+/// deliberately-skipped address as sent is how a broken mailer hides behind a healthy-looking
+/// "N sent, 0 failed".
+/// </summary>
+public enum EmailSendResult
+{
+    /// <summary>The provider accepted the message.</summary>
+    Sent,
+
+    /// <summary>The address is a known non-deliverable one, so nothing was attempted.</summary>
+    Skipped,
+
+    /// <summary>The send was attempted and refused, or the mailer is misconfigured.</summary>
+    Failed
+}
+
 public interface IEmailService
 {
     /// <summary>
     /// Sends an email, swallowing transport failures so they cannot break the caller.
     /// </summary>
     /// <returns>
-    /// True if the SMTP server accepted the message. Callers that report a sent/failed count
-    /// must use this — a failure is logged, not thrown, so it is invisible otherwise.
+    /// The outcome. Callers that report counts must use this — a failure is logged, not thrown,
+    /// so it is invisible otherwise.
     /// </returns>
-    Task<bool> SendEmailAsync(string toEmail, string subject, string htmlBody, string? plainTextBody = null);
+    Task<EmailSendResult> SendEmailAsync(
+        string toEmail, string subject, string htmlBody, string? plainTextBody = null);
 }
