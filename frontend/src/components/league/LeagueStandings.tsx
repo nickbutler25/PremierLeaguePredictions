@@ -11,6 +11,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PickCrest } from './PickCrest';
 
 interface LeagueStandingsProps {
   compact?: boolean;
@@ -82,6 +83,7 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
               <TableRow>
                 <TableHead className="w-12 text-center">#</TableHead>
                 <TableHead className="min-w-[120px] sm:min-w-[150px]">Name</TableHead>
+                <TableHead className="text-center w-12">Pick</TableHead>
                 <TableHead className="text-center w-12 hidden sm:table-cell">P</TableHead>
                 <TableHead className="text-center w-12">W</TableHead>
                 <TableHead className="text-center w-12">D</TableHead>
@@ -95,6 +97,9 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                 )}
                 {!compact && (
                   <TableHead className="text-center w-16 hidden lg:table-cell">GD</TableHead>
+                )}
+                {!compact && (
+                  <TableHead className="w-[220px] hidden md:table-cell">Form</TableHead>
                 )}
               </TableRow>
             </TableHeader>
@@ -134,6 +139,12 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                             (You)
                           </span>
                         )}
+                      </TableCell>
+                      <TableCell
+                        className="text-center"
+                        data-testid={`standing-pick-${entry.position}`}
+                      >
+                        <PickCrest pick={entry.currentPick} />
                       </TableCell>
                       <TableCell
                         className="text-center text-xs sm:text-sm hidden sm:table-cell"
@@ -187,6 +198,29 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                         >
                           {entry.goalDifference > 0 ? '+' : ''}
                           {entry.goalDifference}
+                        </TableCell>
+                      )}
+                      {!compact && (
+                        <TableCell
+                          className="hidden md:table-cell"
+                          data-testid={`standing-form-${entry.position}`}
+                        >
+                          {entry.form && entry.form.length > 0 ? (
+                            <span className="flex items-center gap-1">
+                              {entry.form.map((pick) => (
+                                <PickCrest
+                                  key={pick.gameweekNumber}
+                                  pick={pick}
+                                  size="sm"
+                                  showGameweek
+                                />
+                              ))}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              No results yet
+                            </span>
+                          )}
                         </TableCell>
                       )}
                     </TableRow>
