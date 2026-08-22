@@ -267,7 +267,16 @@ builder.Services.AddScoped<IEliminationService, EliminationService>();
 builder.Services.AddScoped<IAutoPickService, AutoPickService>();
 builder.Services.AddScoped<IPickReminderService, PickReminderService>();
 builder.Services.AddScoped<IPickRuleService, PickRuleService>();
-builder.Services.AddScoped<IEmailService, SmtpEmailService>();
+// Brevo by default: Render blocks outbound SMTP (587/465/25 are all dropped), so mail has to
+// leave over HTTPS. SMTP stays selectable for local development, where it works.
+if (string.Equals(builder.Configuration["Email:Provider"], "Smtp", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddScoped<IEmailService, SmtpEmailService>();
+}
+else
+{
+    builder.Services.AddHttpClient<IEmailService, BrevoEmailService>();
+}
 builder.Services.AddScoped<IAdminActionLogger, AdminActionLogger>();
 builder.Services.AddScoped<INotificationService>(sp =>
 {

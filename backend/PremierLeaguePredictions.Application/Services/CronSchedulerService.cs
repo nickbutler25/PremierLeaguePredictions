@@ -55,9 +55,10 @@ public class CronSchedulerService : ICronSchedulerService
             _logger.LogInformation("Processing gameweek {SeasonId}-{WeekNumber}, deadline: {Deadline}",
                 gameweek.SeasonId, gameweek.WeekNumber, gameweek.Deadline);
 
-            // Schedule reminder emails: 24h, 12h, 3h before deadline
+            // Schedule reminder emails: 24h and 3h before deadline. These must match
+            // PickReminderService.ReminderWindows — a job firing outside a window wakes the
+            // API and sends nothing.
             var reminder24h = gameweek.Deadline.AddHours(-24);
-            var reminder12h = gameweek.Deadline.AddHours(-12);
             var reminder3h = gameweek.Deadline.AddHours(-3);
 
             // Only schedule reminders that are in the future
@@ -65,12 +66,6 @@ public class CronSchedulerService : ICronSchedulerService
             {
                 plan.AddJob(reminder24h, "send-reminders", gameweek.SeasonId, gameweek.WeekNumber);
                 _logger.LogDebug("Scheduled 24h reminder for {Time}", reminder24h);
-            }
-
-            if (reminder12h > now)
-            {
-                plan.AddJob(reminder12h, "send-reminders", gameweek.SeasonId, gameweek.WeekNumber);
-                _logger.LogDebug("Scheduled 12h reminder for {Time}", reminder12h);
             }
 
             if (reminder3h > now)

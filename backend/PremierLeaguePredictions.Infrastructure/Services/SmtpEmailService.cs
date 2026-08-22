@@ -17,6 +17,28 @@ public class SmtpEmailService : IEmailService
         _logger = logger;
     }
 
+    /// <summary>
+    /// SMTP has no batch facility, so this is a sequential loop. That is acceptable only
+    /// because this transport is for local development; Render blocks outbound SMTP, and a
+    /// few hundred sequential sends would outlive the caller's HTTP timeout anyway.
+    /// </summary>
+    public async Task<IReadOnlyList<EmailSendResult>> SendBulkAsync(
+        IReadOnlyList<EmailMessage> messages, CancellationToken cancellationToken = default)
+    {
+        var results = new EmailSendResult[messages.Count];
+
+        for (var i = 0; i < messages.Count; i++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var message = messages[i];
+            results[i] = await SendEmailAsync(
+                message.ToEmail, message.Subject, message.HtmlBody, message.PlainTextBody);
+        }
+
+        return results;
+    }
+
     public async Task<EmailSendResult> SendEmailAsync(string toEmail, string subject, string htmlBody, string? plainTextBody = null)
     {
         try

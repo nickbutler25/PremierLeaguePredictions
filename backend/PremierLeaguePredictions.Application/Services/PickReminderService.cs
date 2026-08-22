@@ -11,8 +11,10 @@ public class PickReminderService : IPickReminderService
     private readonly IEmailService _emailService;
     private readonly ILogger<PickReminderService> _logger;
 
-    // Reminder windows (in hours before deadline)
-    private static readonly int[] ReminderWindows = { 24, 12, 3 };
+    // Reminder windows (in hours before deadline). A 12h reminder was dropped: it lands in the
+    // middle of the night for a Saturday deadline and adds a full send to the same calendar day
+    // as the 24h one, which is what pushes a gameweek over a provider's daily allowance.
+    private static readonly int[] ReminderWindows = { 24, 3 };
 
     public PickReminderService(
         IUnitOfWork unitOfWork,
@@ -116,57 +118,58 @@ public class PickReminderService : IPickReminderService
         _logger.LogInformation("Sending {Count} reminder emails for GW{WeekNumber} ({Hours}h before deadline)",
             usersNeedingReminders.Count, gameweek.WeekNumber, hoursBeforeDeadline);
 
+        // Load every recipient in one query. Fetching users one at a time inside the send
+        // loop cost a round trip each — a few hundred reminders meant a few hundred round
+        // trips before a single email was even attempted.
+        var users = await _unitOfWork.Users.FindAsync(
+            u => usersNeedingReminders.Contains(u.Id), cancellationToken);
+
+        var recipients = users
+            .Where(u => !string.IsNullOrEmpty(u.Email))
+            .ToList();
+
+        var missing = usersNeedingReminders.Count - recipients.Count;
+        if (missing > 0)
+            _logger.LogWarning("{Count} user(s) needing reminders have no record or no email address", missing);
+
+        var messages = recipients
+            .Select(u => BuildPickReminderMessage(
+                u.Email,
+                $"{u.FirstName} {u.LastName}",
+                gameweek.WeekNumber,
+                gameweek.Deadline,
+                hoursBeforeDeadline))
+            .ToList();
+
+        // One batched call rather than one request per recipient: at a few hundred players
+        // the sequential version outlived the caller's HTTP timeout before finishing.
+        var outcomes = await _emailService.SendBulkAsync(messages, cancellationToken);
+
         int emailsSent = 0;
         int emailsFailed = 0;
         int emailsSkipped = 0;
 
-        foreach (var userId in usersNeedingReminders)
+        for (var i = 0; i < recipients.Count; i++)
         {
-            try
+            switch (outcomes[i])
             {
-                var user = await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken);
-                if (user == null || string.IsNullOrEmpty(user.Email))
-                {
-                    _logger.LogWarning("User {UserId} not found or has no email", userId);
-                    continue;
-                }
+                case EmailSendResult.Sent:
+                    emailsSent++;
+                    break;
 
-                var outcome = await SendPickReminderEmailAsync(
-                    user.Email,
-                    $"{user.FirstName} {user.LastName}",
-                    gameweek.WeekNumber,
-                    gameweek.Deadline,
-                    hoursBeforeDeadline,
-                    cancellationToken);
+                case EmailSendResult.Skipped:
+                    emailsSkipped++;
+                    _logger.LogInformation(
+                        "Skipped pick reminder for {Email} (GW{WeekNumber}) — test address",
+                        recipients[i].Email, gameweek.WeekNumber);
+                    break;
 
-                switch (outcome)
-                {
-                    case EmailSendResult.Sent:
-                        emailsSent++;
-                        _logger.LogInformation("Sent pick reminder to {Email} for GW{WeekNumber}",
-                            user.Email, gameweek.WeekNumber);
-                        break;
-
-                    case EmailSendResult.Skipped:
-                        emailsSkipped++;
-                        _logger.LogInformation(
-                            "Skipped pick reminder for {Email} (GW{WeekNumber}) — test address",
-                            user.Email, gameweek.WeekNumber);
-                        break;
-
-                    default:
-                        emailsFailed++;
-                        _logger.LogError(
-                            "Pick reminder to {Email} for GW{WeekNumber} was not accepted by the email provider",
-                            user.Email, gameweek.WeekNumber);
-                        break;
-                }
-            }
-            catch (Exception ex)
-            {
-                emailsFailed++;
-                _logger.LogError(ex, "Failed to send pick reminder to user {UserId} for GW{WeekNumber}",
-                    userId, gameweek.WeekNumber);
+                default:
+                    emailsFailed++;
+                    _logger.LogError(
+                        "Pick reminder to {Email} for GW{WeekNumber} was not accepted by the email provider",
+                        recipients[i].Email, gameweek.WeekNumber);
+                    break;
             }
         }
 
@@ -176,20 +179,20 @@ public class PickReminderService : IPickReminderService
         return (emailsSent, emailsFailed, emailsSkipped);
     }
 
-    private async Task<EmailSendResult> SendPickReminderEmailAsync(
+    private static EmailMessage BuildPickReminderMessage(
         string toEmail,
         string userName,
         int gameweekNumber,
         DateTime deadline,
-        int hoursBeforeDeadline,
-        CancellationToken cancellationToken)
+        int hoursBeforeDeadline)
     {
         var subject = $"⚽ Reminder: Make your pick for Gameweek {gameweekNumber}";
 
-        var htmlBody = GetReminderEmailHtml(userName, gameweekNumber, deadline, hoursBeforeDeadline);
-        var plainTextBody = GetReminderEmailPlainText(userName, gameweekNumber, deadline, hoursBeforeDeadline);
-
-        return await _emailService.SendEmailAsync(toEmail, subject, htmlBody, plainTextBody);
+        return new EmailMessage(
+            toEmail,
+            subject,
+            GetReminderEmailHtml(userName, gameweekNumber, deadline, hoursBeforeDeadline),
+            GetReminderEmailPlainText(userName, gameweekNumber, deadline, hoursBeforeDeadline));
     }
 
     private static string GetReminderEmailHtml(

@@ -8,7 +8,7 @@ using PremierLeaguePredictions.Application.Interfaces;
 namespace PremierLeaguePredictions.API.Controllers.Admin;
 
 /// <summary>
-/// Email plumbing checks. Pick reminders only send inside a 30-minute band around 24h/12h/3h
+/// Email plumbing checks. Pick reminders only send inside a 30-minute band around 24h and 3h
 /// before a deadline, so without this there is no way to confirm email works on demand.
 /// </summary>
 [ApiController]
@@ -39,7 +39,7 @@ public class AdminEmailController : ControllerBase
     /// Sends a test email and reports what the mail transport actually did.
     /// </summary>
     /// <remarks>
-    /// Leave the body empty to send to the configured test recipient.
+    /// Leave the body empty to send to the configured sender address.
     ///
     /// In Development you may supply a "to" address to send somewhere else. That is refused
     /// outside Development on purpose: this endpoint accepts an API key, and an arbitrary
@@ -61,25 +61,25 @@ public class AdminEmailController : ControllerBase
         if (!string.IsNullOrEmpty(requestedRecipient) && !_environment.IsDevelopment())
         {
             return BadRequest(ApiResponse<object>.FailureResult(
-                "Specifying a recipient is only allowed in Development. Configure " +
-                "Email:TestRecipient instead."));
+                "Specifying a recipient is only allowed in Development."));
         }
 
+        // No dedicated test-recipient setting: in Development the caller supplies "to", and
+        // elsewhere the sender address is the only address this endpoint will mail.
         var recipient = !string.IsNullOrEmpty(requestedRecipient)
             ? requestedRecipient
-            : _configuration["Email:TestRecipient"] ?? _configuration["Email:FromEmail"];
+            : _configuration["Email:FromEmail"];
 
         if (string.IsNullOrEmpty(recipient))
         {
             return BadRequest(ApiResponse<object>.FailureResult(
-                "No recipient. Supply \"to\" (Development only) or set Email:TestRecipient."));
+                "No recipient. Supply \"to\" (Development only) or set Email:FromEmail."));
         }
 
         var sentAt = DateTime.UtcNow;
-        var host = _configuration["Email:SmtpHost"] ?? "(not configured)";
-        var port = _configuration["Email:SmtpPort"] ?? "587";
+        var provider = _configuration["Email:Provider"] ?? "Brevo";
 
-        _logger.LogInformation("Sending test email to {Recipient} via {Host}:{Port}", recipient, host, port);
+        _logger.LogInformation("Sending test email to {Recipient} via {Provider}", recipient, provider);
 
         var outcome = await _emailService.SendEmailAsync(
             recipient,
@@ -87,14 +87,13 @@ public class AdminEmailController : ControllerBase
             $"<p>If you are reading this, outbound email works.</p><p>Sent at {sentAt:u}.</p>",
             $"If you are reading this, outbound email works.\n\nSent at {sentAt:u}.");
 
-        // Report where it was actually sent from — a timeout against a blocked port and a
-        // rejected login look identical without knowing the host and port in play.
+        // Name the transport that was actually used: a misconfigured provider setting and a
+        // rejected credential are indistinguishable in the response otherwise.
         var result = new
         {
             recipient,
             outcome = outcome.ToString(),
-            smtpHost = host,
-            smtpPort = port,
+            provider,
             sentAt
         };
 
@@ -110,8 +109,8 @@ public class AdminEmailController : ControllerBase
                     "Use a real mailbox to test delivery.")),
 
             _ => StatusCode(StatusCodes.Status502BadGateway, ApiResponse<object>.FailureResult(
-                $"{host}:{port} did not accept the message for {recipient}. Check the logs for " +
-                "the underlying error."))
+                $"{provider} did not accept the message for {recipient}. Check the logs for the " +
+                "provider's response."))
         };
     }
 }
@@ -123,7 +122,7 @@ public class TestEmailRequest
 {
     /// <summary>
     /// Where to send the test. Development only; ignored elsewhere in favour of
-    /// Email:TestRecipient. Leave null to use the configured recipient.
+    /// Email:FromEmail. Leave null to use the sender address.
     /// </summary>
     public string? To { get; set; }
 }
