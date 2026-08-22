@@ -17,7 +17,7 @@ public class SmtpEmailService : IEmailService
         _logger = logger;
     }
 
-    public async Task SendEmailAsync(string toEmail, string subject, string htmlBody, string? plainTextBody = null)
+    public async Task<bool> SendEmailAsync(string toEmail, string subject, string htmlBody, string? plainTextBody = null)
     {
         try
         {
@@ -69,20 +69,31 @@ public class SmtpEmailService : IEmailService
                 message.AlternateViews.Add(plainView);
             }
 
+            // SmtpClient defaults to a 100s timeout. When the SMTP port is unreachable — a
+            // blocked egress port looks exactly like this — every recipient burns that full
+            // 100s before failing, and the caller's own request timeout fires first. Fail fast
+            // instead so the error is reported rather than swallowed by a dead connection.
+            var timeoutSeconds = int.Parse(_configuration["Email:TimeoutSeconds"] ?? "15");
+
             using var smtpClient = new SmtpClient(smtpHost, smtpPort)
             {
                 Credentials = new NetworkCredential(smtpUsername, smtpPassword),
-                EnableSsl = enableSsl
+                EnableSsl = enableSsl,
+                Timeout = timeoutSeconds * 1000
             };
 
             await smtpClient.SendMailAsync(message);
 
             _logger.LogInformation("Email sent successfully to {ToEmail} with subject: {Subject}", actualRecipient, subject);
+            return true;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send email to {ToEmail} with subject: {Subject}", toEmail, subject);
-            // Don't throw - we don't want email failures to break the application
+            // Don't throw - we don't want email failures to break the application. The false
+            // return is how the caller learns this failed; without it a rejected send counts
+            // as delivered and "0 failed" hides the problem entirely.
+            return false;
         }
     }
 }

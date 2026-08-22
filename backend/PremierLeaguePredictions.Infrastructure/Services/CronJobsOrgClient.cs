@@ -130,17 +130,20 @@ public class CronJobsOrgClient
 
             if (attempt > maxRetries)
             {
-                response.Dispose();
-
                 // Spacing requests cannot rescue an exhausted quota — a 429 that survives the
                 // retries means an account-level limit, and the only fix is to stop calling.
                 var spent = maxRetries == 0
                     ? "on the first attempt (not retried, as each retry spends more of the quota)"
                     : $"on every attempt ({maxRetries} retries over ~{TotalBackoffSeconds}s)";
 
+                // Whatever the response carries about the limit and its reset — without this
+                // there is no way to tell a short window from a daily cap except by guessing.
+                var diagnostics = await DescribeRateLimitAsync(response, cancellationToken);
+                response.Dispose();
+
                 throw new CronJobsOrgRateLimitedException(
                     $"cron-job.org rate-limited '{description}' {spent}. The account's API " +
-                    "quota is likely exhausted — wait before running generate again.");
+                    $"quota is likely exhausted — wait before running generate again. {diagnostics}");
             }
 
             // Retry-After if present, otherwise exponential backoff: 2s, 4s, 8s, 16s, 32s.
@@ -179,6 +182,37 @@ public class CronJobsOrgClient
         {
             _rateLimitGate.Release();
         }
+    }
+
+    /// <summary>
+    /// Summarises what a 429 says about the limit: any rate-limit or Retry-After headers, plus
+    /// the response body. cron-job.org does not document its quota, so this is the only way to
+    /// distinguish a short window from a daily cap.
+    /// </summary>
+    private static async Task<string> DescribeRateLimitAsync(
+        HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        var parts = response.Headers
+            .Where(h => h.Key.StartsWith("X-RateLimit", StringComparison.OrdinalIgnoreCase)
+                        || h.Key.Equals("Retry-After", StringComparison.OrdinalIgnoreCase)
+                        || h.Key.StartsWith("RateLimit", StringComparison.OrdinalIgnoreCase))
+            .Select(h => $"{h.Key}: {string.Join(", ", h.Value)}")
+            .ToList();
+
+        try
+        {
+            var body = (await response.Content.ReadAsStringAsync(cancellationToken)).Trim();
+            if (body.Length > 0)
+                parts.Add($"body: {(body.Length > 300 ? body[..300] + "…" : body)}");
+        }
+        catch (Exception)
+        {
+            // Diagnostics only — never let this replace the rate-limit error being reported.
+        }
+
+        return parts.Count > 0
+            ? $"Response said — {string.Join(" | ", parts)}"
+            : "Response carried no rate-limit headers or body.";
     }
 
     private static string Redact(string url)

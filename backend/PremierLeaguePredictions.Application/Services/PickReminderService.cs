@@ -127,7 +127,7 @@ public class PickReminderService : IPickReminderService
                     continue;
                 }
 
-                await SendPickReminderEmailAsync(
+                var delivered = await SendPickReminderEmailAsync(
                     user.Email,
                     $"{user.FirstName} {user.LastName}",
                     gameweek.WeekNumber,
@@ -135,9 +135,18 @@ public class PickReminderService : IPickReminderService
                     hoursBeforeDeadline,
                     cancellationToken);
 
-                emailsSent++;
-                _logger.LogInformation("Sent pick reminder to {Email} for GW{WeekNumber}",
-                    user.Email, gameweek.WeekNumber);
+                if (delivered)
+                {
+                    emailsSent++;
+                    _logger.LogInformation("Sent pick reminder to {Email} for GW{WeekNumber}",
+                        user.Email, gameweek.WeekNumber);
+                }
+                else
+                {
+                    emailsFailed++;
+                    _logger.LogError("Pick reminder to {Email} for GW{WeekNumber} was not accepted by SMTP",
+                        user.Email, gameweek.WeekNumber);
+                }
             }
             catch (Exception ex)
             {
@@ -153,7 +162,7 @@ public class PickReminderService : IPickReminderService
         return (emailsSent, emailsFailed);
     }
 
-    private async Task SendPickReminderEmailAsync(
+    private async Task<bool> SendPickReminderEmailAsync(
         string toEmail,
         string userName,
         int gameweekNumber,
@@ -166,7 +175,7 @@ public class PickReminderService : IPickReminderService
         var htmlBody = GetReminderEmailHtml(userName, gameweekNumber, deadline, hoursBeforeDeadline);
         var plainTextBody = GetReminderEmailPlainText(userName, gameweekNumber, deadline, hoursBeforeDeadline);
 
-        await _emailService.SendEmailAsync(toEmail, subject, htmlBody, plainTextBody);
+        return await _emailService.SendEmailAsync(toEmail, subject, htmlBody, plainTextBody);
     }
 
     private static string GetReminderEmailHtml(
