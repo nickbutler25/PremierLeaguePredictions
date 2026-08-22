@@ -23,7 +23,7 @@ All implementation and documentation complete. System is ready for production de
 
 3. **CronSchedulerService.cs** - Core scheduler logic
    - Queries gameweeks for next 7 days
-   - Schedules reminders (24h, 12h, 3h before deadline)
+   - Schedules reminders (24h and 3h before deadline)
    - Schedules auto-pick at deadline
    - Groups fixtures by kickoff time (15-min windows)
    - Creates recurring jobs for live score sync
@@ -128,7 +128,7 @@ All implementation and documentation complete. System is ready for production de
 6. GitHub Actions automatically runs jobs at scheduled times
 
 ### Generated Jobs:
-- **Reminders**: 24h, 12h, 3h before each gameweek deadline
+- **Reminders**: 24h and 3h before each gameweek deadline
 - **Auto-Pick**: At each gameweek deadline
 - **Live Scores**: Every 2 minutes during match windows
 

@@ -324,21 +324,24 @@ AllowedOrigins__0="https://your-frontend-url.com"
 # cron-job.org Scheduler
 CronJobsOrg__ApiKey="your-cron-job-org-account-api-key"  # Set manually in each Render service's Environment tab. Use separate keys for prod and dev.
 ExternalSync__ApiKey="your-external-sync-api-key"        # Key the cron-job.org jobs use to authenticate to our API
-ApiBaseUrl="https://api.eplpredict.com"                  # Set manually in the dashboard (dev: https://premierleague-api-dev.onrender.com)
+ApiBaseUrl="https://api.eplpredict.com"                  # REQUIRED per service. No default — the app throws if unset. dev: https://premierleague-api-dev.onrender.com
+GitHub__Environment="prod"                               # REQUIRED per service ("prod" or "dev"). Selects the EPL-{ENV}- job prefix and the target the dispatch workflow calls.
 
 # DEPRECATED / removable — only used by the retired GitHub Actions scheduler
 # GitHub__Owner="your-github-username"
 # GitHub__Repository="PremierLeaguePredictions"
 # GitHub__PersonalAccessToken="ghp_your_token_here"
 
-# Optional: Email (for notifications)
-Email__SmtpHost="smtp.gmail.com"
-Email__SmtpPort="587"
-Email__SmtpUsername="your-email@gmail.com"
-Email__SmtpPassword="your-app-password"
-Email__FromEmail="noreply@yourapp.com"
-Email__FromName="Premier League Predictions"
-Email__EnableSsl="true"
+# Email — sent through Brevo's REST API over HTTPS.
+# Render's free tier blocks outbound SMTP (587/465/25 are silently dropped), so SMTP is not an
+# option here. Email__Provider=Smtp selects SmtpEmailService for local development only.
+Email__Brevo__ApiKey="xkeysib-your-brevo-api-key"
+Email__FromEmail="noreply@eplpredict.com"                # REQUIRED. No default. Must be a sender Brevo has verified,
+                                                         # or a domain authenticated in Brevo — otherwise Brevo accepts
+                                                         # the message with a 2xx and rejects it later at send time.
+Email__FromName="Premier League Predictions"             # dev: "Premier League Predictions Dev"
+# Email__MaxConcurrentSends="5"                          # Optional. Parallel sends for bulk reminder runs.
+# Email__NoSendDomains="example.com,.test,.invalid"       # Optional. Addresses on these are skipped, not mailed.
 ```
 
 ### Development-Only Variables
@@ -545,7 +548,13 @@ curl -X POST "https://api.eplpredict.com/api/v1/admin/sync/results?apiKey=$EXTER
 ### Reminders Not Sending
 
 **Check:**
-1. **Email Configuration** — `Email__SmtpHost`, `Email__SmtpPort`, `Email__SmtpUsername`, etc.
+1. **Email Configuration** — `Email__Brevo__ApiKey` and `Email__FromEmail`. A missing key logs
+   `Email configuration is incomplete. Missing: ...`.
+1a. **Sender verified in Brevo?** A 2xx from Brevo means *accepted*, not *delivered*. An
+   unverified sender is rejected afterwards, so the endpoint reports success and no mail
+   arrives. Check Brevo's transactional log, matching the `messageId` in our logs.
+1b. **Was it a reminder window?** Reminders only send within 30 minutes of 24h or 3h before a
+   deadline. Outside those bands the run correctly reports `0 sent, 0 failed`.
 2. **User Email Addresses**
    ```sql
    SELECT "Email", "FirstName", "LastName" FROM "Users" WHERE "Email" IS NULL OR "Email" = '';
