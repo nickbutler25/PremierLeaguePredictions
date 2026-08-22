@@ -98,9 +98,7 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                 {!compact && (
                   <TableHead className="text-center w-16 hidden lg:table-cell">GD</TableHead>
                 )}
-                {!compact && (
-                  <TableHead className="w-[220px] hidden md:table-cell">Form</TableHead>
-                )}
+                {!compact && <TableHead className="w-[220px] hidden md:table-cell">Form</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -217,9 +215,7 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                               ))}
                             </span>
                           ) : (
-                            <span className="text-xs text-muted-foreground">
-                              No results yet
-                            </span>
+                            <span className="text-xs text-muted-foreground">No results yet</span>
                           )}
                         </TableCell>
                       )}
