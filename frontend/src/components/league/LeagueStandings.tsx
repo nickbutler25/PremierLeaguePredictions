@@ -144,7 +144,7 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                         className="text-center"
                         data-testid={`standing-pick-${entry.position}`}
                       >
-                        <PickCrest pick={entry.currentPick} />
+                        <PickCrest pick={entry.currentPick} showResultLetter />
                       </TableCell>
                       <TableCell
                         className="text-center text-xs sm:text-sm hidden sm:table-cell"

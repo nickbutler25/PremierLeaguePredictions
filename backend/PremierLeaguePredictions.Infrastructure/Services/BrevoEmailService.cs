@@ -141,8 +141,16 @@ public class BrevoEmailService : IEmailService
 
                 if (response.IsSuccessStatusCode)
                 {
-                    _logger.LogInformation("Email sent successfully to {ToEmail} with subject: {Subject}",
-                        message.ToEmail, message.Subject);
+                    // Log Brevo's message id. A 2xx only means Brevo accepted the message for
+                    // delivery — it can still bounce, be blocked, or sit unsent while an
+                    // account is under review. The id is how you find this exact message in
+                    // Brevo's transactional log and see what actually became of it.
+                    var messageId = await ReadMessageIdAsync(response, cancellationToken);
+
+                    _logger.LogInformation(
+                        "Brevo accepted the email to {ToEmail} (messageId {MessageId}) with subject: {Subject}",
+                        message.ToEmail, messageId ?? "unknown", message.Subject);
+
                     return EmailSendResult.Sent;
                 }
 
@@ -174,6 +182,30 @@ public class BrevoEmailService : IEmailService
                 // is how the caller learns this failed.
                 return EmailSendResult.Failed;
             }
+        }
+    }
+
+    /// <summary>
+    /// Pulls "messageId" out of the acceptance response, tolerating a shape we do not expect.
+    /// This is for traceability only and must never turn a successful send into a failure.
+    /// </summary>
+    private static async Task<string?> ReadMessageIdAsync(
+        HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            if (string.IsNullOrWhiteSpace(body))
+                return null;
+
+            using var document = System.Text.Json.JsonDocument.Parse(body);
+            return document.RootElement.TryGetProperty("messageId", out var id)
+                ? id.ToString()
+                : null;
+        }
+        catch (Exception)
+        {
+            return null;
         }
     }
 
