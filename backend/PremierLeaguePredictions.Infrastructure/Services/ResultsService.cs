@@ -134,6 +134,16 @@ public class ResultsService : IResultsService
             "Polling {Count} of {Total} fixtures from external API for GW {WeekNumber} ({Skipped} settled or not due)",
             toPoll.Count, fixturesSnapshot.Count, gameweek.WeekNumber, skipped);
 
+        // Nothing pollable means nothing can have changed, so skip the save, the re-read and
+        // the before/after comparison. The job keeps firing for the tail of its window after
+        // the last match ends; this makes those runs cost one query instead of four.
+        if (toPoll.Count == 0)
+        {
+            response.Message =
+                $"GW{gameweek.WeekNumber}: nothing to poll — all {fixturesSnapshot.Count} fixtures settled or not yet due";
+            return response;
+        }
+
         foreach (var fixture in toPoll)
         {
             try
@@ -211,6 +221,12 @@ public class ResultsService : IResultsService
                 }
             }
         }
+
+        // Keep the count in step with the list. FixturesUpdated was never assigned, so the
+        // caller-facing summary and the API response both reported 0 while UpdatedFixtures
+        // held the real total — a sync that changed a scoreline announced that it had changed
+        // nothing.
+        response.FixturesUpdated = response.UpdatedFixtures.Count;
 
         // If any fixtures were updated, recalculate points for this gameweek
         if (response.UpdatedFixtures.Count > 0)
