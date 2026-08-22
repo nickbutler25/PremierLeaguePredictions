@@ -76,6 +76,26 @@ public class ResultsService : IResultsService
         return response;
     }
 
+    /// <summary>
+    /// Statuses a fixture cannot move on from, so there is nothing left to poll for.
+    /// POSTPONED is deliberately absent: a postponed match gets a new kickoff time, and the
+    /// lead-time check below parks it until that time approaches.
+    /// </summary>
+    private static readonly string[] SettledStatuses = ["FINISHED", "AWARDED", "CANCELLED"];
+
+    /// <summary>
+    /// How far before kickoff a fixture becomes worth polling. Covers an early kickoff or a
+    /// clock skew without polling Sunday's matches all through Saturday.
+    /// </summary>
+    private static readonly TimeSpan PollLeadTime = TimeSpan.FromMinutes(15);
+
+    /// <summary>
+    /// True when a fixture could still change: not settled, and either under way or due shortly.
+    /// </summary>
+    private static bool NeedsPolling(Core.Entities.Fixture fixture, DateTime nowUtc) =>
+        !SettledStatuses.Contains(fixture.Status, StringComparer.OrdinalIgnoreCase)
+        && fixture.KickoffTime <= nowUtc.Add(PollLeadTime);
+
     public async Task<ResultsSyncResponse> SyncGameweekResultsAsync(string seasonId, int gameweekNumber, CancellationToken cancellationToken = default)
     {
         var response = new ResultsSyncResponse { GameweeksProcessed = 1 };
@@ -102,37 +122,48 @@ public class ResultsService : IResultsService
             AwayTeamId = f.AwayTeamId
         }).ToList();
 
-        // Update each fixture individually from external API
-        _logger.LogInformation("Updating {Count} fixtures from external API for GW {WeekNumber}",
-            fixturesSnapshot.Count, gameweek.WeekNumber);
+        // Only poll fixtures that can still change. This runs every 2 minutes for the length
+        // of a match window, so polling settled or not-yet-started fixtures burns the
+        // football-data.org free-tier allowance for nothing — a full gameweek is 10 calls per
+        // cycle when typically one match is actually in play.
+        var now = DateTime.UtcNow;
+        var toPoll = fixturesBefore.Where(f => f.ExternalId != null && NeedsPolling(f, now)).ToList();
+        var skipped = fixturesSnapshot.Count - toPoll.Count;
 
-        foreach (var fixtureSnapshot in fixturesSnapshot)
+        _logger.LogInformation(
+            "Polling {Count} of {Total} fixtures from external API for GW {WeekNumber} ({Skipped} settled or not due)",
+            toPoll.Count, fixturesSnapshot.Count, gameweek.WeekNumber, skipped);
+
+        foreach (var fixture in toPoll)
         {
-            var fixture = fixturesBefore.FirstOrDefault(f => f.Id == fixtureSnapshot.Id);
-            if (fixture?.ExternalId == null) continue;
-
             try
             {
                 // Fetch this specific fixture from the API
-                var externalFixture = await _footballDataService.GetFixtureByIdAsync(fixture.ExternalId.Value, cancellationToken);
+                var externalFixture = await _footballDataService.GetFixtureByIdAsync(fixture.ExternalId!.Value, cancellationToken);
 
                 if (externalFixture != null)
                 {
-                    // Update status
-                    fixture.Status = externalFixture.Status;
+                    var newHomeScore = externalFixture.Score?.FullTime?.Home ?? fixture.HomeScore;
+                    var newAwayScore = externalFixture.Score?.FullTime?.Away ?? fixture.AwayScore;
 
-                    // Update scores if available
-                    if (externalFixture.Score?.FullTime != null)
+                    // Only touch the row when something actually differs. Assigning UpdatedAt
+                    // unconditionally marked every fixture dirty on every cycle, so a sync that
+                    // reported "0 fixtures updated" still issued an UPDATE per fixture.
+                    var changed = fixture.Status != externalFixture.Status
+                        || fixture.HomeScore != newHomeScore
+                        || fixture.AwayScore != newAwayScore
+                        || fixture.KickoffTime != externalFixture.UtcDate;
+
+                    if (changed)
                     {
-                        fixture.HomeScore = externalFixture.Score.FullTime.Home;
-                        fixture.AwayScore = externalFixture.Score.FullTime.Away;
+                        fixture.Status = externalFixture.Status;
+                        fixture.HomeScore = newHomeScore;
+                        fixture.AwayScore = newAwayScore;
+                        fixture.KickoffTime = externalFixture.UtcDate;
+                        fixture.UpdatedAt = now;
+
+                        _unitOfWork.Fixtures.Update(fixture);
                     }
-
-                    // Update kickoff time if changed
-                    fixture.KickoffTime = externalFixture.UtcDate;
-                    fixture.UpdatedAt = DateTime.UtcNow;
-
-                    _unitOfWork.Fixtures.Update(fixture);
                 }
             }
             catch (Exception ex)
