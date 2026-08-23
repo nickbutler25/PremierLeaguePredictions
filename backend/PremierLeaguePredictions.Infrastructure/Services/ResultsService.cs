@@ -282,9 +282,13 @@ public class ResultsService : IResultsService
             cancellationToken
         );
 
+        // POSTPONED is deliberately not "finished": the match still has to be played, so the
+        // gameweek is not over and nobody should be eliminated on results that are missing one.
+        // GameweekCompletionService uses the same definition — the two must agree, or the sync
+        // would eliminate players on a gameweek the completion job is correctly refusing to close.
         var fixturesList = fixtures.ToList();
         var allFinished = fixturesList.All(f =>
-            f.Status == "FINISHED" || f.Status == "CANCELLED" || f.Status == "POSTPONED"
+            f.Status == "FINISHED" || f.Status == "CANCELLED" || f.Status == "AWARDED"
         );
 
         if (!allFinished)

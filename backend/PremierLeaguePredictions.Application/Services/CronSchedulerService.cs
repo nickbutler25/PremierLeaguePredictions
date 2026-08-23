@@ -7,6 +7,19 @@ namespace PremierLeaguePredictions.Application.Services;
 
 public class CronSchedulerService : ICronSchedulerService
 {
+    /// <summary>
+    /// How long after a gameweek's last kickoff to try completing it. A match plus stoppage runs
+    /// about two hours, and the score sync window closes at kickoff + 2h — the extra half hour
+    /// lets that final sync land before the gameweek is judged finished.
+    /// </summary>
+    private static readonly TimeSpan CompletionDelayAfterLastKickoff = TimeSpan.FromHours(2.5);
+
+    /// <summary>
+    /// Delay used when a gameweek's football is already over but it is still open, so the job is
+    /// a retry rather than a first attempt.
+    /// </summary>
+    private static readonly TimeSpan CompletionRetryDelay = TimeSpan.FromMinutes(30);
+
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<CronSchedulerService> _logger;
 
@@ -160,16 +173,81 @@ public class CronSchedulerService : ICronSchedulerService
             }
         }
 
+        await AddGameweekCompletionJobsAsync(plan, now, nextWeek, cancellationToken);
+
         _logger.LogInformation("Schedule generation complete. Total jobs: {JobCount}", plan.Jobs.Count);
 
         // Log summary by job type
         var reminderJobs = plan.Jobs.Count(j => j.JobType == "send-reminders");
         var autoPickJobs = plan.Jobs.Count(j => j.JobType == "auto-pick");
         var syncJobs = plan.Jobs.Count(j => j.JobType == "sync-scores");
+        var completionJobs = plan.Jobs.Count(j => j.JobType == "complete-gameweek");
 
-        _logger.LogInformation("Job summary: {Reminders} reminders, {AutoPicks} auto-picks, {Syncs} score syncs",
-            reminderJobs, autoPickJobs, syncJobs);
+        _logger.LogInformation(
+            "Job summary: {Reminders} reminders, {AutoPicks} auto-picks, {Syncs} score syncs, {Completions} completions",
+            reminderJobs, autoPickJobs, syncJobs, completionJobs);
 
         return plan;
+    }
+
+    /// <summary>
+    /// Schedules a completion job for each gameweek that still needs finalising.
+    /// </summary>
+    /// <remarks>
+    /// Covers two cases with one rule. Normally it is the gameweek about to finish, timed shortly
+    /// after its last kickoff. But it also picks up any gameweek whose deadline has passed and
+    /// which is still unlocked — a completion that was skipped because a fixture was postponed.
+    /// That is what makes the schedule self-healing: each weekly run gives a stranded gameweek
+    /// another attempt, and once the postponed match is replayed the attempt succeeds.
+    /// </remarks>
+    private async Task AddGameweekCompletionJobsAsync(
+        SchedulePlan plan, DateTime now, DateTime nextWeek, CancellationToken cancellationToken)
+    {
+        // A gameweek qualifies once its deadline is behind us or comes within the planning
+        // window. Anything further out is a future gameweek with nothing to complete.
+        var openGameweeks = (await _unitOfWork.Gameweeks.FindAsync(
+                g => !g.IsLocked && g.Deadline <= nextWeek,
+                cancellationToken))
+            .OrderBy(g => g.Deadline)
+            .ToList();
+
+        foreach (var gameweek in openGameweeks)
+        {
+            var fixtures = await _unitOfWork.Fixtures.FindAsync(
+                f => f.SeasonId == gameweek.SeasonId && f.GameweekNumber == gameweek.WeekNumber,
+                cancellationToken);
+
+            var fixtureList = fixtures.ToList();
+            if (fixtureList.Count == 0)
+            {
+                _logger.LogDebug("GW{WeekNumber} has no fixtures — no completion job", gameweek.WeekNumber);
+                continue;
+            }
+
+            var lastKickoff = fixtureList.Max(f => f.KickoffTime);
+            var scheduledTime = lastKickoff.Add(CompletionDelayAfterLastKickoff);
+
+            if (scheduledTime <= now)
+            {
+                // The football is already over and the gameweek is still open, so this is a retry
+                // of a completion that did not take. Run it shortly after this generate rather
+                // than waiting another week.
+                scheduledTime = now.Add(CompletionRetryDelay);
+
+                _logger.LogInformation(
+                    "GW{WeekNumber} is past its last kickoff but still open — scheduling a retry at {Time}",
+                    gameweek.WeekNumber, scheduledTime);
+            }
+            else if (scheduledTime > nextWeek)
+            {
+                // Its last match falls outside this planning window; next week's run will cover it.
+                continue;
+            }
+
+            plan.AddJob(scheduledTime, "complete-gameweek", gameweek.SeasonId, gameweek.WeekNumber);
+
+            _logger.LogInformation("Scheduled gameweek completion for GW{WeekNumber} at {Time} (last kickoff {Kickoff})",
+                gameweek.WeekNumber, scheduledTime, lastKickoff);
+        }
     }
 }

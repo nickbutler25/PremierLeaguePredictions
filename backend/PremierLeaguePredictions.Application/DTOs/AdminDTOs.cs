@@ -59,3 +59,34 @@ public class AutoPickResult
         ? $"Successfully assigned {PicksAssigned} auto-pick(s) across {GameweeksProcessed} gameweek(s)"
         : $"Assigned {PicksAssigned} auto-pick(s), but {PicksFailed} failed";
 }
+
+/// <summary>
+/// Outcome of a gameweek completion run.
+/// </summary>
+public class GameweekCompletionResponse
+{
+    public List<GameweekCompletionDetail> Completed { get; set; } = new();
+
+    /// <summary>
+    /// Gameweeks that were eligible but could not be finalised — typically a postponed fixture.
+    /// These stay open and are retried by the next weekly schedule generation.
+    /// </summary>
+    public List<GameweekCompletionDetail> Skipped { get; set; } = new();
+
+    public bool Success => true;
+
+    public string Message =>
+        Completed.Count == 0 && Skipped.Count == 0
+            ? "No gameweeks were ready to complete"
+            : $"Completed {Completed.Count} gameweek(s), skipped {Skipped.Count}";
+}
+
+public class GameweekCompletionDetail
+{
+    public string SeasonId { get; set; } = string.Empty;
+    public int GameweekNumber { get; set; }
+    public int PlayersEliminated { get; set; }
+
+    /// <summary>Why a gameweek was skipped. Null when it completed.</summary>
+    public string? Reason { get; set; }
+}

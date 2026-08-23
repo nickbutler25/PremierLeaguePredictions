@@ -34,8 +34,9 @@ public class CronJobsOrgService : ICronJobsOrgService
     // orchestrator workflow's "action" value.
     private static readonly Dictionary<string, string> DispatchActions = new()
     {
-        ["send-reminders"] = "reminders",
-        ["auto-pick"]      = "auto-pick",
+        ["send-reminders"]    = "reminders",
+        ["auto-pick"]         = "auto-pick",
+        ["complete-gameweek"] = "complete-gameweek",
     };
 
     public CronJobsOrgService(
