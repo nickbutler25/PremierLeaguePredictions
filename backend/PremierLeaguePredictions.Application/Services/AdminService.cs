@@ -42,44 +42,41 @@ public class AdminService : IAdminService
     public async Task RecalculatePointsForGameweekAsync(string seasonId, int gameweekNumber, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Recalculating points for gameweek {SeasonId}-{GameweekNumber}", seasonId, gameweekNumber);
-        
+
         var picks = await _unitOfWork.Picks.FindAsync(p => p.SeasonId == seasonId && p.GameweekNumber == gameweekNumber, cancellationToken);
-        var fixtures = await _unitOfWork.Fixtures.FindAsync(f => f.SeasonId == seasonId && f.GameweekNumber == gameweekNumber, cancellationToken);
-        
+        var fixtures = (await _unitOfWork.Fixtures.FindAsync(f => f.SeasonId == seasonId && f.GameweekNumber == gameweekNumber, cancellationToken)).ToList();
+
+        var changed = 0;
+
         foreach (var pick in picks)
         {
-            var teamFixtures = fixtures.Where(f => 
-                (f.HomeTeamId == pick.TeamId || f.AwayTeamId == pick.TeamId) && 
-                f.Status == "FINISHED");
+            var previousPoints = pick.Points;
+            var previousGoalsFor = pick.GoalsFor;
+            var previousGoalsAgainst = pick.GoalsAgainst;
 
-            int points = 0;
-            int goalsFor = 0;
-            int goalsAgainst = 0;
+            // Shared with the backfill path, and unlike the calculation that used to live here
+            // it scores matches that are under way as well as finished ones. The standings query
+            // counts a pick whose fixture is IN_PLAY or PAUSED, classifying it by its points —
+            // so leaving live points at zero showed every in-progress pick as a loss.
+            CalculatePickPoints(pick, fixtures);
 
-            foreach (var fixture in teamFixtures)
+            // Only write when something moved. Recalculation runs on any fixture change during
+            // a match, including a kickoff at 0-0, which alters nothing.
+            if (pick.Points == previousPoints
+                && pick.GoalsFor == previousGoalsFor
+                && pick.GoalsAgainst == previousGoalsAgainst)
             {
-                bool isHome = fixture.HomeTeamId == pick.TeamId;
-                int teamScore = isHome ? fixture.HomeScore ?? 0 : fixture.AwayScore ?? 0;
-                int opponentScore = isHome ? fixture.AwayScore ?? 0 : fixture.HomeScore ?? 0;
-
-                goalsFor += teamScore;
-                goalsAgainst += opponentScore;
-
-                if (teamScore > opponentScore) points += 3;
-                else if (teamScore == opponentScore) points += 1;
+                continue;
             }
 
-            pick.Points = points;
-            pick.GoalsFor = goalsFor;
-            pick.GoalsAgainst = goalsAgainst;
             pick.UpdatedAt = DateTime.UtcNow;
-
             _unitOfWork.Picks.Update(pick);
+            changed++;
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-        _logger.LogInformation("Points recalculated for gameweek {SeasonId}-{GameweekNumber}", seasonId, gameweekNumber);
+        _logger.LogInformation("Points recalculated for gameweek {SeasonId}-{GameweekNumber}: {Changed} pick(s) changed",
+            seasonId, gameweekNumber, changed);
     }
 
     public async Task RecalculateAllPointsAsync(CancellationToken cancellationToken = default)

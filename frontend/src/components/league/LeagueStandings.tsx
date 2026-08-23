@@ -85,9 +85,9 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                 <TableHead className="min-w-[120px] sm:min-w-[150px]">Name</TableHead>
                 <TableHead className="text-center w-12">Pick</TableHead>
                 <TableHead className="text-center w-12 hidden sm:table-cell">P</TableHead>
-                <TableHead className="text-center w-12">W</TableHead>
-                <TableHead className="text-center w-12">D</TableHead>
-                <TableHead className="text-center w-12">L</TableHead>
+                <TableHead className="text-center w-12 hidden sm:table-cell">W</TableHead>
+                <TableHead className="text-center w-12 hidden sm:table-cell">D</TableHead>
+                <TableHead className="text-center w-12 hidden sm:table-cell">L</TableHead>
                 <TableHead className="text-center w-16 font-bold">PT</TableHead>
                 {!compact && (
                   <TableHead className="text-center w-16 hidden md:table-cell">GF</TableHead>
@@ -98,7 +98,7 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                 {!compact && (
                   <TableHead className="text-center w-16 hidden lg:table-cell">GD</TableHead>
                 )}
-                {!compact && <TableHead className="w-[220px] hidden md:table-cell">Form</TableHead>}
+                {!compact && <TableHead className="w-[200px] hidden lg:table-cell">Form</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -151,19 +151,19 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                         {entry.picksMade}
                       </TableCell>
                       <TableCell
-                        className="text-center text-xs sm:text-sm text-green-600 dark:text-green-400"
+                        className="text-center text-xs sm:text-sm hidden sm:table-cell text-green-600 dark:text-green-400"
                         data-testid={`standing-wins-${entry.position}`}
                       >
                         {entry.wins}
                       </TableCell>
                       <TableCell
-                        className="text-center text-xs sm:text-sm text-yellow-600 dark:text-yellow-400"
+                        className="text-center text-xs sm:text-sm hidden sm:table-cell text-yellow-600 dark:text-yellow-400"
                         data-testid={`standing-draws-${entry.position}`}
                       >
                         {entry.draws}
                       </TableCell>
                       <TableCell
-                        className="text-center text-xs sm:text-sm text-red-600 dark:text-red-400"
+                        className="text-center text-xs sm:text-sm hidden sm:table-cell text-red-600 dark:text-red-400"
                         data-testid={`standing-losses-${entry.position}`}
                       >
                         {entry.losses}
@@ -200,7 +200,7 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                       )}
                       {!compact && (
                         <TableCell
-                          className="hidden md:table-cell"
+                          className="hidden lg:table-cell"
                           data-testid={`standing-form-${entry.position}`}
                         >
                           {entry.form && entry.form.length > 0 ? (
