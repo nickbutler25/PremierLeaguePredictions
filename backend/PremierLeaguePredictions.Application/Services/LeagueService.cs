@@ -32,6 +32,17 @@ public class LeagueService : ILeagueService
         _cache = cache;
     }
 
+    public void InvalidateStandings(string seasonId)
+    {
+        if (string.IsNullOrEmpty(seasonId))
+            return;
+
+        _cache.Remove(CacheKey(seasonId));
+        _logger.LogDebug("Invalidated cached standings for season {SeasonId}", seasonId);
+    }
+
+    private static string CacheKey(string seasonId) => $"standings_{seasonId}";
+
     public async Task<LeagueStandingsDto> GetLeagueStandingsAsync(string? seasonId = null, CancellationToken cancellationToken = default)
     {
         // Get active season if not specified
@@ -60,7 +71,7 @@ public class LeagueService : ILeagueService
 
         // Check cache first. Only the aggregate is cached — current picks are attached after,
         // because they carry live scores and must not be five minutes stale.
-        var cacheKey = $"standings_{seasonId}";
+        var cacheKey = CacheKey(seasonId);
         if (_cache.TryGetValue(cacheKey, out LeagueStandingsDto? cachedStandings) && cachedStandings != null)
         {
             _logger.LogDebug("Returning standings from cache for season {SeasonId}", seasonId);

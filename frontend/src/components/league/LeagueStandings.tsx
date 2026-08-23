@@ -23,7 +23,10 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
   const { data, isLoading, error } = useQuery({
     queryKey: ['league-standings'],
     queryFn: () => leagueService.getStandings(),
-    refetchInterval: 120000, // Refetch every 2 minutes to show live points during matches
+    // No polling: useResultsUpdates (mounted in Layout) invalidates this key whenever the
+    // score sync reports a change, so the table refreshes on the event rather than on a timer.
+    // Polling every 2 minutes from every client is also the load the server-side cache exists
+    // to absorb — at a few hundred players that is a request every second or so, all day.
   });
 
   if (isLoading) {
@@ -84,10 +87,18 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                 <TableHead className="w-12 text-center">#</TableHead>
                 <TableHead className="min-w-[120px] sm:min-w-[150px]">Name</TableHead>
                 <TableHead className="text-center w-12">Pick</TableHead>
-                <TableHead className="text-center w-12 hidden sm:table-cell">P</TableHead>
-                <TableHead className="text-center w-12 hidden sm:table-cell">W</TableHead>
-                <TableHead className="text-center w-12 hidden sm:table-cell">D</TableHead>
-                <TableHead className="text-center w-12 hidden sm:table-cell">L</TableHead>
+                {!compact && (
+                  <TableHead className="text-center w-12 hidden sm:table-cell">P</TableHead>
+                )}
+                {!compact && (
+                  <TableHead className="text-center w-12 hidden sm:table-cell">W</TableHead>
+                )}
+                {!compact && (
+                  <TableHead className="text-center w-12 hidden sm:table-cell">D</TableHead>
+                )}
+                {!compact && (
+                  <TableHead className="text-center w-12 hidden sm:table-cell">L</TableHead>
+                )}
                 <TableHead className="text-center w-16 font-bold">PT</TableHead>
                 {!compact && (
                   <TableHead className="text-center w-16 hidden md:table-cell">GF</TableHead>
@@ -144,30 +155,38 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                       >
                         <PickCrest pick={entry.currentPick} showResultLetter />
                       </TableCell>
-                      <TableCell
-                        className="text-center text-xs sm:text-sm hidden sm:table-cell"
-                        data-testid={`standing-played-${entry.position}`}
-                      >
-                        {entry.picksMade}
-                      </TableCell>
-                      <TableCell
-                        className="text-center text-xs sm:text-sm hidden sm:table-cell text-green-600 dark:text-green-400"
-                        data-testid={`standing-wins-${entry.position}`}
-                      >
-                        {entry.wins}
-                      </TableCell>
-                      <TableCell
-                        className="text-center text-xs sm:text-sm hidden sm:table-cell text-yellow-600 dark:text-yellow-400"
-                        data-testid={`standing-draws-${entry.position}`}
-                      >
-                        {entry.draws}
-                      </TableCell>
-                      <TableCell
-                        className="text-center text-xs sm:text-sm hidden sm:table-cell text-red-600 dark:text-red-400"
-                        data-testid={`standing-losses-${entry.position}`}
-                      >
-                        {entry.losses}
-                      </TableCell>
+                      {!compact && (
+                        <TableCell
+                          className="text-center text-xs sm:text-sm hidden sm:table-cell"
+                          data-testid={`standing-played-${entry.position}`}
+                        >
+                          {entry.picksMade}
+                        </TableCell>
+                      )}
+                      {!compact && (
+                        <TableCell
+                          className="text-center text-xs sm:text-sm hidden sm:table-cell text-green-600 dark:text-green-400"
+                          data-testid={`standing-wins-${entry.position}`}
+                        >
+                          {entry.wins}
+                        </TableCell>
+                      )}
+                      {!compact && (
+                        <TableCell
+                          className="text-center text-xs sm:text-sm hidden sm:table-cell text-yellow-600 dark:text-yellow-400"
+                          data-testid={`standing-draws-${entry.position}`}
+                        >
+                          {entry.draws}
+                        </TableCell>
+                      )}
+                      {!compact && (
+                        <TableCell
+                          className="text-center text-xs sm:text-sm hidden sm:table-cell text-red-600 dark:text-red-400"
+                          data-testid={`standing-losses-${entry.position}`}
+                        >
+                          {entry.losses}
+                        </TableCell>
+                      )}
                       <TableCell
                         className="text-center font-bold text-xs sm:text-sm"
                         data-testid={`standing-points-${entry.position}`}

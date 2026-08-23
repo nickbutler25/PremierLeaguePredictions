@@ -1,4 +1,4 @@
-# Session Handoff — 2026-08-22
+# Session Handoff — 2026-08-23
 
 Status note for resuming fresh. Delete or `.gitignore` this file when no longer needed.
 
@@ -10,9 +10,12 @@ Two long-standing problems are fixed: **live scores never synced** (an auth rout
 **email never sent** (Render blocks SMTP). Both are verified working on dev. The league table
 gained a current-pick crest and a form guide.
 
-`develop` is **8 commits ahead of `main`** and unmerged. Until it merges, cron-triggered jobs
-keep running `main`'s older workflow file — `repository_dispatch` always uses the default
-branch's copy.
+Gameweeks now finalise themselves, and the league table updates live off SignalR rather than a
+poll.
+
+`develop` is **11 commits ahead of `main`** and unmerged, with uncommitted frontend and backend
+work on top. Until it merges, cron-triggered jobs keep running `main`'s older workflow file —
+`repository_dispatch` always uses the default branch's copy.
 
 **Next action:** open a PR `develop → main`, then verify a full gameweek on prod.
 
@@ -20,7 +23,10 @@ branch's copy.
 
 ## Git state
 
-- Branch: `develop`, 8 commits ahead of `origin/main`.
+- Branch: `develop`, 11 commits ahead of `origin/main`.
+  - `008709b` Score matches in progress, and log what football-data.org returns
+  - `654a069` Add a scheduled job that completes a gameweek once its football is over
+  - `695b143` Update docs for the score-sync, email and league-table changes
   - `62a3d26` Apply Prettier formatting to LeagueStandings
   - `78492b7` Show W/D/L beside the pick crest, and stop defaulting the sender address
   - `e7ca6fc` Show each player's current pick and recent form in the league table
@@ -97,6 +103,35 @@ revealed only once the deadline passes and coloured live during a match. **Form*
 shows crests from the last 10 *completed* gameweeks. Form is computed before the standings cache;
 the live pick is layered on after it.
 
+### Gameweeks complete themselves
+
+Nothing ever locked a gameweek — `IsLocked` was set only in tests, though four places read it.
+A job at last kickoff + 2h30 pulls results once more, checks every fixture is settled, processes
+eliminations and locks the gameweek. A postponed fixture leaves it open rather than eliminating
+players on a scoreline still missing a match; the weekly generate re-plans a completion job for
+any gameweek past its deadline and still unlocked, so it retries until the match is replayed.
+
+`ResultsService` used to count POSTPONED as "all fixtures finished" and would have eliminated on
+exactly those gameweeks. Both now settle on FINISHED, CANCELLED or AWARDED.
+
+### Live scores reach the league table
+
+Two separate faults, both fixed:
+
+- **In-progress picks counted as losses.** The standings query includes a pick whose fixture is
+  IN_PLAY or PAUSED and classifies it by its points, but `RecalculatePointsForGameweekAsync` only
+  scored FINISHED fixtures — so a live pick sat at zero points, and zero reads as a loss. It now
+  uses the `CalculatePickPoints` helper that already existed for the backfill path, which scores
+  matches under way.
+- **The push was blocked by the cache.** `useResultsUpdates` already invalidated
+  `['league-standings']` on the SignalR event, but the refetch was served a five-minute-old
+  cached response. The sync now evicts `standings_{seasonId}` *before* publishing, and
+  `refetchInterval` has been removed from the table — it is push-driven now.
+
+`FootballDataService` logs what the provider returned for every fixture, with raw bodies behind
+`FootballData__LogRawResponses`. An empty score there means the provider sent null rather than the
+match being goalless — a distinction that cost an afternoon of guessing.
+
 ### Config defaults removed
 
 `ApiBaseUrl`, `GitHub:Environment` and `Email:FromEmail` no longer have defaults in
@@ -121,14 +156,22 @@ They are now required per environment and throw when absent.
 6. **Watch Brevo's 300/day cap.** ~165 on a peak day at 275 players, worst case 275.
 7. **`DeleteExistingEplJobsAsync` wipes before creating**, so a mid-run failure leaves the week
    unscheduled. Diffing desired-vs-existing would make a no-op rerun cost one `GET /jobs`.
+8. **Split the standings cache into settled and live halves** — see below. Worth doing before
+   go-live at ~275 players, but measure first.
 
 ---
 
 ## Gotchas to remember
 
-- **Standings are cached server-side for 5 minutes** (`LeagueService.StandingsCacheDuration`), on
-  top of React Query's 5-minute `staleTime`. Data changes can take that long to appear — this is
-  not a bug, and it has caused confusion twice.
+- **Standings are cached server-side for 5 minutes** (`LeagueService.StandingsCacheDuration`),
+  but the cache is now evicted whenever the score sync changes a fixture, so live scores appear
+  immediately. Changes made *outside* the sync — seeding users, editing picks directly in the
+  database — still take up to five minutes to show, on top of React Query's 5-minute
+  `staleTime`. That has caused confusion twice; it is not a bug.
+- **The league table is push-driven, not polled.** `useResultsUpdates` (mounted in `Layout`)
+  invalidates `['league-standings']` on the SignalR `ResultsUpdated` event. Do not reintroduce
+  `refetchInterval` — at a few hundred players that is roughly a request a second, all day,
+  which is the load the cache exists to absorb.
 - **Reminders only fire within 30 minutes of 24h or 3h before a deadline.** A manual run outside
   those bands correctly reports `0 sent, 0 failed`, so you cannot test reminders on demand — use
   `POST /api/v1/admin/email/test` instead (accepts a `"to"` override in Development only).
@@ -143,6 +186,36 @@ They are now required per environment and throw when absent.
 - Season names must NOT contain `/` (breaks `seasonId`-in-URL routing); use `2026-2027`.
 - Secrets: `appsettings.Development.json` is gitignored with real dev secrets — never commit it.
 - Backend build MSB file-locks happen when the dev backend / Visual Studio is running.
+
+---
+
+## Follow-up: split the standings cache into settled and live halves
+
+`GetStandingsDataAsync` recomputes the **whole season** on every cache miss — one SQL statement
+with eight correlated subqueries per user, plus `AttachFormAsync` reading every pick in the
+season. Now that a goal evicts the cache, a single goal in GW20 recomputes nineteen gameweeks
+that cannot possibly have changed. The cost grows every week; the part that actually moves does
+not.
+
+Completed gameweeks are immutable. Their points, wins, goals and form entries are settled the
+moment the gameweek is locked. Only the gameweek in play changes, and that is ~275 picks against
+~10 fixtures.
+
+Suggested shape:
+
+- **Historical totals per user** — cached under a key that includes the last completed gameweek,
+  e.g. `standings_2026-2027_gw19`. When a gameweek completes the key changes by itself and the
+  old entry ages out, so there is no invalidation logic to get wrong.
+- **Current gameweek delta per user** — computed fresh on every request. Bounded and cheap.
+- Sum the two for the table.
+
+The form guide falls out of this neatly: it is *entirely* historical, so it can be cached for the
+week rather than rebuilt on every goal, which is what happens today.
+
+**Measure before building.** Dev has 21 users and one gameweek, which will not show the problem.
+Get the uncached endpoint timing from prod once real players are loaded, or run `EXPLAIN ANALYZE`
+against prod-shaped data. A previous scaling assumption in this area turned out to be wrong
+because it was reasoned from the schema rather than measured.
 
 ---
 

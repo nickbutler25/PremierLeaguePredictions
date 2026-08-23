@@ -297,10 +297,11 @@ builder.Services.AddScoped<IResultsService>(sp =>
     var footballDataService = sp.GetRequiredService<IFootballDataService>();
     var adminService = sp.GetRequiredService<IAdminService>();
     var eliminationService = sp.GetRequiredService<IEliminationService>();
+    var leagueService = sp.GetRequiredService<ILeagueService>();
     var hubContext = sp.GetRequiredService<IHubContext<PremierLeaguePredictions.API.Hubs.NotificationHub>>();
     var logger = sp.GetRequiredService<ILogger<ResultsService>>();
     // Cast to IHubContext<Hub> for ResultsService
-    return new ResultsService(unitOfWork, footballDataService, adminService, eliminationService, (IHubContext<Hub>)(object)hubContext, logger);
+    return new ResultsService(unitOfWork, footballDataService, adminService, eliminationService, leagueService, (IHubContext<Hub>)(object)hubContext, logger);
 });
 
 // Register Cron Scheduler services
