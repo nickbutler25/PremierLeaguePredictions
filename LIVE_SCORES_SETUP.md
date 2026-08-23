@@ -29,7 +29,7 @@ This document explains how live score updates, pick reminders, and auto-picks ar
 
 `POST /api/v1/admin/schedule/generate` runs `CronSchedulerService.GenerateWeeklyScheduleAsync`, which builds a `SchedulePlan` from unlocked gameweeks that have deadlines/fixtures in the next 7 days:
 
-- **Reminder emails** at 24h, 12h, and 3h before each deadline.
+- **Reminder emails** at 24h and 3h before each deadline, to players who have not yet picked.
 - **Auto-pick** at each deadline.
 - **Live-score sync** every 2 minutes during each match window (kickoff → +2h, with fixtures grouped into 15-minute kickoff windows).
 
@@ -47,7 +47,9 @@ Generated jobs hit these API endpoints:
 | `auto-pick` | `POST /api/v1/admin/schedule/auto-pick` |
 | `sync-scores` | `POST /api/v1/admin/sync/results` |
 
-Generated jobs pass authentication as a **query parameter**: `?apiKey=<ExternalSync key>`. (cron-job.org jobs created via the REST API don't reliably support custom request headers, so the key goes in the URL instead.)
+Generated jobs authenticate with an **`X-API-Key` header**, set through cron-job.org's `extendedData.headers`. (An earlier note here claimed the REST API could not set custom headers — it can, and the GitHub dispatch jobs have always relied on it. The key was previously in the query string, which put it into every request log and into the job URL visible in cron-job.org's UI.)
+
+Note that the API accepts the key either way: `SmartScheme` routes to the API-key handler on an `X-API-Key` header *or* an `apiKey` query parameter. Until 2026-08-22 it matched only the header, so query-string calls fell through to JWT Bearer and 401'd — which is why score syncing never worked.
 
 The API's `ApiKeyAuthenticationHandler` accepts the ExternalSync key from **either** the `X-API-Key` header **or** the `apiKey` query-string parameter, validates it against config `ExternalSync:ApiKey`, and grants the Admin role for that request.
 
@@ -55,7 +57,7 @@ The API's `ApiKeyAuthenticationHandler` accepts the ExternalSync key from **eith
 
 ```
 cron-job.org sync-scores job (every 2 min during match windows)
-  → POST /api/v1/admin/sync/results  (API key auth via ?apiKey=)
+  → POST /api/v1/admin/sync/results  (API key auth via X-API-Key header)
   → ResultsService fetches from football-data.org
   → results saved to DB
   → SignalR pushes updates to connected frontend clients

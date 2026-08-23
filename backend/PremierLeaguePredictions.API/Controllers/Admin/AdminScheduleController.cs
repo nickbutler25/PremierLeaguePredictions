@@ -20,18 +20,50 @@ public class AdminScheduleController : ControllerBase
     private readonly IScheduleGenerationRunner _generationRunner;
     private readonly IPickReminderService _reminderService;
     private readonly IAutoPickService _autoPickService;
+    private readonly IGameweekCompletionService _completionService;
     private readonly ILogger<AdminScheduleController> _logger;
 
     public AdminScheduleController(
         IScheduleGenerationRunner generationRunner,
         IPickReminderService reminderService,
         IAutoPickService autoPickService,
+        IGameweekCompletionService completionService,
         ILogger<AdminScheduleController> logger)
     {
         _generationRunner = generationRunner;
         _reminderService = reminderService;
         _autoPickService = autoPickService;
+        _completionService = completionService;
         _logger = logger;
+    }
+
+    /// <summary>
+    /// Finalise any gameweek whose football is over: lock it and process eliminations.
+    /// Called by a scheduled job shortly after each gameweek's last kickoff.
+    /// </summary>
+    /// <remarks>
+    /// Completes every eligible gameweek rather than a named one, so a run also picks up an
+    /// earlier gameweek that a postponement left open. Safe to call repeatedly — a gameweek
+    /// that is already locked, or that still has an unplayed fixture, is left alone.
+    /// </remarks>
+    [HttpPost("complete-gameweek")]
+    public async Task<ActionResult<ApiResponse<GameweekCompletionResponse>>> CompleteGameweek(
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            _logger.LogInformation("Running gameweek completion");
+
+            var result = await _completionService.CompleteFinishedGameweeksAsync(cancellationToken);
+
+            return Ok(ApiResponse<GameweekCompletionResponse>.SuccessResult(result, result.Message));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error completing gameweeks");
+            return StatusCode(500, ApiResponse<GameweekCompletionResponse>.FailureResult(
+                $"Failed to complete gameweeks: {ex.Message}"));
+        }
     }
 
     /// <summary>
@@ -97,7 +129,13 @@ public class AdminScheduleController : ControllerBase
                     result.EmailsSent, result.EmailsFailed);
 
                 return Ok(ApiResponse<object>.SuccessResult(
-                    new { emailsSent = result.EmailsSent, emailsFailed = result.EmailsFailed, timestamp = DateTime.UtcNow },
+                    new
+                    {
+                        emailsSent = result.EmailsSent,
+                        emailsFailed = result.EmailsFailed,
+                        emailsSkipped = result.EmailsSkipped,
+                        timestamp = DateTime.UtcNow
+                    },
                     result.Message));
             }
             else

@@ -31,7 +31,7 @@ Configurable per season in admin. Each week, X players with the lowest **average
 
 **Deployment:** Render.com (free tier — app spins down on inactivity), Supabase (PostgreSQL), cron-job.org (external cron scheduling), GitHub Actions (CI/CD)
 
-**External APIs:** football-data.org (free tier — be mindful of rate limits)
+**External APIs:** football-data.org (free tier — be mindful of rate limits), Brevo (transactional email over HTTPS)
 
 ---
 
@@ -60,15 +60,15 @@ API/            → Controllers, middleware, auth, filters
 
 ```
 cron-job.org sync-scores job (every 2 min during match windows)
-  → POST /api/v1/admin/sync/results  (API Key auth, key via ?apiKey= query param)
+  → POST /api/v1/admin/sync/results  (API Key auth, key sent as an X-API-Key header)
   → ResultsService fetches from football-data.org
   → Results saved to DB
   → SignalR pushes updates to connected frontend clients
 ```
 
-**Known issue:** Live scores do not always update correctly on the frontend during games. Root cause is unknown — could be SignalR connection, the sync job, the football-data.org polling, or the frontend receiving but not rendering updates. This needs investigation.
+**Resolved 2026-08-22 — live scores never updated because the sync call never authenticated.** `ApiKeyAuthenticationHandler` accepts the key from an `X-API-Key` header *or* an `apiKey` query parameter, but `SmartScheme`'s `ForwardDefaultSelector` in `Program.cs` only routed to the ApiKey scheme on the header. Query-string calls fell through to JWT Bearer, found no token, and 401'd before the handler ran — the query-string branch was unreachable. The selector now matches either form, and the generated sync job sends a header. Verified end to end in dev: auth → poll → detect change → persist → recalculate points → SignalR push. **Not yet verified across a full gameweek on prod.**
 
-**Note on scheduling:** Scheduling runs on **cron-job.org** (an external cron service), not GitHub Actions. A weekly master job (Mondays 09:00 Europe/London) POSTs to `/api/v1/admin/schedule/generate`; `CronSchedulerService` builds a plan from gameweeks in the next 7 days, then `CronJobsOrgService` creates one cron-job.org job per (reminders / auto-pick / sync-scores) schedule via the cron-job.org REST API. Generated jobs are titled `EPL-{week}-{jobType}-{n}`; each run deletes all existing `EPL-` jobs first (so the master and warm-up jobs must NOT be `EPL-` prefixed). Off-season with no upcoming fixtures correctly produces zero jobs. cron-job.org has a hard 30s request timeout and Render free tier cold-starts (~24s), so a warm-up ping to `/health` runs a few minutes before the Monday generate. GitHub Actions is now CI/CD only. See `LIVE_SCORES_SETUP.md` for the full flow.
+**Note on scheduling:** Scheduling runs on **cron-job.org** (an external cron service), not GitHub Actions. A weekly master job (Mondays 09:00 Europe/London) POSTs to `/api/v1/admin/schedule/generate`, which returns **202 immediately** and runs in the background — calls to cron-job.org are paced to stay under its rate limit, so a generate takes minutes and cannot be held open on an HTTP request. Poll `GET /api/v1/admin/schedule/generate/status` for progress and the outcome; a second concurrent start is refused with 409. `CronSchedulerService` builds a plan from gameweeks whose deadline falls within 7 days either side of now, then `CronJobsOrgService` creates one cron-job.org job per (reminders / auto-pick / sync-scores) schedule. Generated jobs are titled `EPL-{ENV}-{season}-GW{n}-{jobType}-{i}` (e.g. `EPL-DEV-2026-2027-GW1-sync-scores-1`); each run deletes existing jobs matching **its own environment prefix** only, so dev and prod can share an account (the master and warm-up jobs must NOT use an `EPL-` prefix). Off-season with no upcoming fixtures correctly produces zero jobs. cron-job.org has a hard 30s request timeout and Render free tier cold-starts (~24s), so a warm-up ping to `/health` runs a few minutes before the Monday generate. GitHub Actions is now CI/CD only. See `LIVE_SCORES_SETUP.md` for the full flow.
 
 ---
 
@@ -276,8 +276,11 @@ Do not add auth checks inside components — use the route guards in `App.tsx`.
 
 ## Important Constraints
 
-- **football-data.org free tier** — has rate limits. Don't add unnecessary calls.
+- **football-data.org free tier** — has rate limits. Don't add unnecessary calls. The score sync only polls fixtures that can still change: settled ones (FINISHED / AWARDED / CANCELLED) and those more than 15 minutes from kickoff are skipped, so a live gameweek costs ~1 call per cycle rather than 10.
 - **Render free tier** — app spins down. No persistent background workers possible.
+- **Render free tier blocks outbound SMTP.** Ports 587, 465 and 25 are silently dropped (probed from inside the container: all three timed out at 5s while 443 connected in 14ms). Email must leave over HTTPS — hence Brevo's REST API. `SmtpEmailService` still exists and is selectable with `Email:Provider=Smtp`, but only works locally.
+- **Brevo free tier — 300 emails/day** is the binding limit, not the 9,000/month. At ~275 players a peak reminder day is ~165, worst case 275. Growth past ~300 players, or a deadline in the small hours (which would put both reminder windows on one calendar day), would breach it.
+- **cron-job.org API has an undocumented quota.** Exhausting it locks out generate for hours — the opening `GET /jobs` deliberately does not retry a 429, because each retry spends more of the allowance.
 - **GitHub Actions free tier** — ~2,000 min/month. Current usage is ~45 min/month, well within limits.
 - **Do not manually edit migration files** — always generate via `dotnet ef migrations add`.
 - **Supabase has Row-Level Security (RLS)** set up — see `/database/enable_rls.sql`. Be careful with direct DB operations.

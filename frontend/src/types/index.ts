@@ -143,6 +143,27 @@ export interface StandingEntry {
   isEliminated: boolean;
   eliminatedInGameweek?: number;
   eliminationPosition?: number;
+  /** Pick for the in-progress gameweek. Absent until the deadline passes. */
+  currentPick?: PickSummary;
+  /** Picks from the last completed gameweeks, oldest first. */
+  form?: PickSummary[];
+}
+
+/** How a revealed pick is faring. 'Pending' means revealed but not kicked off. */
+export type PickOutcome = 'Pending' | 'Win' | 'Draw' | 'Loss';
+
+export interface PickSummary {
+  gameweekNumber: number;
+  teamId: number;
+  teamName: string;
+  teamShortName?: string;
+  logoUrl?: string;
+  outcome: PickOutcome;
+  /** True while the match is under way, so the outcome may still change. */
+  isLive: boolean;
+  opponentName?: string;
+  teamScore?: number;
+  opponentScore?: number;
 }
 
 export interface PickSelection {

@@ -102,7 +102,7 @@ sequenceDiagram
     API->>Cron: Create EPL-{week}-{jobType}-{n} jobs<br/>via cron-job.org REST API
 
     Note over Cron: Generated jobs run at scheduled times
-    Cron->>API: POST /api/v1/admin/schedule/reminders<br/>(24h, 12h, 3h before deadlines)
+    Cron->>API: POST /api/v1/admin/schedule/reminders<br/>(24h and 3h before deadlines)
     API->>Users: Send reminder emails
 
     Cron->>API: POST /api/v1/admin/schedule/auto-pick<br/>(at gameweek deadline)
@@ -113,11 +113,11 @@ sequenceDiagram
 ```
 
 #### Scheduled Jobs
-- **Reminders**: Sent 24h, 12h, and 3h before each gameweek deadline
+- **Reminders**: Sent 24h and 3h before each gameweek deadline, to players who have not picked
 - **Auto-Pick**: Assigns teams to users who missed the deadline
 - **Live Score Sync**: Updates scores every 2 minutes during match windows (grouped by 15-minute kickoff intervals)
 
-All schedules are generated dynamically based on actual fixture dates from Football-Data.org. Generated jobs authenticate to the API via an `?apiKey=` query parameter (the ExternalSync key).
+All schedules are generated dynamically based on actual fixture dates from Football-Data.org. Generated jobs authenticate to the API with an `X-API-Key` header carrying the ExternalSync key — request logs record URLs in full, so the key must not go in the query string.
 
 ## Project Structure
 

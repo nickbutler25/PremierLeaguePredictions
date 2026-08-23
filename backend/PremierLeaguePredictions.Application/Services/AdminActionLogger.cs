@@ -56,10 +56,24 @@ public class AdminActionLogger : IAdminActionLogger
                 return;
             }
 
+            // Automated callers authenticate with the ExternalSync API key, not as a user. The
+            // sync / reminder / auto-pick endpoints are shared between the cron and human
+            // admins, so this is the normal path, not a failure: a scheduled score sync is not
+            // an admin action and produces no audit row. Only a real admin user does.
+            if (httpContext.User.FindFirst("AuthenticationType")?.Value == "ApiKey")
+            {
+                _logger.LogDebug(
+                    "Not logging {ActionType} to the admin audit trail: automated API-key caller",
+                    actionType);
+                return;
+            }
+
             // Get admin user ID from claims
             var adminUserIdClaim = httpContext.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(adminUserIdClaim) || !Guid.TryParse(adminUserIdClaim, out var adminUserId))
             {
+                // A signed-in user with no usable id claim is genuinely wrong — unlike the
+                // API-key case above, this one should still be noisy.
                 _logger.LogWarning("Cannot log admin action: Admin user ID not found in claims");
                 return;
             }

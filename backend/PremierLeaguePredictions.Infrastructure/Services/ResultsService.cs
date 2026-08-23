@@ -76,6 +76,26 @@ public class ResultsService : IResultsService
         return response;
     }
 
+    /// <summary>
+    /// Statuses a fixture cannot move on from, so there is nothing left to poll for.
+    /// POSTPONED is deliberately absent: a postponed match gets a new kickoff time, and the
+    /// lead-time check below parks it until that time approaches.
+    /// </summary>
+    private static readonly string[] SettledStatuses = ["FINISHED", "AWARDED", "CANCELLED"];
+
+    /// <summary>
+    /// How far before kickoff a fixture becomes worth polling. Covers an early kickoff or a
+    /// clock skew without polling Sunday's matches all through Saturday.
+    /// </summary>
+    private static readonly TimeSpan PollLeadTime = TimeSpan.FromMinutes(15);
+
+    /// <summary>
+    /// True when a fixture could still change: not settled, and either under way or due shortly.
+    /// </summary>
+    private static bool NeedsPolling(Core.Entities.Fixture fixture, DateTime nowUtc) =>
+        !SettledStatuses.Contains(fixture.Status, StringComparer.OrdinalIgnoreCase)
+        && fixture.KickoffTime <= nowUtc.Add(PollLeadTime);
+
     public async Task<ResultsSyncResponse> SyncGameweekResultsAsync(string seasonId, int gameweekNumber, CancellationToken cancellationToken = default)
     {
         var response = new ResultsSyncResponse { GameweeksProcessed = 1 };
@@ -102,37 +122,58 @@ public class ResultsService : IResultsService
             AwayTeamId = f.AwayTeamId
         }).ToList();
 
-        // Update each fixture individually from external API
-        _logger.LogInformation("Updating {Count} fixtures from external API for GW {WeekNumber}",
-            fixturesSnapshot.Count, gameweek.WeekNumber);
+        // Only poll fixtures that can still change. This runs every 2 minutes for the length
+        // of a match window, so polling settled or not-yet-started fixtures burns the
+        // football-data.org free-tier allowance for nothing — a full gameweek is 10 calls per
+        // cycle when typically one match is actually in play.
+        var now = DateTime.UtcNow;
+        var toPoll = fixturesBefore.Where(f => f.ExternalId != null && NeedsPolling(f, now)).ToList();
+        var skipped = fixturesSnapshot.Count - toPoll.Count;
 
-        foreach (var fixtureSnapshot in fixturesSnapshot)
+        _logger.LogInformation(
+            "Polling {Count} of {Total} fixtures from external API for GW {WeekNumber} ({Skipped} settled or not due)",
+            toPoll.Count, fixturesSnapshot.Count, gameweek.WeekNumber, skipped);
+
+        // Nothing pollable means nothing can have changed, so skip the save, the re-read and
+        // the before/after comparison. The job keeps firing for the tail of its window after
+        // the last match ends; this makes those runs cost one query instead of four.
+        if (toPoll.Count == 0)
         {
-            var fixture = fixturesBefore.FirstOrDefault(f => f.Id == fixtureSnapshot.Id);
-            if (fixture?.ExternalId == null) continue;
+            response.Message =
+                $"GW{gameweek.WeekNumber}: nothing to poll — all {fixturesSnapshot.Count} fixtures settled or not yet due";
+            return response;
+        }
 
+        foreach (var fixture in toPoll)
+        {
             try
             {
                 // Fetch this specific fixture from the API
-                var externalFixture = await _footballDataService.GetFixtureByIdAsync(fixture.ExternalId.Value, cancellationToken);
+                var externalFixture = await _footballDataService.GetFixtureByIdAsync(fixture.ExternalId!.Value, cancellationToken);
 
                 if (externalFixture != null)
                 {
-                    // Update status
-                    fixture.Status = externalFixture.Status;
+                    var newHomeScore = externalFixture.Score?.FullTime?.Home ?? fixture.HomeScore;
+                    var newAwayScore = externalFixture.Score?.FullTime?.Away ?? fixture.AwayScore;
 
-                    // Update scores if available
-                    if (externalFixture.Score?.FullTime != null)
+                    // Only touch the row when something actually differs. Assigning UpdatedAt
+                    // unconditionally marked every fixture dirty on every cycle, so a sync that
+                    // reported "0 fixtures updated" still issued an UPDATE per fixture.
+                    var changed = fixture.Status != externalFixture.Status
+                        || fixture.HomeScore != newHomeScore
+                        || fixture.AwayScore != newAwayScore
+                        || fixture.KickoffTime != externalFixture.UtcDate;
+
+                    if (changed)
                     {
-                        fixture.HomeScore = externalFixture.Score.FullTime.Home;
-                        fixture.AwayScore = externalFixture.Score.FullTime.Away;
+                        fixture.Status = externalFixture.Status;
+                        fixture.HomeScore = newHomeScore;
+                        fixture.AwayScore = newAwayScore;
+                        fixture.KickoffTime = externalFixture.UtcDate;
+                        fixture.UpdatedAt = now;
+
+                        _unitOfWork.Fixtures.Update(fixture);
                     }
-
-                    // Update kickoff time if changed
-                    fixture.KickoffTime = externalFixture.UtcDate;
-                    fixture.UpdatedAt = DateTime.UtcNow;
-
-                    _unitOfWork.Fixtures.Update(fixture);
                 }
             }
             catch (Exception ex)
@@ -180,6 +221,12 @@ public class ResultsService : IResultsService
                 }
             }
         }
+
+        // Keep the count in step with the list. FixturesUpdated was never assigned, so the
+        // caller-facing summary and the API response both reported 0 while UpdatedFixtures
+        // held the real total — a sync that changed a scoreline announced that it had changed
+        // nothing.
+        response.FixturesUpdated = response.UpdatedFixtures.Count;
 
         // If any fixtures were updated, recalculate points for this gameweek
         if (response.UpdatedFixtures.Count > 0)
@@ -235,9 +282,13 @@ public class ResultsService : IResultsService
             cancellationToken
         );
 
+        // POSTPONED is deliberately not "finished": the match still has to be played, so the
+        // gameweek is not over and nobody should be eliminated on results that are missing one.
+        // GameweekCompletionService uses the same definition — the two must agree, or the sync
+        // would eliminate players on a gameweek the completion job is correctly refusing to close.
         var fixturesList = fixtures.ToList();
         var allFinished = fixturesList.All(f =>
-            f.Status == "FINISHED" || f.Status == "CANCELLED" || f.Status == "POSTPONED"
+            f.Status == "FINISHED" || f.Status == "CANCELLED" || f.Status == "AWARDED"
         );
 
         if (!allFinished)

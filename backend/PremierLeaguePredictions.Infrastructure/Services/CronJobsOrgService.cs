@@ -34,8 +34,9 @@ public class CronJobsOrgService : ICronJobsOrgService
     // orchestrator workflow's "action" value.
     private static readonly Dictionary<string, string> DispatchActions = new()
     {
-        ["send-reminders"] = "reminders",
-        ["auto-pick"]      = "auto-pick",
+        ["send-reminders"]    = "reminders",
+        ["auto-pick"]         = "auto-pick",
+        ["complete-gameweek"] = "complete-gameweek",
     };
 
     public CronJobsOrgService(
@@ -64,6 +65,16 @@ public class CronJobsOrgService : ICronJobsOrgService
 
             var gitHub = ReadGitHubConfig();
             var jobPrefix = BuildJobPrefix(gitHub.Environment);
+
+            // sync-scores is the only job type that targets ApiBaseUrl directly — the rest go
+            // via GitHub, which resolves the URL from the environment. So a wrong ApiBaseUrl
+            // breaks score syncing alone, and silently: the jobs are created happily and only
+            // fail later, against whichever API the URL actually points at.
+            _logger.LogInformation(
+                "Generating {Environment} jobs — sync-scores will call {SyncHost}, dispatches go to {Owner}/{Repo}",
+                gitHub.Environment,
+                Uri.TryCreate(apiBaseUrl, UriKind.Absolute, out var parsed) ? parsed.Host : apiBaseUrl,
+                gitHub.Owner, gitHub.Repo);
 
             // Delete only THIS environment's existing jobs before creating new ones
             await DeleteExistingEplJobsAsync(jobPrefix, progress, cancellationToken);
@@ -126,13 +137,19 @@ public class CronJobsOrgService : ICronJobsOrgService
 
             if (job.JobType == "sync-scores")
             {
-                // 1. Direct sync job — stays on cron-job.org (hits the API with the key in the URL).
-                var url = $"{apiBaseUrl}{SyncEndpoint}?apiKey={Uri.EscapeDataString(apiKey)}";
+                // 1. Direct sync job — stays on cron-job.org (hits the API directly).
+                //    The key goes in a header, not the query string: URLs are written to
+                //    request logs in full and are visible in cron-job.org's UI, which is how
+                //    this key has leaked before.
                 requests.Add(new CronJobRequest
                 {
                     Title = $"{jobPrefix}{scope}-sync-scores-{Next($"{scope}-sync-scores")}",
-                    Url = url,
+                    Url = $"{apiBaseUrl}{SyncEndpoint}",
                     Schedule = BuildSchedule(job),
+                    ExtendedData = new CronJobExtendedData
+                    {
+                        Headers = new Dictionary<string, string> { ["X-API-Key"] = apiKey },
+                    },
                 });
 
                 // 2. One wake shortly before the window so the first sync hits a warm API.

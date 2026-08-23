@@ -9,7 +9,7 @@ name: Run API Task
 #   Authorization: Bearer <PAT>
 #   body: {"event_type":"run-api-task","client_payload":{"environment":"dev","action":"auto-pick"}}
 #
-# action = wake | generate | reminders | auto-pick
+# action = wake | generate | reminders | auto-pick | complete-gameweek
 #   (sync-scores intentionally stays a direct cron-job.org -> API call to protect the
 #    GitHub Actions minutes budget; a "wake" task is scheduled just before each sync window.)
 
@@ -27,7 +27,7 @@ on:
         required: true
         default: 'wake'
         type: choice
-        options: [wake, generate, reminders, auto-pick]
+        options: [wake, generate, reminders, auto-pick, complete-gameweek]
   repository_dispatch:
     types: [run-api-task]
 
@@ -57,6 +57,7 @@ jobs:
             generate)  ENDPOINT="/api/v1/admin/schedule/generate" ;;
             reminders) ENDPOINT="/api/v1/admin/schedule/reminders" ;;
             auto-pick) ENDPOINT="/api/v1/admin/schedule/auto-pick" ;;
+            complete-gameweek) ENDPOINT="/api/v1/admin/schedule/complete-gameweek" ;;
             *) echo "Unknown action: $ACTION"; exit 1 ;;
           esac
 
