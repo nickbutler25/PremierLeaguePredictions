@@ -22,7 +22,7 @@ test.describe('League Standings', () => {
     const table = page.getByTestId('standings-table');
     await expect(table.getByText('#')).toBeVisible(); // Position
     await expect(table.getByText('Name')).toBeVisible();
-    await expect(table.getByText('PT')).toBeVisible(); // Points
+    await expect(table.getByText('Pts')).toBeVisible(); // Points
     await expect(table.getByText('W')).toBeVisible(); // Wins
     await expect(table.getByRole('columnheader', { name: 'D', exact: true })).toBeVisible(); // Draws
     await expect(table.getByRole('columnheader', { name: 'L', exact: true })).toBeVisible(); // Losses

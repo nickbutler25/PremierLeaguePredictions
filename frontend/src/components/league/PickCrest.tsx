@@ -1,25 +1,19 @@
 import type { PickSummary, PickOutcome } from '@/types';
+import { describePick } from '@/lib/pickSummary';
 import { cn } from '@/lib/utils';
 
 interface PickCrestProps {
   pick?: PickSummary;
-  /** 'sm' is for the form guide, where ten crests share a row. */
-  size?: 'sm' | 'md';
   /**
    * Show a W/D/L letter beside the crest instead of colouring a ring around it. Clearer, but
-   * roughly doubles the width, so the form guide leaves it off.
+   * roughly doubles the width.
    */
   showResultLetter?: boolean;
-  /** Prefix the tooltip with the gameweek, e.g. "GW5 — ...". Used by the form guide. */
-  showGameweek?: boolean;
 }
 
-// 'md' matches the crest size used by the fixtures list, so the same club reads the same
-// size wherever it appears.
-const sizeClasses = {
-  sm: 'h-5 w-5',
-  md: 'h-5 w-5 sm:h-6 sm:w-6',
-} as const;
+// Matches the crest size used by the fixtures list, so the same club reads the same size
+// wherever it appears.
+const crestSize = 'h-5 w-5 sm:h-6 sm:w-6';
 
 /** Ring colour by how the pick is doing. Pending stays neutral — nothing has happened yet. */
 const outcomeRing: Record<PickOutcome, string> = {
@@ -37,23 +31,6 @@ const outcomeBadge: Record<PickOutcome, { letter: string; className: string } | 
   Loss: { letter: 'L', className: 'bg-red-600 dark:bg-red-500' },
 };
 
-function describe(pick: PickSummary, showGameweek: boolean): string {
-  const { teamName, opponentName, teamScore, opponentScore, outcome, isLive } = pick;
-
-  const prefix = showGameweek ? `GW${pick.gameweekNumber} — ` : '';
-
-  if (teamScore == null || opponentScore == null) {
-    return prefix + (opponentName ? `${teamName} vs ${opponentName} — not started` : teamName);
-  }
-
-  const score = `${teamName} ${teamScore}-${opponentScore} ${opponentName ?? ''}`.trim();
-  const verb = isLive
-    ? { Win: 'winning', Draw: 'drawing', Loss: 'losing', Pending: 'yet to start' }[outcome]
-    : { Win: 'won', Draw: 'drew', Loss: 'lost', Pending: 'yet to start' }[outcome];
-
-  return `${prefix}${score} (${verb})`;
-}
-
 /**
  * A player's pick, shown as the club crest.
  *
@@ -61,15 +38,10 @@ function describe(pick: PickSummary, showGameweek: boolean): string {
  * passes, so an empty cell is the normal state for most of the week — a placeholder would add
  * noise to every row without saying anything.
  */
-export function PickCrest({
-  pick,
-  size = 'md',
-  showResultLetter = false,
-  showGameweek = false,
-}: PickCrestProps) {
+export function PickCrest({ pick, showResultLetter = false }: PickCrestProps) {
   if (!pick) return null;
 
-  const label = describe(pick, showGameweek);
+  const label = describePick(pick);
   const badge = showResultLetter ? outcomeBadge[pick.outcome] : null;
 
   // With a letter beside it the crest does not also need colouring; a ring as well as a badge
@@ -87,13 +59,13 @@ export function PickCrest({
             src={pick.logoUrl}
             alt={pick.teamName}
             loading="lazy"
-            className={cn(sizeClasses[size], 'flex-shrink-0 object-contain', crestFrame)}
+            className={cn(crestSize, 'flex-shrink-0 object-contain', crestFrame)}
           />
         ) : (
           // Not every team has a crest URL; fall back to the short name rather than a gap.
           <span
             className={cn(
-              sizeClasses[size],
+              crestSize,
               'flex flex-shrink-0 items-center justify-center rounded-full',
               'bg-muted text-[9px] font-semibold uppercase',
               crestFrame

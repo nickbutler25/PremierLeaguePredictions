@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import type { StandingEntry } from '@/types';
 import { Link } from 'react-router-dom';
 import { leagueService } from '@/services/league';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,6 +13,7 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PickCrest } from './PickCrest';
+import { FormBadge } from './FormBadge';
 
 interface LeagueStandingsProps {
   compact?: boolean;
@@ -66,6 +68,53 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
     return null;
   }
 
+  // The server attaches a current pick only once a gameweek's deadline has passed and it still
+  // has a match to play — the same gameweek the dashboard calls in progress. Reading it from
+  // the payload keeps the columns and the data they hold from ever disagreeing, and needs no
+  // second request on the full standings route, which has no page component to thread a prop
+  // through.
+  const gameweekInProgress = data.standings.some((entry) => entry.currentPick);
+
+  // Between gameweeks there is no pick to reveal, so the column would be empty in every row.
+  const showPick = gameweekInProgress;
+
+  // The full table carries the rest regardless. The compact one on the dashboard is narrow
+  // enough that it has to choose: while a gameweek is being played, how everyone's goal
+  // difference is moving is the live interest; between gameweeks nothing is moving, so the
+  // season record is what there is to look at.
+  const showRecord = !compact || !gameweekInProgress;
+  const showGoalDifference = !compact || gameweekInProgress;
+
+  // Compact columns are shown at every width — the dashboard table is only a few columns wide,
+  // so there is nothing to gain by hiding them on small screens.
+  const recordVisibility = compact ? '' : 'hidden sm:table-cell';
+  const goalDifferenceVisibility = compact ? '' : 'hidden lg:table-cell';
+
+  // The dashboard sits in a narrow column, and it now carries three stat columns rather than
+  // one. At the full table's widths the last of them is pushed off the card, so the compact
+  // table gets its own tighter set — the values are one or two characters either way.
+  const positionWidth = compact ? 'w-8' : 'w-12';
+  const nameWidth = compact ? 'min-w-[100px]' : 'min-w-[120px] sm:min-w-[150px]';
+  const recordWidth = compact ? 'w-9' : 'w-12';
+  const goalDifferenceWidth = compact ? 'w-12' : 'w-16';
+  const pointsWidth = compact ? 'w-12' : 'w-16';
+
+  const goalDifferenceCell = (entry: StandingEntry) => (
+    <TableCell
+      className={`text-center text-xs sm:text-sm ${goalDifferenceVisibility} ${
+        entry.goalDifference > 0
+          ? 'text-green-600 dark:text-green-400'
+          : entry.goalDifference < 0
+            ? 'text-red-600 dark:text-red-400'
+            : ''
+      }`}
+      data-testid={`standing-gd-${entry.position}`}
+    >
+      {entry.goalDifference > 0 ? '+' : ''}
+      {entry.goalDifference}
+    </TableCell>
+  );
+
   return (
     <Card data-testid="league-standings-card">
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
@@ -80,34 +129,61 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
         )}
       </CardHeader>
       <CardContent>
-        <div className={`rounded-md border ${compact ? '' : 'overflow-x-auto'}`}>
+        {/* The compact table trades the default cell padding for tighter columns: at the
+            dashboard's width, six columns of px-4 spend more room on padding than on values
+            and push the last column off the card. overflow-x-auto is the backstop for a name
+            long enough to overflow anyway — scrolling beats clipping the points. */}
+        <div
+          className={`rounded-md border overflow-x-auto ${
+            compact ? '[&_th]:px-2 [&_td]:px-2' : ''
+          }`}
+        >
           <Table data-testid="standings-table">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-12 text-center">#</TableHead>
-                <TableHead className="min-w-[120px] sm:min-w-[150px]">Name</TableHead>
-                <TableHead className="text-center w-12">Pick</TableHead>
+                <TableHead className={`${positionWidth} text-center`}>#</TableHead>
+                <TableHead className={nameWidth}>Name</TableHead>
+                {showPick && <TableHead className="text-center w-12">Pick</TableHead>}
                 {!compact && (
                   <TableHead className="text-center w-12 hidden sm:table-cell">P</TableHead>
                 )}
-                {!compact && (
-                  <TableHead className="text-center w-12 hidden sm:table-cell">W</TableHead>
+                {showRecord && (
+                  <TableHead className={`text-center ${recordWidth} ${recordVisibility}`}>
+                    W
+                  </TableHead>
                 )}
-                {!compact && (
-                  <TableHead className="text-center w-12 hidden sm:table-cell">D</TableHead>
+                {showRecord && (
+                  <TableHead className={`text-center ${recordWidth} ${recordVisibility}`}>
+                    D
+                  </TableHead>
                 )}
-                {!compact && (
-                  <TableHead className="text-center w-12 hidden sm:table-cell">L</TableHead>
+                {showRecord && (
+                  <TableHead className={`text-center ${recordWidth} ${recordVisibility}`}>
+                    L
+                  </TableHead>
                 )}
-                <TableHead className="text-center w-16 font-bold">PT</TableHead>
+                {/* On the dashboard GD comes before Pts so points stay the last column;
+                    the full table keeps it with the other goal columns, after Pts. */}
+                {showGoalDifference && compact && (
+                  <TableHead
+                    className={`text-center ${goalDifferenceWidth} ${goalDifferenceVisibility}`}
+                  >
+                    GD
+                  </TableHead>
+                )}
+                <TableHead className={`text-center ${pointsWidth} font-bold`}>Pts</TableHead>
                 {!compact && (
                   <TableHead className="text-center w-16 hidden md:table-cell">GF</TableHead>
                 )}
                 {!compact && (
                   <TableHead className="text-center w-16 hidden md:table-cell">GA</TableHead>
                 )}
-                {!compact && (
-                  <TableHead className="text-center w-16 hidden lg:table-cell">GD</TableHead>
+                {showGoalDifference && !compact && (
+                  <TableHead
+                    className={`text-center ${goalDifferenceWidth} ${goalDifferenceVisibility}`}
+                  >
+                    GD
+                  </TableHead>
                 )}
                 {!compact && <TableHead className="w-[200px] hidden lg:table-cell">Form</TableHead>}
               </TableRow>
@@ -149,12 +225,14 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                           </span>
                         )}
                       </TableCell>
-                      <TableCell
-                        className="text-center"
-                        data-testid={`standing-pick-${entry.position}`}
-                      >
-                        <PickCrest pick={entry.currentPick} showResultLetter />
-                      </TableCell>
+                      {showPick && (
+                        <TableCell
+                          className="text-center"
+                          data-testid={`standing-pick-${entry.position}`}
+                        >
+                          <PickCrest pick={entry.currentPick} showResultLetter />
+                        </TableCell>
+                      )}
                       {!compact && (
                         <TableCell
                           className="text-center text-xs sm:text-sm hidden sm:table-cell"
@@ -163,30 +241,31 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                           {entry.picksMade}
                         </TableCell>
                       )}
-                      {!compact && (
+                      {showRecord && (
                         <TableCell
-                          className="text-center text-xs sm:text-sm hidden sm:table-cell text-green-600 dark:text-green-400"
+                          className={`text-center text-xs sm:text-sm ${recordVisibility} text-green-600 dark:text-green-400`}
                           data-testid={`standing-wins-${entry.position}`}
                         >
                           {entry.wins}
                         </TableCell>
                       )}
-                      {!compact && (
+                      {showRecord && (
                         <TableCell
-                          className="text-center text-xs sm:text-sm hidden sm:table-cell text-yellow-600 dark:text-yellow-400"
+                          className={`text-center text-xs sm:text-sm ${recordVisibility} text-yellow-600 dark:text-yellow-400`}
                           data-testid={`standing-draws-${entry.position}`}
                         >
                           {entry.draws}
                         </TableCell>
                       )}
-                      {!compact && (
+                      {showRecord && (
                         <TableCell
-                          className="text-center text-xs sm:text-sm hidden sm:table-cell text-red-600 dark:text-red-400"
+                          className={`text-center text-xs sm:text-sm ${recordVisibility} text-red-600 dark:text-red-400`}
                           data-testid={`standing-losses-${entry.position}`}
                         >
                           {entry.losses}
                         </TableCell>
                       )}
+                      {showGoalDifference && compact && goalDifferenceCell(entry)}
                       <TableCell
                         className="text-center font-bold text-xs sm:text-sm"
                         data-testid={`standing-points-${entry.position}`}
@@ -203,20 +282,7 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                           {entry.goalsAgainst}
                         </TableCell>
                       )}
-                      {!compact && (
-                        <TableCell
-                          className={`text-center text-xs sm:text-sm hidden lg:table-cell ${
-                            entry.goalDifference > 0
-                              ? 'text-green-600 dark:text-green-400'
-                              : entry.goalDifference < 0
-                                ? 'text-red-600 dark:text-red-400'
-                                : ''
-                          }`}
-                        >
-                          {entry.goalDifference > 0 ? '+' : ''}
-                          {entry.goalDifference}
-                        </TableCell>
-                      )}
+                      {showGoalDifference && !compact && goalDifferenceCell(entry)}
                       {!compact && (
                         <TableCell
                           className="hidden lg:table-cell"
@@ -225,12 +291,7 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                           {entry.form && entry.form.length > 0 ? (
                             <span className="flex items-center gap-1">
                               {entry.form.map((pick) => (
-                                <PickCrest
-                                  key={pick.gameweekNumber}
-                                  pick={pick}
-                                  size="sm"
-                                  showGameweek
-                                />
+                                <FormBadge key={pick.gameweekNumber} pick={pick} />
                               ))}
                             </span>
                           ) : (
@@ -248,20 +309,28 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
         <div className="mt-4 text-xs sm:text-sm text-muted-foreground">
           <p className="font-semibold mb-2">Column Key:</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
-            <div className="hidden sm:block">
-              <strong>P:</strong> Played
-            </div>
+            {!compact && (
+              <div className="hidden sm:block">
+                <strong>P:</strong> Played
+              </div>
+            )}
+            {showRecord && (
+              <div>
+                <strong>W:</strong> Won
+              </div>
+            )}
+            {showRecord && (
+              <div>
+                <strong>D:</strong> Drawn
+              </div>
+            )}
+            {showRecord && (
+              <div>
+                <strong>L:</strong> Lost
+              </div>
+            )}
             <div>
-              <strong>W:</strong> Won
-            </div>
-            <div>
-              <strong>D:</strong> Drawn
-            </div>
-            <div>
-              <strong>L:</strong> Lost
-            </div>
-            <div>
-              <strong>PT:</strong> Points
+              <strong>Pts:</strong> Points
             </div>
             {!compact && (
               <div className="hidden md:block">
@@ -273,8 +342,8 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                 <strong>GA:</strong> Goals Against
               </div>
             )}
-            {!compact && (
-              <div className="hidden lg:block">
+            {showGoalDifference && (
+              <div className={compact ? '' : 'hidden lg:block'}>
                 <strong>GD:</strong> Goal Difference
               </div>
             )}
