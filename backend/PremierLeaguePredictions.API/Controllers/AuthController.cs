@@ -5,6 +5,7 @@ using PremierLeaguePredictions.Infrastructure.Data;
 using PremierLeaguePredictions.Application.DTOs;
 using PremierLeaguePredictions.Core.Entities;
 using PremierLeaguePredictions.Infrastructure.Services;
+using PremierLeaguePredictions.API.Authorization;
 
 namespace PremierLeaguePredictions.API.Controllers;
 
@@ -17,20 +18,20 @@ public class AuthController : ControllerBase
     private readonly ITokenService _tokenService;
     private readonly IGoogleAuthService _googleAuthService;
     private readonly ILogger<AuthController> _logger;
-    private readonly IWebHostEnvironment _env;
+    private readonly IConfiguration _configuration;
 
     public AuthController(
         ApplicationDbContext context,
         ITokenService tokenService,
         IGoogleAuthService googleAuthService,
         ILogger<AuthController> logger,
-        IWebHostEnvironment env)
+        IConfiguration configuration)
     {
         _context = context;
         _tokenService = tokenService;
         _googleAuthService = googleAuthService;
         _logger = logger;
-        _env = env;
+        _configuration = configuration;
     }
 
     [HttpPost("login")]
@@ -100,7 +101,7 @@ public class AuthController : ControllerBase
             }
 
             var token = _tokenService.GenerateToken(user);
-            Response.Cookies.Append("auth_token", token, GetCookieOptions());
+            Response.Cookies.Append(AuthCookie.Name, token, GetCookieOptions());
 
             return Ok(ApiResponse<AuthResponse>.SuccessResult(BuildAuthResponse(user), "Login successful"));
         }
@@ -165,7 +166,7 @@ public class AuthController : ControllerBase
             }
 
             var token = _tokenService.GenerateToken(user);
-            Response.Cookies.Append("auth_token", token, GetCookieOptions());
+            Response.Cookies.Append(AuthCookie.Name, token, GetCookieOptions());
 
             return Ok(ApiResponse<AuthResponse>.SuccessResult(BuildAuthResponse(user), "Registration successful"));
         }
@@ -192,7 +193,7 @@ public class AuthController : ControllerBase
             }
 
             var token = _tokenService.GenerateToken(user);
-            Response.Cookies.Append("auth_token", token, GetCookieOptions());
+            Response.Cookies.Append(AuthCookie.Name, token, GetCookieOptions());
 
             _logger.LogInformation("User logged in via password: {Email}", user.Email);
 
@@ -208,7 +209,15 @@ public class AuthController : ControllerBase
     [HttpPost("logout")]
     public IActionResult Logout()
     {
-        Response.Cookies.Append("auth_token", "", GetCookieOptions(expired: true));
+        Response.Cookies.Append(AuthCookie.Name, "", GetCookieOptions(expired: true));
+
+        // A session that predates the host-only cookie is scoped to the parent domain, and the
+        // expiry above does not match it. Expire that one too or the logout does not take.
+        if (AuthCookie.HasLegacyCookieDomain(Request))
+        {
+            Response.Cookies.Append(AuthCookie.Name, "", AuthCookie.LegacyOptions(Request, _configuration));
+        }
+
         return Ok(ApiResponse.SuccessResult("Logged out successfully"));
     }
 
@@ -228,31 +237,5 @@ public class AuthController : ControllerBase
     };
 
     private CookieOptions GetCookieOptions(bool expired = false)
-    {
-        // Cross-site dev environment (vercel.app ↔ onrender.com) requires SameSite=None; Secure=true.
-        // Testing (CI, localhost) uses Lax + not-secure because it is same-site HTTP.
-        // Production uses Lax + secure because API and frontend share the eplpredict.com domain.
-        var isCrossSiteDev = _env.IsDevelopment();
-        return new CookieOptions
-        {
-            HttpOnly = true,
-            Secure = isCrossSiteDev ? true : !_env.IsEnvironment("Testing"),
-            SameSite = isCrossSiteDev ? SameSiteMode.None : SameSiteMode.Lax,
-            Domain = isCrossSiteDev ? null : GetCookieDomain(),
-            Expires = expired
-                ? DateTimeOffset.UtcNow.AddDays(-1)
-                : DateTimeOffset.UtcNow.AddDays(1)
-        };
-    }
-
-    private string? GetCookieDomain()
-    {
-        var host = Request.Host.Host;
-        if (host == "localhost" || host == "127.0.0.1")
-            return null;
-        var parts = host.Split('.');
-        if (parts.Length >= 2)
-            return $".{parts[^2]}.{parts[^1]}";
-        return null;
-    }
+        => AuthCookie.Options(Request, _configuration, expired);
 }
