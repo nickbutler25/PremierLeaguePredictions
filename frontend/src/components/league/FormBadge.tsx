@@ -12,9 +12,15 @@ interface FormBadgeProps {
  * readable without colour.
  */
 const outcomeStyles: Record<PickOutcome, { letter: string; className: string }> = {
-  Win: { letter: 'W', className: 'bg-green-600 dark:bg-green-500 text-white' },
+  // Letter colour follows the fill rather than the theme: white on a bright green or red is
+  // unreadable at this size (2.3:1 and 3.8:1), so the vivid tiles take a near-black letter the
+  // way the amber one always has. Every pairing here clears 4.5:1.
+  Win: {
+    letter: 'W',
+    className: 'bg-green-700 text-white dark:bg-green-500 dark:text-neutral-950',
+  },
   Draw: { letter: 'D', className: 'bg-amber-500 dark:bg-amber-400 text-black' },
-  Loss: { letter: 'L', className: 'bg-red-600 dark:bg-red-500 text-white' },
+  Loss: { letter: 'L', className: 'bg-red-600 text-white dark:bg-red-500 dark:text-neutral-950' },
   // The form guide is built from settled gameweeks only, so this should not arise. Drawn
   // neutrally rather than dropped, so a stray one shows up as a gap to explain, not a silent
   // shortening of someone's run.

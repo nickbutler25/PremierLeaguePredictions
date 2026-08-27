@@ -63,6 +63,30 @@ public class PickService : IPickService
         return picksList.Select(p => MapToDto(p, teams.FirstOrDefault(t => t.Id == p.TeamId), gameweeks.FirstOrDefault(g => g.SeasonId == p.SeasonId && g.WeekNumber == p.GameweekNumber)));
     }
 
+    /// <summary>
+    /// Refuses the write if the player is out of the competition.
+    /// </summary>
+    /// <remarks>
+    /// The UI already hides picking from an eliminated player, but the rule has to hold where it
+    /// is decided rather than only where it is drawn — the endpoint is reachable without the UI.
+    /// </remarks>
+    private async Task EnsureNotEliminatedAsync(Guid userId, string seasonId, CancellationToken cancellationToken)
+    {
+        var eliminations = await _unitOfWork.UserEliminations.FindAsync(
+            e => e.UserId == userId && e.SeasonId == seasonId, trackChanges: false, cancellationToken);
+
+        var elimination = eliminations.FirstOrDefault();
+        if (elimination == null)
+            return;
+
+        _logger.LogWarning(
+            "User {UserId} attempted to change a pick after being eliminated in GW{GameweekNumber}",
+            userId, elimination.GameweekNumber);
+
+        throw new InvalidOperationException(
+            $"You were eliminated after Gameweek {elimination.GameweekNumber} and can no longer change your picks.");
+    }
+
     public async Task<PickDto> CreatePickAsync(Guid userId, CreatePickRequest request, CancellationToken cancellationToken = default)
     {
         // Verify gameweek exists first (to get season)
@@ -84,6 +108,8 @@ public class PickService : IPickService
             _logger.LogWarning("User {UserId} attempted to create pick without approved participation", userId);
             throw new UnauthorizedAccessException("You must be approved to participate in this season");
         }
+
+        await EnsureNotEliminatedAsync(userId, gameweek.SeasonId, cancellationToken);
 
         // Check if pick already exists for this gameweek
         var existingPick = (await _unitOfWork.Picks.FindAsync(
@@ -151,6 +177,8 @@ public class PickService : IPickService
             throw new InvalidOperationException("Cannot update pick after gameweek deadline");
         }
 
+        await EnsureNotEliminatedAsync(userId, pick.SeasonId, cancellationToken);
+
         // Check if user is approved for this season (applies to all users including admins)
         var participation = await _unitOfWork.SeasonParticipations.FindAsync(
             sp => sp.UserId == userId &&
@@ -204,6 +232,8 @@ public class PickService : IPickService
         {
             throw new InvalidOperationException("Cannot delete pick after gameweek deadline");
         }
+
+        await EnsureNotEliminatedAsync(userId, pick.SeasonId, cancellationToken);
 
         _unitOfWork.Picks.Remove(pick);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

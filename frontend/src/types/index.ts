@@ -225,6 +225,52 @@ export interface HeadToHeadGameweek {
   playerPoints: number;
 }
 
+/** Who has gone out of the competition, and who the next gameweek threatens. */
+export interface EliminationsOverview {
+  seasonId: string;
+  /** Most recent gameweek first. */
+  eliminated: EliminatedPlayer[];
+  activePlayers: number;
+  totalPlayers: number;
+  /** Absent when no elimination is configured for a gameweek still to come. */
+  dangerZone?: DangerZone;
+}
+
+export interface EliminatedPlayer {
+  userId: string;
+  userName: string;
+  photoUrl?: string | null;
+  /** The gameweek after which they went out. */
+  gameweekNumber: number;
+  totalPoints: number;
+  picksMade: number;
+  averagePointsPerGame: number;
+  eliminatedAt: string;
+}
+
+/** Who the next elimination would take if the season stopped now. */
+export interface DangerZone {
+  gameweekNumber: number;
+  deadline: string;
+  eliminationCount: number;
+  /** True once picks can no longer change the outcome. */
+  deadlinePassed: boolean;
+  /** Worst first. */
+  players: AtRiskPlayer[];
+}
+
+export interface AtRiskPlayer {
+  userId: string;
+  userName: string;
+  photoUrl?: string | null;
+  position: number;
+  totalPoints: number;
+  picksMade: number;
+  averagePointsPerGame: number;
+  /** Points per game separating them from the first player out of the zone. */
+  averageBehindSafety: number;
+}
+
 /** How a revealed pick is faring. 'Pending' means revealed but not kicked off. */
 export type PickOutcome = 'Pending' | 'Win' | 'Draw' | 'Loss';
 

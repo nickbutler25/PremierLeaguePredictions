@@ -103,6 +103,138 @@ public class EliminationService : IEliminationService
         return elimination.Any();
     }
 
+    public async Task<EliminationsOverviewDto> GetEliminationsOverviewAsync(
+        string? seasonId = null, CancellationToken cancellationToken = default)
+    {
+        seasonId ??= (await _unitOfWork.Seasons.FindAsync(s => s.IsActive, trackChanges: false, cancellationToken))
+            .FirstOrDefault()?.Name;
+
+        var overview = new EliminationsOverviewDto { SeasonId = seasonId ?? string.Empty };
+        if (string.IsNullOrEmpty(seasonId))
+            return overview;
+
+        // The standings already hold every approved player's record, eliminated ones included,
+        // so the page cannot disagree with the table about anyone's points.
+        var standings = await _leagueService.GetLeagueStandingsAsync(seasonId, cancellationToken);
+        var entriesByUser = standings.Standings.ToDictionary(e => e.UserId);
+
+        var eliminations = (await _unitOfWork.UserEliminations.FindAsync(
+                e => e.SeasonId == seasonId, trackChanges: false, cancellationToken))
+            .ToList();
+
+        var userIds = standings.Standings.Select(e => e.UserId).ToList();
+        var photoByUser = (await _unitOfWork.Users.FindAsync(
+                u => userIds.Contains(u.Id), trackChanges: false, cancellationToken))
+            .ToDictionary(u => u.Id, u => u.PhotoUrl);
+
+        overview.TotalPlayers = standings.Standings.Count;
+        overview.ActivePlayers = standings.Standings.Count(e => !e.IsEliminated);
+
+        overview.Eliminated = eliminations
+            .Where(e => entriesByUser.ContainsKey(e.UserId))
+            .Select(e =>
+            {
+                var entry = entriesByUser[e.UserId];
+                return new EliminatedPlayerDto
+                {
+                    UserId = e.UserId,
+                    UserName = entry.UserName,
+                    PhotoUrl = photoByUser.GetValueOrDefault(e.UserId),
+                    GameweekNumber = e.GameweekNumber,
+                    TotalPoints = entry.TotalPoints,
+                    PicksMade = entry.PicksMade,
+                    AveragePointsPerGame = Average(entry.TotalPoints, entry.PicksMade),
+                    EliminatedAt = e.EliminatedAt
+                };
+            })
+            // Latest casualties first, and within a gameweek the worst record first.
+            .OrderByDescending(e => e.GameweekNumber)
+            .ThenBy(e => e.AveragePointsPerGame)
+            .ToList();
+
+        overview.DangerZone = await BuildDangerZoneAsync(seasonId, standings, photoByUser, cancellationToken);
+
+        return overview;
+    }
+
+    private static decimal Average(int totalPoints, int picksMade) =>
+        picksMade == 0 ? 0m : Math.Round((decimal)totalPoints / picksMade, 2);
+
+    /// <summary>
+    /// Who the next elimination would take if the season stopped now.
+    /// </summary>
+    /// <remarks>
+    /// Ranked the same way <see cref="ProcessGameweekEliminationsAsync"/> ranks, so the page and
+    /// the run cannot disagree about who is in trouble.
+    /// </remarks>
+    private async Task<DangerZoneDto?> BuildDangerZoneAsync(
+        string seasonId,
+        LeagueStandingsDto standings,
+        Dictionary<Guid, string?> photoByUser,
+        CancellationToken cancellationToken)
+    {
+        var processedGameweeks = (await _unitOfWork.UserEliminations.FindAsync(
+                e => e.SeasonId == seasonId, trackChanges: false, cancellationToken))
+            .Select(e => e.GameweekNumber)
+            .ToHashSet();
+
+        var next = (await _unitOfWork.Gameweeks.FindAsync(
+                g => g.SeasonId == seasonId && g.EliminationCount > 0, trackChanges: false, cancellationToken))
+            .Where(g => !processedGameweeks.Contains(g.WeekNumber))
+            .OrderBy(g => g.WeekNumber)
+            .FirstOrDefault();
+
+        if (next == null)
+            return null; // nothing configured ahead — there is no zone to be in
+
+        var contenders = standings.Standings
+            .Where(e => !e.IsEliminated)
+            .Select(e => new
+            {
+                Entry = e,
+                Average = Average(e.TotalPoints, e.PicksMade)
+            })
+            .OrderBy(x => x.Average)
+            .ThenBy(x => x.Entry.TotalPoints)
+            .ThenBy(x => x.Entry.PicksMade)
+            .ThenBy(x => x.Entry.GoalDifference)
+            .ThenBy(x => x.Entry.GoalsFor)
+            .ThenBy(x => x.Entry.UserId)
+            .ToList();
+
+        var zone = new DangerZoneDto
+        {
+            GameweekNumber = next.WeekNumber,
+            Deadline = next.Deadline,
+            EliminationCount = next.EliminationCount,
+            DeadlinePassed = next.Deadline <= DateTime.UtcNow
+        };
+
+        // The first player outside the zone is the bar the others have to clear.
+        var safetyAverage = contenders.Count > next.EliminationCount
+            ? contenders[next.EliminationCount].Average
+            : (decimal?)null;
+
+        zone.Players = contenders
+            .Take(next.EliminationCount)
+            .Select(x => new AtRiskPlayerDto
+            {
+                UserId = x.Entry.UserId,
+                UserName = x.Entry.UserName,
+                PhotoUrl = photoByUser.GetValueOrDefault(x.Entry.UserId),
+                Position = x.Entry.Position,
+                TotalPoints = x.Entry.TotalPoints,
+                PicksMade = x.Entry.PicksMade,
+                AveragePointsPerGame = x.Average,
+                AverageBehindSafety = safetyAverage.HasValue
+                    ? Math.Round(safetyAverage.Value - x.Average, 2)
+                    : 0m
+            })
+            .ToList();
+
+        return zone;
+    }
+
     public async Task<ProcessEliminationsResponse> ProcessGameweekEliminationsAsync(string seasonId, int gameweekNumber, Guid adminUserId, CancellationToken cancellationToken = default)
     {
         var response = new ProcessEliminationsResponse();
@@ -156,21 +288,75 @@ public class EliminationService : IEliminationService
 
         var eliminatedUserIds = alreadyEliminated.Select(e => e.UserId).ToHashSet();
 
-        // Calculate total points for each user (excluding already eliminated users)
-        var userPoints = allPicks
+        // A pick only counts as played once its fixture has a score to give, which is the same
+        // test the standings use for picks made. Without it a player who joined late would be
+        // ranked as though their missing gameweeks were nil scores.
+        var fixtures = await _unitOfWork.Fixtures.FindAsync(
+            f => f.SeasonId == seasonId && f.GameweekNumber <= gameweekNumber,
+            trackChanges: false,
+            cancellationToken);
+
+        var playedTeamsByGameweek = fixtures
+            .Where(f => f.Status is "FINISHED" or "IN_PLAY" or "PAUSED")
+            .GroupBy(f => f.GameweekNumber)
+            .ToDictionary(
+                g => g.Key,
+                g => g.SelectMany(f => new[] { f.HomeTeamId, f.AwayTeamId }).ToHashSet());
+
+        bool HasBeenPlayed(Pick pick) =>
+            playedTeamsByGameweek.TryGetValue(pick.GameweekNumber, out var teams)
+            && teams.Contains(pick.TeamId);
+
+        // Ranked on points per gameweek played, not the raw total: the season's rule is the
+        // lowest average, and the two only agree while everyone has played the same number.
+        // Ranked from the approved players, not from the picks: grouping picks would leave out
+        // anyone who has never made one, and a player with no record at all is precisely who the
+        // rule is meant to catch.
+        var approved = (await _unitOfWork.SeasonParticipations.FindAsync(
+                sp => sp.SeasonId == seasonId && sp.IsApproved, trackChanges: false, cancellationToken))
+            .Select(sp => sp.UserId)
+            .Where(id => !eliminatedUserIds.Contains(id))
+            .Distinct()
+            .ToList();
+
+        var picksByUser = allPicks
             .Where(p => !eliminatedUserIds.Contains(p.UserId))
             .GroupBy(p => p.UserId)
-            .Select(g => new
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        var userStandings = approved
+            .Select(userId =>
             {
-                UserId = g.Key,
-                TotalPoints = g.Sum(p => p.Points)
+                var g = picksByUser.TryGetValue(userId, out var userPicks) ? userPicks : new List<Pick>();
+                var gamesPlayed = g.Count(HasBeenPlayed);
+                var totalPoints = g.Sum(p => p.Points);
+
+                return new
+                {
+                    UserId = userId,
+                    TotalPoints = totalPoints,
+                    GamesPlayed = gamesPlayed,
+                    // Nothing scored yet means there is no average to rank on. Zero puts them
+                    // with the worst, which is where a player who has not scored belongs.
+                    AveragePoints = gamesPlayed == 0 ? 0m : (decimal)totalPoints / gamesPlayed,
+                    GoalDifference = g.Sum(p => p.GoalsFor - p.GoalsAgainst),
+                    GoalsFor = g.Sum(p => p.GoalsFor)
+                };
             })
-            .OrderBy(u => u.TotalPoints)
-            .ThenBy(u => u.UserId) // Tie-breaker: user ID
+            // Ties fall to the total, then to who has played least, then goal difference. Games
+            // played only ever separates players on nothing at all, and there it settles the one
+            // case that matters: a player who never picked ranks below one who picked and lost.
+            // The user id is a last resort so the result is stable, never a decision.
+            .OrderBy(u => u.AveragePoints)
+            .ThenBy(u => u.TotalPoints)
+            .ThenBy(u => u.GamesPlayed)
+            .ThenBy(u => u.GoalDifference)
+            .ThenBy(u => u.GoalsFor)
+            .ThenBy(u => u.UserId)
             .ToList();
 
         // Take bottom X players
-        var usersToEliminate = userPoints.Take(gameweek.EliminationCount).ToList();
+        var usersToEliminate = userStandings.Take(gameweek.EliminationCount).ToList();
 
         _logger.LogInformation("Eliminating {Count} users from GW{WeekNumber}",
             usersToEliminate.Count, gameweek.WeekNumber);

@@ -19,7 +19,7 @@ The opponent is determined from the fixture — users pick a team, and the syste
 
 ## Eliminations
 
-Configurable per season in admin. Each week, X players with the lowest **average points per game** at the end of that gameweek are eliminated.
+Configurable per season in admin. Each week, X players with the lowest **average points per game** at the end of that gameweek are eliminated — points divided by gameweeks whose fixture has a score (the same count the standings call picks made), so joining late is not scored as a run of nil results. Ties fall to total points, then to who has played fewest, then goal difference. Ranking runs over every approved player, not only those with picks: a player who has never picked has the worst possible record and is meant to be caught by this, not exempt from it.
 
 ---
 

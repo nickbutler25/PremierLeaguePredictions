@@ -123,10 +123,16 @@ public class LeagueService : ILeagueService
         }).ToList();
 
         // Sort in memory (minimal data already loaded from database)
+        // The id is not a ranking, but without it players level on every column come back in
+        // whatever order the query happened to produce — so positions shuffled between requests,
+        // and whoever landed last looked bottom of the table without being bottom of anything.
+        // It mirrors the elimination ordering, so the table and the danger zone agree on ties.
         var sortedStandings = standings
             .OrderByDescending(s => s.TotalPoints)
             .ThenByDescending(s => s.GoalDifference)
             .ThenByDescending(s => s.GoalsFor)
+            .ThenBy(s => s.PicksMade)
+            .ThenByDescending(s => s.UserId)
             .ToList();
 
         // Assign positions and ranks

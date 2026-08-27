@@ -177,7 +177,7 @@ export function SeasonApprovalsPage() {
                             variant="default"
                             onClick={() => handleApprove(approval.participationId)}
                             disabled={approveMutation.isPending}
-                            className="bg-green-600 hover:bg-green-700"
+                            className="bg-green-700 hover:bg-green-800"
                           >
                             <CheckCircle2 className="w-4 h-4 mr-1" />
                             Approve

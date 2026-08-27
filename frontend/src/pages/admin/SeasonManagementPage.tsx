@@ -487,7 +487,7 @@ export function SeasonManagementPage() {
                   onClick={() => syncResultsMutation.mutate()}
                   disabled={syncResultsMutation.isPending}
                   variant="default"
-                  className="bg-green-600 hover:bg-green-700"
+                  className="bg-green-700 hover:bg-green-800"
                 >
                   🔄 Sync Results & Update Points
                 </Button>

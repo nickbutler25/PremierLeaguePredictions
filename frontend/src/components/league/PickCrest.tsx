@@ -26,9 +26,11 @@ const outcomeRing: Record<PickOutcome, string> = {
 /** Letter badge shown beside the crest. Pending has no letter — the match has not started. */
 const outcomeBadge: Record<PickOutcome, { letter: string; className: string } | null> = {
   Pending: null,
-  Win: { letter: 'W', className: 'bg-green-600 dark:bg-green-500' },
+  // Matches FormBadge: white on a bright green or red is unreadable at this size, so the vivid
+  // tiles take a near-black letter instead. Every pairing clears 4.5:1.
+  Win: { letter: 'W', className: 'bg-green-700 dark:bg-green-500 dark:text-neutral-950' },
   Draw: { letter: 'D', className: 'bg-amber-500 dark:bg-amber-400 text-black' },
-  Loss: { letter: 'L', className: 'bg-red-600 dark:bg-red-500' },
+  Loss: { letter: 'L', className: 'bg-red-600 dark:bg-red-500 dark:text-neutral-950' },
 };
 
 /**

@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { dashboardService } from '@/services/dashboard';
 import { leagueService } from '@/services/league';
@@ -123,8 +124,17 @@ export function Summary() {
             <strong>⚠️ You have been eliminated from the competition.</strong>
             {eliminatedInGameweek && (
               <p className="mt-1">
-                You were eliminated after Gameweek {eliminatedInGameweek}. You can still view your
-                picks and the league standings, but you cannot make new picks.
+                You were eliminated after Gameweek {eliminatedInGameweek}. You cannot make new
+                picks, and the league table now shows only players still in. Your season is kept on
+                your{' '}
+                <Link to="/profile" className="underline underline-offset-4">
+                  profile
+                </Link>{' '}
+                and on the{' '}
+                <Link to="/eliminations" className="underline underline-offset-4">
+                  eliminations page
+                </Link>
+                .
               </p>
             )}
           </AlertDescription>

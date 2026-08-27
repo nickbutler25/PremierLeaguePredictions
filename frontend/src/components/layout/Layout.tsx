@@ -14,7 +14,7 @@ interface LayoutProps {
 }
 
 export function Layout({ children }: LayoutProps) {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, updateUser } = useAuth();
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
 
@@ -26,11 +26,18 @@ export function Layout({ children }: LayoutProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.themePreference]);
 
-  const handleToggleTheme = () => {
+  const handleToggleTheme = async () => {
     const next = theme === 'light' ? 'dark' : 'light';
     setTheme(next);
-    // Persist to the account (best-effort); ThemeContext handles localStorage + <html> class.
-    usersService.updateTheme(next).catch(() => {});
+
+    // Persist to the account, and put the saved value back on the user. The effect above treats
+    // user.themePreference as the truth and re-applies it every time this layout mounts — which
+    // is on every navigation — so leaving it stale made the next page flip the theme back.
+    try {
+      updateUser(await usersService.updateTheme(next));
+    } catch {
+      // Best-effort: the theme still applies locally and persists to localStorage.
+    }
   };
 
   // Subscribe to real-time updates
@@ -43,10 +50,10 @@ export function Layout({ children }: LayoutProps) {
     navigate('/login');
   };
 
-  // Transparent in dark mode so the body's nebula glow shows through: an opaque wrapper here
-  // paints over it across the whole viewport.
+  // Transparent in both themes so the body's gradient shows through: an opaque wrapper here
+  // paints over it across the whole viewport, and body already covers the canvas.
   return (
-    <div className="min-h-screen bg-background dark:bg-transparent">
+    <div className="min-h-screen bg-transparent">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded"
@@ -54,7 +61,7 @@ export function Layout({ children }: LayoutProps) {
         Skip to main content
       </a>
       <header
-        className="border-b pt-[env(safe-area-inset-top)] dark:bg-card/40 dark:backdrop-blur-sm"
+        className="border-b pt-[env(safe-area-inset-top)] bg-card/70 backdrop-blur-sm dark:bg-card/40"
         role="banner"
         data-testid="main-header"
       >
@@ -103,6 +110,19 @@ export function Layout({ children }: LayoutProps) {
                 data-testid="league-link"
               >
                 League
+              </NavLink>
+              <NavLink
+                to="/eliminations"
+                className={({ isActive }) =>
+                  `text-sm px-3 py-1.5 rounded-md font-medium transition-colors ${
+                    isActive
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-foreground hover:bg-accent'
+                  }`
+                }
+                data-testid="eliminations-link"
+              >
+                Eliminations
               </NavLink>
               {isAdmin && (
                 <NavLink
