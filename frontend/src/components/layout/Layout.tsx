@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { UserAvatar } from '@/components/UserAvatar';
+import { MobileNav } from '@/components/layout/MobileNav';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAutoPickNotifications } from '@/hooks/useAutoPickNotifications';
@@ -97,6 +98,19 @@ export function Layout({ children }: LayoutProps) {
                 data-testid="dashboard-link"
               >
                 Dashboard
+              </NavLink>
+              <NavLink
+                to="/gameweek"
+                className={({ isActive }) =>
+                  `text-sm px-3 py-1.5 rounded-md font-medium transition-colors ${
+                    isActive
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-foreground hover:bg-accent'
+                  }`
+                }
+                data-testid="gameweek-link"
+              >
+                Gameweek
               </NavLink>
               <NavLink
                 to="/league"
@@ -219,9 +233,16 @@ export function Layout({ children }: LayoutProps) {
           </div>
         </div>
       </header>
-      <main id="main-content" role="main">
+      {/* The bar is fixed, so the page has to reserve its height or the last card on every
+          screen sits under it. Only below md, where the bar exists. */}
+      <main
+        id="main-content"
+        role="main"
+        className="pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0"
+      >
         {children}
       </main>
+      {user && <MobileNav isAdmin={isAdmin} />}
     </div>
   );
 }

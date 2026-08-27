@@ -251,7 +251,7 @@ public class LeagueService : ILeagueService
     private async Task<LeagueStandingsDto> WithCurrentPicksAsync(
         LeagueStandingsDto standings, string seasonId, CancellationToken cancellationToken)
     {
-        var gameweek = await FindActiveGameweekAsync(seasonId, cancellationToken);
+        var gameweek = await ActiveGameweekFinder.FindAsync(_unitOfWork, seasonId, cancellationToken);
         if (gameweek == null)
             return standings;
 
@@ -294,43 +294,4 @@ public class LeagueService : ILeagueService
             LastUpdated = standings.LastUpdated
         };
     }
-
-    /// <summary>
-    /// The gameweek whose picks are in play: the most recent one whose deadline has passed and
-    /// which still has a fixture unfinished or yet to kick off. Matches the definition the
-    /// dashboard uses, so the two never disagree about which gameweek is current.
-    /// </summary>
-    private async Task<Gameweek?> FindActiveGameweekAsync(string seasonId, CancellationToken cancellationToken)
-    {
-        var now = DateTime.UtcNow;
-
-        var candidates = (await _unitOfWork.Gameweeks.FindAsync(
-                g => g.SeasonId == seasonId && g.Deadline <= now,
-                trackChanges: false, cancellationToken))
-            .OrderByDescending(g => g.Deadline)
-            .ToList();
-
-        foreach (var gameweek in candidates)
-        {
-            var fixtures = await _unitOfWork.Fixtures.FindAsync(
-                f => f.SeasonId == seasonId && f.GameweekNumber == gameweek.WeekNumber,
-                trackChanges: false, cancellationToken);
-
-            var fixtureList = fixtures.ToList();
-            if (fixtureList.Count == 0)
-                continue;
-
-            var stillRunning = fixtureList.Any(f => f.Status != "FINISHED") ||
-                               fixtureList.Any(f => f.KickoffTime > now);
-
-            if (stillRunning)
-                return gameweek;
-
-            // Deadlines are ordered, so once a gameweek is fully played every earlier one is too.
-            break;
-        }
-
-        return null;
-    }
-
 }

@@ -94,7 +94,8 @@ public class UserProfileService : IUserProfileService
             .OfType<PickSummaryDto>()
             .ToList();
 
-        profile.TeamUsage = await BuildTeamUsageAsync(seasonId, playerPicks, teams, cancellationToken);
+        var pickRules = await _pickRuleService.GetPickRulesForSeasonAsync(seasonId);
+        profile.TeamUsage = TeamUsageBuilder.Build(playerPicks, teams, pickRules);
 
         if (viewerId != userId)
         {
@@ -142,63 +143,6 @@ public class UserProfileService : IUserProfileService
         profile.CurrentPick = entry.CurrentPick;
     }
 
-    /// <summary>
-    /// Which teams are spent and which remain for the half the season has reached.
-    /// </summary>
-    /// <remarks>
-    /// Counted from revealed picks only. A pick for an open gameweek would otherwise show up as
-    /// a team missing from the available list, which gives it away as plainly as naming it.
-    /// </remarks>
-    private async Task<TeamUsageDto> BuildTeamUsageAsync(
-        string seasonId, List<Pick> revealedPicks, Dictionary<int, Team> teams, CancellationToken cancellationToken)
-    {
-        var latestGameweek = revealedPicks.Count > 0
-            ? revealedPicks.Max(p => p.GameweekNumber)
-            : GameRules.FirstHalfStart;
-
-        var half = GameRules.GetHalfForGameweek(latestGameweek);
-        var firstGameweek = GameRules.GetHalfStart(half);
-        var lastGameweek = GameRules.GetHalfEnd(half);
-
-        var rules = await _pickRuleService.GetPickRulesForSeasonAsync(seasonId);
-        var rule = half == GameRules.FirstHalf ? rules.FirstHalf : rules.SecondHalf;
-        var maxPerTeam = rule?.MaxTimesTeamCanBePicked ?? 1;
-
-        var timesPicked = revealedPicks
-            .Where(p => p.GameweekNumber >= firstGameweek && p.GameweekNumber <= lastGameweek)
-            .GroupBy(p => p.TeamId)
-            .ToDictionary(g => g.Key, g => g.Count());
-
-        var usage = new TeamUsageDto
-        {
-            Half = half,
-            FirstGameweek = firstGameweek,
-            LastGameweek = lastGameweek,
-            MaxTimesTeamCanBePicked = maxPerTeam
-        };
-
-        foreach (var team in teams.Values.Where(t => t.IsActive).OrderBy(t => t.Name))
-        {
-            var picked = timesPicked.TryGetValue(team.Id, out var count) ? count : 0;
-            var entry = new TeamUsageEntryDto
-            {
-                TeamId = team.Id,
-                TeamName = team.Name,
-                TeamShortName = team.MediumName ?? team.Code,
-                LogoUrl = team.LogoUrl,
-                TimesPicked = picked
-            };
-
-            // Spent means picked as many times as the rules allow, not picked at all — which is
-            // what makes the second half's allowance work without a special case here.
-            if (picked >= maxPerTeam)
-                usage.Used.Add(entry);
-            else
-                usage.Available.Add(entry);
-        }
-
-        return usage;
-    }
 
     /// <summary>
     /// The two players over the gameweeks both have a revealed pick for, and the points each

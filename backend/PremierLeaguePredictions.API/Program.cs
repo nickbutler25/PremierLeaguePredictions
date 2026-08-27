@@ -279,6 +279,7 @@ builder.Services.AddScoped<ILeagueService, LeagueService>();
 builder.Services.AddScoped<IUserProfileService, UserProfileService>();
 builder.Services.AddScoped<ISeasonParticipationService, SeasonParticipationService>();
 builder.Services.AddScoped<IEliminationService, EliminationService>();
+builder.Services.AddScoped<ILiveGameweekService, LiveGameweekService>();
 builder.Services.AddScoped<IGameweekCompletionService, GameweekCompletionService>();
 builder.Services.AddScoped<IAutoPickService, AutoPickService>();
 builder.Services.AddScoped<IPickReminderService, PickReminderService>();

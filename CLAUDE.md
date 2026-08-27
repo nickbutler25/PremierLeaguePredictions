@@ -23,6 +23,43 @@ Configurable per season in admin. Each week, X players with the lowest **average
 
 ---
 
+## The Gameweek Page (`/gameweek`, `/gameweek/:n`)
+
+A per-player view of one gameweek: their own pick with its score, what share of the field took
+each team, who is closing on them in the table, whether the week put them out, the fixtures with
+how many players each carries, and what the pick left them for the rest of the half.
+
+**A gameweek is served only once its deadline has passed.** `GET /api/v1/gameweek` answers
+`isRevealed: false` with the next deadline for anything else — including a gameweek asked for by
+number that has not locked, which is answered the same way rather than 404, so the response does
+not confirm which gameweeks exist. The payload names every player's pick, so serving it early
+would let a player pick around the field. Same rule as the reveal gate on
+`PickService.GetPicksByGameweekAsync`; `LiveGameweekServiceTests` pins it, and
+`availableGameweeks` only ever lists revealed gameweeks so the selector cannot reach past it.
+
+With no `gameweek` param it returns the one being played, and the most recent one played when
+nothing is live — so the page falls back to history rather than to a dead countdown. `IsLive`
+means "still being played" (via `ActiveGameweekFinder`, shared with the standings so the two
+cannot disagree about which gameweek is current); `IsRevealed` means "there is content".
+
+**The table is rebuilt as it stood at the end of the selected gameweek**, not read from
+`LeagueService`, because the standings only know about now — today's positions against a pick
+from twelve weeks ago would answer a different question. Position movement is that aggregate at
+`n` against the same at `n-1`; there is no stored mid-week snapshot to read. For the live
+gameweek the rebuild and the standings are answering the same question, and
+`TheLiveViewAgreesWithTheLeagueTable` pins that they match — **the standings remain the
+authority, and this must not be allowed to drift from them.**
+
+Eliminations on the page are a forecast only while the gameweek is live and unprocessed. Once
+run, the same section shows what actually happened (`isSettled`). A gameweek that finished
+without being processed gets nothing — guessing would name players in a drop zone that may never
+be applied.
+
+The page is **push-driven, not polled**: `useResultsUpdates` invalidates `['live-gameweek']` on the
+SignalR `ResultsUpdated` event. Do not add a `refetchInterval`.
+
+---
+
 ## Tech Stack
 
 **Backend:** .NET 10, ASP.NET Core Web API, Entity Framework Core 10, PostgreSQL (Supabase), Serilog, FluentValidation, AutoMapper, SignalR, JWT + Google OAuth
@@ -146,6 +183,9 @@ develop   → main     (PR, tests must pass → auto-deploy to Render)
 | EF Core context | `backend/PremierLeaguePredictions.Infrastructure/Data/ApplicationDbContext.cs` |
 | Auth policies | `backend/PremierLeaguePredictions.API/Authorization/AdminPolicies.cs` |
 | API container build (prod / dev) | `backend/Dockerfile` / `backend/Dockerfile.dev` |
+| Gameweek page service | `backend/PremierLeaguePredictions.Application/Services/LiveGameweekService.cs` |
+| Gameweek page endpoint | `backend/PremierLeaguePredictions.API/Controllers/GameweekController.cs` |
+| Gameweek page (UI) | `frontend/src/pages/GameweekPage.tsx` + `frontend/src/components/gameweek/` |
 | Frontend routes | `frontend/App.tsx` |
 | Auth context | `frontend/src/contexts/` |
 
