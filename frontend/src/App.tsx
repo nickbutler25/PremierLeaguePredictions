@@ -10,6 +10,7 @@ import { Layout } from '@/components/layout/Layout';
 import { LoginPage } from '@/pages/LoginPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { ProfilePage } from '@/pages/ProfilePage';
+import { UserProfilePage } from '@/pages/UserProfilePage';
 import { PendingApprovalPage } from '@/pages/PendingApprovalPage';
 import { LeagueStandings } from '@/components/league/LeagueStandings';
 import { SeasonManagementPage } from '@/pages/admin/SeasonManagementPage';
@@ -124,6 +125,16 @@ function AppRoutes() {
               <div className="container mx-auto p-6">
                 <LeagueStandings />
               </div>
+            </Layout>
+          </ApprovalCheckRoute>
+        }
+      />
+      <Route
+        path="/users/:userId"
+        element={
+          <ApprovalCheckRoute>
+            <Layout>
+              <UserProfilePage />
             </Layout>
           </ApprovalCheckRoute>
         }

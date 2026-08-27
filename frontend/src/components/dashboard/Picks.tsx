@@ -245,7 +245,10 @@ export function Picks() {
       <CardContent>
         <div className="rounded-md border max-h-[600px] overflow-y-auto">
           <Table data-testid="picks-table">
-            <TableHeader className="sticky top-0 bg-background z-10">
+            {/* bg-card, not bg-background: this header sticks inside a Card, so it has to match the
+                surface it sits on. The two tokens were the same colour in the old dark theme,
+                which hid the mismatch until the palette gave cards their own shade. */}
+            <TableHeader className="sticky top-0 bg-card z-10">
               <TableRow>
                 <TableHead className="w-16 sm:w-24 text-xs sm:text-sm">GW</TableHead>
                 <TableHead className="text-xs sm:text-sm">Team</TableHead>
@@ -268,12 +271,12 @@ export function Picks() {
                   <TableRow
                     key={gw}
                     data-testid={`pick-row-gw${gw}`}
-                    className={gw === currentGameweek ? 'bg-blue-50 dark:bg-blue-950/30' : ''}
+                    className={gw === currentGameweek ? 'bg-blue-50 dark:bg-violet-500/10' : ''}
                   >
                     <TableCell className="font-medium text-xs sm:text-sm">
                       {gw}
                       {gw === currentGameweek && (
-                        <span className="ml-1 text-xs text-blue-600 dark:text-blue-400">•</span>
+                        <span className="ml-1 text-xs text-blue-600 dark:text-violet-300">•</span>
                       )}
                     </TableCell>
                     <TableCell className="text-xs sm:text-sm">
@@ -336,27 +339,27 @@ export function Picks() {
                           <button
                             data-testid={`select-team-button-gw${gw}`}
                             onClick={() => setSelectedGameweek(gw)}
-                            className="text-blue-600 dark:text-blue-400 hover:underline text-xs sm:text-sm"
+                            className="text-blue-600 dark:text-violet-300 hover:underline text-xs sm:text-sm"
                           >
                             {availableTeams.length > 0 ? 'Select team...' : 'No teams available'}
                           </button>
                         )
                       ) : deadlinePassed ? (
-                        <span className="text-gray-400 dark:text-gray-500 text-xs sm:text-sm italic flex items-center gap-1">
+                        <span className="text-gray-400 dark:text-muted-foreground text-xs sm:text-sm italic flex items-center gap-1">
                           <span className="hidden sm:inline">🔒 Deadline Passed</span>
                           <span className="sm:hidden">🔒 Locked</span>
                         </span>
                       ) : isEliminated ? (
-                        <span className="text-gray-400 dark:text-gray-500 text-xs sm:text-sm italic">
+                        <span className="text-gray-400 dark:text-muted-foreground text-xs sm:text-sm italic">
                           🚫 <span className="hidden sm:inline">Eliminated</span>
                         </span>
                       ) : isSecondHalfLocked ? (
-                        <span className="text-gray-400 dark:text-gray-500 text-xs sm:text-sm italic">
+                        <span className="text-gray-400 dark:text-muted-foreground text-xs sm:text-sm italic">
                           <span className="hidden sm:inline">Locked (2nd Half)</span>
                           <span className="sm:hidden">Locked</span>
                         </span>
                       ) : (
-                        <span className="text-gray-400 dark:text-gray-500 text-xs sm:text-sm italic">
+                        <span className="text-gray-400 dark:text-muted-foreground text-xs sm:text-sm italic">
                           -
                         </span>
                       )}
@@ -393,7 +396,7 @@ export function Picks() {
           </Table>
         </div>
         <div className="mt-4 text-xs sm:text-sm text-muted-foreground space-y-1">
-          <p>• Current gameweek highlighted in blue</p>
+          <p>• Current gameweek is highlighted</p>
           <p>• Picks cannot be changed after deadline 🔒</p>
           {currentGameweek <= 20
             ? // First half - only show first half rules

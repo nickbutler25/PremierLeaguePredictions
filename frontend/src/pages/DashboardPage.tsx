@@ -125,11 +125,11 @@ export function DashboardPage() {
               There is currently no active season or gameweeks scheduled.
             </p>
             {user?.isAdmin && (
-              <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
-                <h3 className="font-semibold text-blue-800 dark:text-blue-300 mb-2">
+              <div className="bg-blue-50 dark:bg-violet-500/10 p-4 rounded-lg border border-blue-200 dark:border-violet-800/60">
+                <h3 className="font-semibold text-blue-800 dark:text-violet-300 mb-2">
                   Admin Action Required
                 </h3>
-                <p className="text-sm text-blue-700 dark:text-blue-400 mb-4">
+                <p className="text-sm text-blue-700 dark:text-violet-300 mb-4">
                   As an admin, you can create a new season and generate gameweeks to get started.
                 </p>
                 <Link

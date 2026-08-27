@@ -276,6 +276,7 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<ILeagueService, LeagueService>();
+builder.Services.AddScoped<IUserProfileService, UserProfileService>();
 builder.Services.AddScoped<ISeasonParticipationService, SeasonParticipationService>();
 builder.Services.AddScoped<IEliminationService, EliminationService>();
 builder.Services.AddScoped<IGameweekCompletionService, GameweekCompletionService>();
@@ -297,9 +298,11 @@ builder.Services.AddScoped<INotificationService>(sp =>
 {
     var hubContext = sp.GetRequiredService<IHubContext<PremierLeaguePredictions.API.Hubs.NotificationHub>>();
     var emailService = sp.GetRequiredService<IEmailService>();
+    var configuration = sp.GetRequiredService<IConfiguration>();
     var logger = sp.GetRequiredService<ILogger<SignalRNotificationService>>();
     // Cast to IHubContext<Hub> since that's what SignalRNotificationService expects
-    return new SignalRNotificationService((IHubContext<Hub>)(object)hubContext, emailService, logger);
+    return new SignalRNotificationService(
+        (IHubContext<Hub>)(object)hubContext, emailService, configuration, logger);
 });
 
 // Register Football Data API services

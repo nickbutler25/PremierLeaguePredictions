@@ -149,6 +149,82 @@ export interface StandingEntry {
   form?: PickSummary[];
 }
 
+/**
+ * Another player's season, as everyone is allowed to see it.
+ *
+ * Everything here is built from picks whose gameweek deadline has passed. A pick for a gameweek
+ * still open is private, and so is anything it could be inferred from.
+ */
+export interface UserProfile {
+  userId: string;
+  firstName: string;
+  lastName: string;
+  photoUrl?: string | null;
+  seasonId: string;
+  /** Absent when the player has no standings row for the season. */
+  standing?: UserStanding;
+  /** The pick for the gameweek in progress, once its deadline has passed. */
+  currentPick?: PickSummary;
+  currentGameweek?: number;
+  /** Revealed picks from earlier gameweeks, most recent first. */
+  previousPicks: PickSummary[];
+  teamUsage?: TeamUsage;
+  /** Absent when a player is looking at their own profile. */
+  headToHead?: HeadToHead;
+}
+
+export interface UserStanding {
+  position: number;
+  totalPoints: number;
+  picksMade: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalDifference: number;
+  /** The figure eliminations run on, so it matters more to survival than the raw total. */
+  averagePointsPerGame: number;
+  isEliminated: boolean;
+  eliminatedInGameweek?: number;
+}
+
+/** Teams spent and teams left for the current half, counted from revealed picks only. */
+export interface TeamUsage {
+  half: number;
+  firstGameweek: number;
+  lastGameweek: number;
+  maxTimesTeamCanBePicked: number;
+  used: TeamUsageEntry[];
+  available: TeamUsageEntry[];
+}
+
+export interface TeamUsageEntry {
+  teamId: number;
+  teamName: string;
+  teamShortName?: string;
+  logoUrl?: string;
+  timesPicked: number;
+}
+
+/** Your season against theirs, over the gameweeks you both have a revealed pick for. */
+export interface HeadToHead {
+  gameweeksCompared: number;
+  samePickCount: number;
+  viewerPoints: number;
+  playerPoints: number;
+  /** Gameweeks where you picked differently, most recent first. */
+  differences: HeadToHeadGameweek[];
+}
+
+export interface HeadToHeadGameweek {
+  gameweekNumber: number;
+  viewerPick: PickSummary;
+  playerPick: PickSummary;
+  viewerPoints: number;
+  playerPoints: number;
+}
+
 /** How a revealed pick is faring. 'Pending' means revealed but not kicked off. */
 export type PickOutcome = 'Pending' | 'Win' | 'Draw' | 'Loss';
 

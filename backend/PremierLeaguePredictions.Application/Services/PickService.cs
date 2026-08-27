@@ -211,8 +211,27 @@ public class PickService : IPickService
         _logger.LogInformation("Pick {PickId} deleted by user {UserId}", id, userId);
     }
 
+    /// <summary>
+    /// Every player's pick for one gameweek — but only once its deadline has passed.
+    /// </summary>
+    /// <remarks>
+    /// Before the deadline these picks are private: reading the field would let a player pick
+    /// around everyone else. The gate lives here rather than in the controller so that no caller
+    /// can reach the picks without it.
+    /// </remarks>
     public async Task<IEnumerable<PickDto>> GetPicksByGameweekAsync(string seasonId, int gameweekNumber, CancellationToken cancellationToken = default)
     {
+        var gameweek = await _unitOfWork.Gameweeks.FirstOrDefaultAsync(
+            g => g.SeasonId == seasonId && g.WeekNumber == gameweekNumber, cancellationToken);
+
+        if (gameweek == null || gameweek.Deadline > DateTime.UtcNow)
+        {
+            _logger.LogInformation(
+                "Refused picks for {SeasonId} GW{GameweekNumber}: the deadline has not passed",
+                seasonId, gameweekNumber);
+            return Enumerable.Empty<PickDto>();
+        }
+
         var picks = await _unitOfWork.Picks.FindAsync(p => p.SeasonId == seasonId && p.GameweekNumber == gameweekNumber, trackChanges: false, cancellationToken);
         var picksList = picks.ToList();
 

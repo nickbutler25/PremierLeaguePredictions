@@ -199,7 +199,7 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                       data-testid={`standing-row-${entry.position}`}
                       className={
                         isCurrentUser
-                          ? 'bg-blue-50 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-950/40'
+                          ? 'bg-blue-50 dark:bg-violet-500/10 hover:bg-blue-100 dark:hover:bg-blue-950/40'
                           : ''
                       }
                     >
@@ -213,12 +213,16 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                         className={`text-xs sm:text-sm ${isCurrentUser ? 'font-bold' : ''}`}
                         data-testid={`standing-name-${entry.position}`}
                       >
-                        <span className="block sm:inline truncate max-w-[100px] sm:max-w-none">
+                        <Link
+                          to={`/users/${entry.userId}`}
+                          className="block sm:inline truncate max-w-[100px] sm:max-w-none hover:underline underline-offset-4"
+                          data-testid={`standing-name-link-${entry.position}`}
+                        >
                           {entry.userName}
-                        </span>
+                        </Link>
                         {isCurrentUser && (
                           <span
-                            className="ml-1 sm:ml-2 text-xs text-blue-600 dark:text-blue-400"
+                            className="ml-1 sm:ml-2 text-xs text-blue-600 dark:text-violet-300"
                             data-testid="current-user-indicator"
                           >
                             (You)

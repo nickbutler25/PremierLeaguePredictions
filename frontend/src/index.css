@@ -26,26 +26,32 @@
     --radius: 0.5rem;
   }
 
+  /* Nebula Night — cosmic purple glow over deep blue undertones.
+     Surfaces step #080414 (page) -> #11112B (card) -> #1E1B4B (raised), so a card lifts off the
+     page and a raised element off the card without any of them turning grey. Hue stays in the
+     240-260 band throughout: the near-black is a very dark violet, not black with a filter. */
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --background: 255 67% 5%; /* #080414 */
+    --foreground: 250 40% 96%;
+    --card: 240 43% 12%; /* #11112B */
+    --card-foreground: 250 40% 96%;
+    --popover: 258 55% 8%; /* between page and card, so popovers read as floating */
+    --popover-foreground: 250 40% 96%;
+    /* Violet accent, matching the light theme's purple rather than shadcn's white-on-dark. */
+    --primary: 258 90% 66%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 244 47% 20%; /* #1E1B4B */
+    --secondary-foreground: 250 40% 96%;
+    --muted: 243 40% 15%;
+    --muted-foreground: 245 25% 68%;
+    --accent: 244 47% 20%;
+    --accent-foreground: 250 40% 96%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    /* Borders sit just above the card so edges register without drawing a line of their own. */
+    --border: 245 35% 18%;
+    --input: 245 35% 18%;
+    --ring: 258 90% 66%;
   }
 }
 
@@ -55,6 +61,17 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+
+  /* The glow that makes it Nebula Night rather than a flat near-black: two wide, low-opacity
+     pools of colour bled in from the top corners — indigo on the left, violet on the right.
+     Fixed, so they stay put while the page scrolls instead of tiling down a long table. */
+  .dark body {
+    background-image:
+      radial-gradient(75rem 45rem at 12% -12%, hsl(244 60% 32% / 0.5), transparent 62%),
+      radial-gradient(65rem 40rem at 92% -6%, hsl(276 65% 34% / 0.34), transparent 58%);
+    background-attachment: fixed;
+    background-repeat: no-repeat;
   }
 
   /* Theme-aware scrollbars — the muted token flips with the .dark class, so these adapt

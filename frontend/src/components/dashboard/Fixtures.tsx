@@ -74,7 +74,7 @@ export function Fixtures() {
         }
         // Grey: Picked in a future gameweek
         if (gw > fixtureGameweek) {
-          return 'text-gray-400 dark:text-gray-500';
+          return 'text-gray-400 dark:text-muted-foreground';
         }
       }
     }
@@ -124,7 +124,7 @@ export function Fixtures() {
         <CardDescription>
           <span className="text-green-600 dark:text-green-400">●</span> Your pick{' '}
           <span className="text-red-600 dark:text-red-400">●</span> Already picked{' '}
-          <span className="text-gray-400 dark:text-gray-500">●</span> Future pick
+          <span className="text-gray-400 dark:text-muted-foreground">●</span> Future pick
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -146,7 +146,7 @@ export function Fixtures() {
           <div className="text-center">
             <div className="font-bold">Gameweek {displayGameweek}</div>
             {displayGameweek === currentGameweek && (
-              <div className="text-xs text-blue-600 dark:text-blue-400">Current</div>
+              <div className="text-xs text-blue-600 dark:text-violet-300">Current</div>
             )}
           </div>
 

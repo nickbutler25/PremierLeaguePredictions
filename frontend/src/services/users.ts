@@ -1,5 +1,5 @@
 import { apiClient } from './api';
-import type { ApiResponse, User, UpdateUserRequest } from '@/types';
+import type { ApiResponse, User, UpdateUserRequest, UserProfile } from '@/types';
 
 export interface UserListItem {
   id: string;
@@ -18,6 +18,19 @@ export const usersService = {
 
   async getUser(userId: string): Promise<UserListItem> {
     const response = await apiClient.get<ApiResponse<UserListItem>>(`/api/users/${userId}`);
+    return response.data.data!;
+  },
+
+  /**
+   * Another player's season. Safe to call for anyone: the server leaves out any pick whose
+   * deadline has not passed, so there is nothing here to gain an advantage from.
+   */
+  async getProfile(userId: string, seasonId?: string): Promise<UserProfile> {
+    const response = await apiClient.get<ApiResponse<UserProfile>>(
+      `/api/v1/users/${userId}/profile`,
+      // Season names are the identifier and end up in the query rather than the path.
+      seasonId ? { params: { seasonId } } : undefined
+    );
     return response.data.data!;
   },
 

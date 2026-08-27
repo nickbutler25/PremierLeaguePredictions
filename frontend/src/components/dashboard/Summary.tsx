@@ -145,7 +145,7 @@ export function Summary() {
               {isInProgress ? (
                 <span className="text-amber-600 dark:text-amber-400 font-medium">In Progress</span>
               ) : countdown ? (
-                <span className="text-blue-600 dark:text-blue-400 font-medium">
+                <span className="text-blue-600 dark:text-violet-300 font-medium">
                   {countdown} until deadline
                 </span>
               ) : (

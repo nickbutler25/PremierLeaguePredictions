@@ -22,15 +22,18 @@ public class UsersController : ControllerBase
     private const long MaxPhotoBytes = 5 * 1024 * 1024; // 5 MB
 
     private readonly IUserService _userService;
+    private readonly IUserProfileService _userProfileService;
     private readonly ISupabaseStorageService _storageService;
     private readonly ILogger<UsersController> _logger;
 
     public UsersController(
         IUserService userService,
+        IUserProfileService userProfileService,
         ISupabaseStorageService storageService,
         ILogger<UsersController> logger)
     {
         _userService = userService;
+        _userProfileService = userProfileService;
         _storageService = storageService;
         _logger = logger;
     }
@@ -51,6 +54,24 @@ public class UsersController : ControllerBase
         if (user == null)
             return NotFound(ApiResponse<UserDto>.FailureResult("User not found"));
         return Ok(ApiResponse<UserDto>.SuccessResult(user));
+    }
+
+    /// <summary>
+    /// Another player's season: their record, their revealed picks, what they have left to pick
+    /// from, and how they compare with you. Open to any signed-in player — picks that have not
+    /// passed their deadline are left out, so there is nothing here to gain an advantage from.
+    /// </summary>
+    [HttpGet("{id}/profile")]
+    public async Task<ActionResult<ApiResponse<UserProfileDto>>> GetUserProfile(
+        Guid id, [FromQuery] string? seasonId, CancellationToken cancellationToken)
+    {
+        var profile = await _userProfileService.GetUserProfileAsync(
+            id, GetUserIdFromClaims(), seasonId, cancellationToken);
+
+        if (profile == null)
+            return NotFound(ApiResponse<UserProfileDto>.FailureResult("User not found"));
+
+        return Ok(ApiResponse<UserProfileDto>.SuccessResult(profile));
     }
 
     [HttpGet("{id}")]

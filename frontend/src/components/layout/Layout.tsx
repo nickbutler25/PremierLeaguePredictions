@@ -43,8 +43,10 @@ export function Layout({ children }: LayoutProps) {
     navigate('/login');
   };
 
+  // Transparent in dark mode so the body's nebula glow shows through: an opaque wrapper here
+  // paints over it across the whole viewport.
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background dark:bg-transparent">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded"
@@ -52,7 +54,7 @@ export function Layout({ children }: LayoutProps) {
         Skip to main content
       </a>
       <header
-        className="border-b pt-[env(safe-area-inset-top)]"
+        className="border-b pt-[env(safe-area-inset-top)] dark:bg-card/40 dark:backdrop-blur-sm"
         role="banner"
         data-testid="main-header"
       >

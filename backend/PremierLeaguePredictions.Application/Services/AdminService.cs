@@ -11,16 +11,33 @@ public class AdminService : IAdminService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IHubContext<Hub> _hubContext;
+    private readonly ILeagueService _leagueService;
     private readonly ILogger<AdminService> _logger;
 
     public AdminService(
         IUnitOfWork unitOfWork,
         IHubContext<Hub> hubContext,
+        ILeagueService leagueService,
         ILogger<AdminService> logger)
     {
         _unitOfWork = unitOfWork;
         _hubContext = hubContext;
+        _leagueService = leagueService;
         _logger = logger;
+    }
+
+    /// <summary>
+    /// Drops the cached standings for a season after changing something the table is built from.
+    /// </summary>
+    /// <remarks>
+    /// The standings are cached for five minutes, so without this an admin makes a change, looks
+    /// at the table, and sees no sign of it — refreshing does not help, because the staleness is
+    /// on the server. Every method here that writes a pick or its points has to call this.
+    /// </remarks>
+    private void InvalidateStandings(params string[] seasonIds)
+    {
+        foreach (var seasonId in seasonIds.Where(id => !string.IsNullOrEmpty(id)).Distinct())
+            _leagueService.InvalidateStandings(seasonId);
     }
 
     public async Task OverridePickAsync(Guid pickId, int newTeamId, string reason, CancellationToken cancellationToken = default)
@@ -32,8 +49,17 @@ public class AdminService : IAdminService
         pick.TeamId = newTeamId;
         pick.UpdatedAt = DateTime.UtcNow;
 
+        // Rescore against the new team. Without this the pick keeps whatever the old team
+        // earned, so an override shows the right crest against the wrong points until someone
+        // happens to run a recalculation.
+        var fixtures = (await _unitOfWork.Fixtures.FindAsync(
+            f => f.SeasonId == pick.SeasonId && f.GameweekNumber == pick.GameweekNumber,
+            trackChanges: false, cancellationToken)).ToList();
+        CalculatePickPoints(pick, fixtures);
+
         _unitOfWork.Picks.Update(pick);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        InvalidateStandings(pick.SeasonId);
 
         _logger.LogWarning("Admin override: Pick {PickId} changed from team {OldTeamId} to {NewTeamId}. Reason: {Reason}",
             pickId, oldTeamId, newTeamId, reason);
@@ -75,6 +101,8 @@ public class AdminService : IAdminService
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+        InvalidateStandings(seasonId);
+
         _logger.LogInformation("Points recalculated for gameweek {SeasonId}-{GameweekNumber}: {Changed} pick(s) changed",
             seasonId, gameweekNumber, changed);
     }
@@ -249,6 +277,7 @@ public class AdminService : IAdminService
         int picksCreated = 0;
         int picksUpdated = 0;
         int picksSkipped = 0;
+        var affectedSeasonIds = new HashSet<string>();
 
         foreach (var pickRequest in picks)
         {
@@ -258,6 +287,8 @@ public class AdminService : IAdminService
                 picksSkipped++;
                 continue;
             }
+
+            affectedSeasonIds.Add(gameweek.SeasonId);
 
             // Check if pick already exists
             var key = new { SeasonId = gameweek.SeasonId, GameweekNumber = gameweek.WeekNumber };
@@ -297,6 +328,10 @@ public class AdminService : IAdminService
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // A backfilled pick is for a gameweek already played, so it lands straight in the
+        // standings — the cached copy has to go or the change is invisible for five minutes.
+        InvalidateStandings(affectedSeasonIds.ToArray());
 
         _logger.LogInformation("Backfill completed. Created: {Created}, Updated: {Updated}, Skipped: {Skipped}",
             picksCreated, picksUpdated, picksSkipped);

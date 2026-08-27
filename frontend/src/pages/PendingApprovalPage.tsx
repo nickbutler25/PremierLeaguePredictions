@@ -221,7 +221,7 @@ export function PendingApprovalPage() {
           <CardDescription>Your participation request is awaiting admin approval</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <div className="bg-blue-50 dark:bg-violet-500/10 border border-blue-200 dark:border-violet-800/60 rounded-lg p-4">
             <div className="flex items-start gap-3">
               <div className="flex-shrink-0">
                 {user?.photoUrl && (

@@ -9,11 +9,14 @@ namespace PremierLeaguePredictions.Application.Services;
 public class EliminationService : IEliminationService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILeagueService _leagueService;
     private readonly ILogger<EliminationService> _logger;
 
-    public EliminationService(IUnitOfWork unitOfWork, ILogger<EliminationService> logger)
+    public EliminationService(
+        IUnitOfWork unitOfWork, ILeagueService leagueService, ILogger<EliminationService> logger)
     {
         _unitOfWork = unitOfWork;
+        _leagueService = leagueService;
         _logger = logger;
     }
 
@@ -210,6 +213,10 @@ public class EliminationService : IEliminationService
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // Eliminations show in the standings, and the table hides eliminated players outright,
+        // so the cached copy has to go or the run appears to have done nothing.
+        _leagueService.InvalidateStandings(seasonId);
 
         response.PlayersEliminated = usersToEliminate.Count;
         response.Message = $"Successfully eliminated {usersToEliminate.Count} player(s) from GW{gameweek.WeekNumber}";

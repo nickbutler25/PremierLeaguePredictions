@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using PremierLeaguePredictions.Application.DTOs;
 using PremierLeaguePredictions.Application.Interfaces;
@@ -9,6 +10,7 @@ public class PickReminderService : IPickReminderService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IEmailService _emailService;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<PickReminderService> _logger;
 
     // Reminder windows (in hours before deadline). A 12h reminder was dropped: it lands in the
@@ -19,10 +21,12 @@ public class PickReminderService : IPickReminderService
     public PickReminderService(
         IUnitOfWork unitOfWork,
         IEmailService emailService,
+        IConfiguration configuration,
         ILogger<PickReminderService> logger)
     {
         _unitOfWork = unitOfWork;
         _emailService = emailService;
+        _configuration = configuration;
         _logger = logger;
     }
 
@@ -132,13 +136,23 @@ public class PickReminderService : IPickReminderService
         if (missing > 0)
             _logger.LogWarning("{Count} user(s) needing reminders have no record or no email address", missing);
 
+        var dashboardUrl = AppLinks.Dashboard(_configuration);
+        if (dashboardUrl == null)
+        {
+            // The mail still sends, but without the one thing it exists to provide: a way in.
+            _logger.LogWarning(
+                "{Key} is not configured, so pick reminders go out with no link to the site",
+                AppLinks.ConfigurationKey);
+        }
+
         var messages = recipients
             .Select(u => BuildPickReminderMessage(
                 u.Email,
                 $"{u.FirstName} {u.LastName}",
                 gameweek.WeekNumber,
                 gameweek.Deadline,
-                hoursBeforeDeadline))
+                hoursBeforeDeadline,
+                dashboardUrl))
             .ToList();
 
         // One batched call rather than one request per recipient: at a few hundred players
@@ -184,22 +198,24 @@ public class PickReminderService : IPickReminderService
         string userName,
         int gameweekNumber,
         DateTime deadline,
-        int hoursBeforeDeadline)
+        int hoursBeforeDeadline,
+        string? dashboardUrl)
     {
         var subject = $"⚽ Reminder: Make your pick for Gameweek {gameweekNumber}";
 
         return new EmailMessage(
             toEmail,
             subject,
-            GetReminderEmailHtml(userName, gameweekNumber, deadline, hoursBeforeDeadline),
-            GetReminderEmailPlainText(userName, gameweekNumber, deadline, hoursBeforeDeadline));
+            GetReminderEmailHtml(userName, gameweekNumber, deadline, hoursBeforeDeadline, dashboardUrl),
+            GetReminderEmailPlainText(userName, gameweekNumber, deadline, hoursBeforeDeadline, dashboardUrl));
     }
 
     private static string GetReminderEmailHtml(
         string userName,
         int gameweekNumber,
         DateTime deadline,
-        int hoursBeforeDeadline)
+        int hoursBeforeDeadline,
+        string? dashboardUrl)
     {
         var deadlineFormatted = deadline.ToString("dddd, MMMM d 'at' h:mm tt 'UTC'");
         var urgencyColor = hoursBeforeDeadline <= 3 ? "#dc2626" : hoursBeforeDeadline <= 12 ? "#ea580c" : "#37003c";
@@ -246,7 +262,7 @@ public class PickReminderService : IPickReminderService
                 <li>Save the top teams for tough weeks</li>
             </ul>
 
-            <a href=""https://your-app-url.com"" class=""button"">Make Your Pick Now</a>
+            {(dashboardUrl == null ? "" : $@"<a href=""{dashboardUrl}"" class=""button"">Make Your Pick Now</a>")}
         </div>
         <div class=""footer"">
             <p>Premier League Predictions</p>
@@ -261,7 +277,8 @@ public class PickReminderService : IPickReminderService
         string userName,
         int gameweekNumber,
         DateTime deadline,
-        int hoursBeforeDeadline)
+        int hoursBeforeDeadline,
+        string? dashboardUrl)
     {
         var deadlineFormatted = deadline.ToString("dddd, MMMM d 'at' h:mm tt 'UTC'");
         var urgencyText = hoursBeforeDeadline <= 3 ? "URGENT" : hoursBeforeDeadline <= 12 ? "IMPORTANT" : "REMINDER";
@@ -284,7 +301,7 @@ DON'T LET THAT HAPPEN! Choose your team strategically:
 - Remember: Each team can only be picked ONCE per half
 - Save the top teams for tough weeks
 
-Visit the dashboard to make your pick now.
+{(dashboardUrl == null ? "Visit the dashboard to make your pick now." : $"Make your pick now: {dashboardUrl}")}
 
 Premier League Predictions
 You're receiving this because you're participating in the current season.
