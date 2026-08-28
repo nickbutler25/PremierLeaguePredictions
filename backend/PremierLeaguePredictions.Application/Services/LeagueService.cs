@@ -122,15 +122,17 @@ public class LeagueService : ILeagueService
             Rank = 0 // Will be calculated after sorting
         }).ToList();
 
-        // Sorted on points per game, not total points, so the table is read the same way the
-        // elimination rule reads it — a player cannot sit mid-table on the figure that decides
-        // who goes out. Goal difference then goals for break a tie.
+        // Points first, as the table has always been read. Points per game, goal difference and
+        // goals for only separate players who are level on points — and points per game only
+        // does that when a postponement has left the field on different numbers of games, since
+        // picks are otherwise backfilled to a common denominator.
         //
         // The id is not a ranking, but without it players level on every column come back in
-        // whatever order the query happened to produce — so positions shuffled between requests,
-        // and whoever landed last looked bottom of the table without being bottom of anything.
+        // whatever order the query happened to produce, so positions shuffled between requests.
+        // The elimination run reads this same chain from the bottom.
         var sortedStandings = standings
-            .OrderByDescending(s => s.AveragePointsPerGame)
+            .OrderByDescending(s => s.TotalPoints)
+            .ThenByDescending(s => s.AveragePointsPerGame)
             .ThenByDescending(s => s.GoalDifference)
             .ThenByDescending(s => s.GoalsFor)
             .ThenByDescending(s => s.UserId)

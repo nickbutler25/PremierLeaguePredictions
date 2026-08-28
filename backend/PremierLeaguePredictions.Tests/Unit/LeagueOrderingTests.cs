@@ -11,25 +11,26 @@ using Xunit;
 namespace PremierLeaguePredictions.Tests.Unit;
 
 /// <summary>
-/// The league is ordered on points per game, then goal difference, then goals for.
+/// The league is ordered on points, then — only between players level on points — points per
+/// game, then goal difference, then goals for.
 /// </summary>
 /// <remarks>
-/// In a normal week this orders identically to total points: picks are backfilled and
-/// auto-assigned, so every player carries the same number of games and the average is just
-/// their total over a common denominator. The fixture here deliberately puts players on
-/// different numbers of games, which is the case that actually separates the two rules — a
-/// postponed fixture, where whoever picked a team in it has no score until the rearranged
-/// match is played. Built on equal denominators these tests would pass against either rule and
-/// prove nothing.
+/// The fixture is built so each step in the chain is the only thing separating one pair, so a
+/// step that stopped working would surface as one failing test rather than a reshuffle nobody
+/// can read. Points per game needs players on different numbers of games to do anything at
+/// all: picks are otherwise backfilled and auto-assigned to a common denominator, and only a
+/// postponed fixture leaves someone a game short.
 /// </remarks>
 public class LeagueOrderingTests : IDisposable
 {
     private const string SeasonId = "2026-2027";
 
     // Ids run high to low so the final id tiebreak cannot be mistaken for the real ordering.
+    private static readonly Guid Top = Guid.Parse("55555555-5555-5555-5555-555555555555");
     private static readonly Guid Fewer = Guid.Parse("44444444-4444-4444-4444-444444444444");
     private static readonly Guid More = Guid.Parse("33333333-3333-3333-3333-333333333333");
-    private static readonly Guid Level = Guid.Parse("22222222-2222-2222-2222-222222222222");
+    private static readonly Guid BetterGoals = Guid.Parse("22222222-2222-2222-2222-222222222222");
+    private static readonly Guid WorseGoals = Guid.Parse("66666666-6666-6666-6666-666666666666");
     private static readonly Guid Idle = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
     private const int Arsenal = 1;
@@ -53,9 +54,11 @@ public class LeagueOrderingTests : IDisposable
     private void Seed()
     {
         _context.Users.AddRange(
+            NewUser(Top, "Top", "Scorer"),
             NewUser(Fewer, "Fewer", "Games"),
-            NewUser(More, "More", "Points"),
-            NewUser(Level, "Level", "Average"),
+            NewUser(More, "More", "Games"),
+            NewUser(BetterGoals, "Better", "Goals"),
+            NewUser(WorseGoals, "Worse", "Goals"),
             NewUser(Idle, "Idle", "Player"));
 
         _context.Seasons.Add(new Season
@@ -66,7 +69,7 @@ public class LeagueOrderingTests : IDisposable
             IsActive = true
         });
 
-        foreach (var userId in new[] { Fewer, More, Level, Idle })
+        foreach (var userId in new[] { Top, Fewer, More, BetterGoals, WorseGoals, Idle })
             _context.SeasonParticipations.Add(NewParticipation(userId));
 
         _context.Teams.AddRange(
@@ -76,7 +79,7 @@ public class LeagueOrderingTests : IDisposable
             NewTeam(Everton, "Everton"));
 
         // Three played gameweeks, every fixture finished so every pick counts.
-        for (var week = 1; week <= 3; week++)
+        for (var week = 1; week <= 4; week++)
         {
             _context.Gameweeks.Add(NewGameweek(week, DateTime.UtcNow.AddDays(-20 + week)));
             _context.Fixtures.AddRange(
@@ -84,21 +87,37 @@ public class LeagueOrderingTests : IDisposable
                 NewFixture(week, Liverpool, Chelsea));
         }
 
-        // Fewer: 6 points from 2 games — 3.00 a game. Stands in for a player whose third
-        // fixture was postponed, so it has no score to divide by yet.
+        // Top: 9 points. Most points, so first whatever anyone's average is.
+        _context.Picks.AddRange(
+            NewPick(Top, 1, Arsenal, points: 3, goalsFor: 2, goalsAgainst: 0),
+            NewPick(Top, 2, Liverpool, points: 3, goalsFor: 2, goalsAgainst: 0),
+            NewPick(Top, 3, Chelsea, points: 3, goalsFor: 2, goalsAgainst: 0));
+
+        // The next four are all on 6 points, and each is separated from the one below it by
+        // exactly one step of the chain.
+
+        // Fewer: 6 from 2 games — 3.00 a game. Stands in for a player whose third fixture was
+        // postponed, so it has no score to divide by yet.
         _context.Picks.AddRange(
             NewPick(Fewer, 1, Arsenal, points: 3, goalsFor: 2, goalsAgainst: 0),
             NewPick(Fewer, 2, Liverpool, points: 3, goalsFor: 2, goalsAgainst: 0));
 
-        // More: 7 points from 3 games — more points, but 2.33 a game.
+        // More: the same 6 points and the same goals off 3 games — 2.00 a game, so below Fewer
+        // on points per game alone.
         _context.Picks.AddRange(
-            NewPick(More, 1, Liverpool, points: 3, goalsFor: 3, goalsAgainst: 1),
-            NewPick(More, 2, Arsenal, points: 3, goalsFor: 3, goalsAgainst: 1),
-            NewPick(More, 3, Chelsea, points: 1, goalsFor: 1, goalsAgainst: 1));
+            NewPick(More, 1, Arsenal, points: 3, goalsFor: 2, goalsAgainst: 0),
+            NewPick(More, 2, Liverpool, points: 3, goalsFor: 2, goalsAgainst: 0),
+            NewPick(More, 3, Everton, points: 0, goalsFor: 0, goalsAgainst: 0));
 
-        // Level: 3.00 a game as well, from one game, on a worse goal difference than Fewer.
-        _context.Picks.Add(
-            NewPick(Level, 1, Chelsea, points: 3, goalsFor: 1, goalsAgainst: 0));
+        // BetterGoals and WorseGoals: level with Fewer on points and on 3.00 a game, below it
+        // on goal difference, and separated from each other only by goals for.
+        _context.Picks.AddRange(
+            NewPick(BetterGoals, 1, Arsenal, points: 3, goalsFor: 3, goalsAgainst: 2),
+            NewPick(BetterGoals, 2, Liverpool, points: 3, goalsFor: 2, goalsAgainst: 1));
+
+        _context.Picks.AddRange(
+            NewPick(WorseGoals, 1, Arsenal, points: 3, goalsFor: 2, goalsAgainst: 1),
+            NewPick(WorseGoals, 2, Liverpool, points: 3, goalsFor: 1, goalsAgainst: 0));
 
         // Idle has never picked: 0.00 a game, and last.
         _context.SaveChanges();
@@ -110,33 +129,67 @@ public class LeagueOrderingTests : IDisposable
         new MemoryCache(new MemoryCacheOptions()));
 
     [Fact]
-    public async Task RanksOnPointsPerGameRatherThanTotalPoints()
+    public async Task RanksOnPointsFirst()
+    {
+        var standings = await CreateService().GetLeagueStandingsAsync(SeasonId);
+
+        var top = standings.Standings.Single(e => e.UserId == Top);
+        var fewer = standings.Standings.Single(e => e.UserId == Fewer);
+
+        // Top has the worse-or-equal average and still leads: points come first, and everything
+        // else in the chain only ever separates players who are level on them.
+        top.TotalPoints.Should().Be(9);
+        top.Position.Should().Be(1);
+        top.AveragePointsPerGame.Should().BeLessThanOrEqualTo(fewer.AveragePointsPerGame);
+    }
+
+    [Fact]
+    public async Task BreaksATieOnPointsWithPointsPerGame()
     {
         var standings = await CreateService().GetLeagueStandingsAsync(SeasonId);
 
         var fewer = standings.Standings.Single(e => e.UserId == Fewer);
         var more = standings.Standings.Single(e => e.UserId == More);
 
-        // More has the bigger total, and finishes below — which is the whole point of dividing
-        // by games played when a postponement leaves the field on different numbers of them.
-        more.TotalPoints.Should().BeGreaterThan(fewer.TotalPoints);
+        // Identical points and identical goals; the only difference is that More took an extra
+        // game to get there. That is the postponement case, and the only thing points per game
+        // is there for.
+        fewer.TotalPoints.Should().Be(more.TotalPoints);
+        fewer.GoalDifference.Should().Be(more.GoalDifference);
         fewer.AveragePointsPerGame.Should().Be(3.00m);
-        more.AveragePointsPerGame.Should().Be(2.33m);
+        more.AveragePointsPerGame.Should().Be(2.00m);
         fewer.Position.Should().BeLessThan(more.Position);
     }
 
     [Fact]
-    public async Task BreaksATieOnGoalDifferenceThenGoalsFor()
+    public async Task ThenOnGoalDifference()
     {
         var standings = await CreateService().GetLeagueStandingsAsync(SeasonId);
 
         var fewer = standings.Standings.Single(e => e.UserId == Fewer);
-        var level = standings.Standings.Single(e => e.UserId == Level);
+        var better = standings.Standings.Single(e => e.UserId == BetterGoals);
 
-        // Level on 3.00 a game each, separated by goal difference: +4 against +1.
-        fewer.AveragePointsPerGame.Should().Be(level.AveragePointsPerGame);
-        fewer.GoalDifference.Should().BeGreaterThan(level.GoalDifference);
-        fewer.Position.Should().BeLessThan(level.Position);
+        fewer.TotalPoints.Should().Be(better.TotalPoints);
+        fewer.AveragePointsPerGame.Should().Be(better.AveragePointsPerGame);
+        fewer.GoalDifference.Should().BeGreaterThan(better.GoalDifference);
+        fewer.Position.Should().BeLessThan(better.Position);
+    }
+
+    [Fact]
+    public async Task ThenOnGoalsFor()
+    {
+        var standings = await CreateService().GetLeagueStandingsAsync(SeasonId);
+
+        var better = standings.Standings.Single(e => e.UserId == BetterGoals);
+        var worse = standings.Standings.Single(e => e.UserId == WorseGoals);
+
+        // Level on points, on points per game and on goal difference — goals for is the last
+        // thing between them.
+        better.TotalPoints.Should().Be(worse.TotalPoints);
+        better.AveragePointsPerGame.Should().Be(worse.AveragePointsPerGame);
+        better.GoalDifference.Should().Be(worse.GoalDifference);
+        better.GoalsFor.Should().BeGreaterThan(worse.GoalsFor);
+        better.Position.Should().BeLessThan(worse.Position);
     }
 
     [Fact]
@@ -158,7 +211,10 @@ public class LeagueOrderingTests : IDisposable
         var standings = await CreateService().GetLeagueStandingsAsync(SeasonId);
 
         standings.Standings.Select(e => e.Position).Should().BeInAscendingOrder();
-        standings.Standings.Should().BeInDescendingOrder(e => e.AveragePointsPerGame);
+        standings.Standings.Should().BeInDescendingOrder(e => e.TotalPoints);
+
+        standings.Standings.Select(e => e.UserId)
+            .Should().Equal(Top, Fewer, BetterGoals, WorseGoals, More, Idle);
     }
 
     private static SeasonParticipation NewParticipation(Guid userId) => new()

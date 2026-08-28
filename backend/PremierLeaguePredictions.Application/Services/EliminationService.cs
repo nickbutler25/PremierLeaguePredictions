@@ -194,9 +194,8 @@ public class EliminationService : IEliminationService
                 Entry = e,
                 Average = Average(e.TotalPoints, e.PicksMade)
             })
-            .OrderBy(x => x.Average)
-            .ThenBy(x => x.Entry.TotalPoints)
-            .ThenBy(x => x.Entry.PicksMade)
+            .OrderBy(x => x.Entry.TotalPoints)
+            .ThenBy(x => x.Average)
             .ThenBy(x => x.Entry.GoalDifference)
             .ThenBy(x => x.Entry.GoalsFor)
             .ThenBy(x => x.Entry.UserId)
@@ -338,18 +337,23 @@ public class EliminationService : IEliminationService
                     GamesPlayed = gamesPlayed,
                     // Nothing scored yet means there is no average to rank on. Zero puts them
                     // with the worst, which is where a player who has not scored belongs.
-                    AveragePoints = gamesPlayed == 0 ? 0m : (decimal)totalPoints / gamesPlayed,
+                    // Rounded to two places to match the figure the standings and the danger
+                    // zone rank on, so all three agree about which players are actually level.
+                    AveragePoints = gamesPlayed == 0
+                        ? 0m
+                        : Math.Round((decimal)totalPoints / gamesPlayed, 2),
                     GoalDifference = g.Sum(p => p.GoalsFor - p.GoalsAgainst),
                     GoalsFor = g.Sum(p => p.GoalsFor)
                 };
             })
-            // Ties fall to the total, then to who has played least, then goal difference. Games
-            // played only ever separates players on nothing at all, and there it settles the one
-            // case that matters: a player who never picked ranks below one who picked and lost.
-            // The user id is a last resort so the result is stable, never a decision.
-            .OrderBy(u => u.AveragePoints)
-            .ThenBy(u => u.TotalPoints)
-            .ThenBy(u => u.GamesPlayed)
+            // The league table's chain, read from the bottom: fewest points, then — only for
+            // players level on points — the lower points per game, then goal difference, then
+            // goals for. Points per game separates them only when a postponement has left the
+            // field on different numbers of games; there, the same points off more games is the
+            // worse record. The user id is a last resort so the result is stable, never a
+            // decision.
+            .OrderBy(u => u.TotalPoints)
+            .ThenBy(u => u.AveragePoints)
             .ThenBy(u => u.GoalDifference)
             .ThenBy(u => u.GoalsFor)
             .ThenBy(u => u.UserId)

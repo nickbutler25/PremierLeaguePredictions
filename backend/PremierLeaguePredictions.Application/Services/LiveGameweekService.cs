@@ -294,7 +294,8 @@ public class LiveGameweekService : ILiveGameweekService
                     EliminationPosition = elimination?.Position
                 };
             })
-            .OrderByDescending(e => e.AveragePointsPerGame)
+            .OrderByDescending(e => e.TotalPoints)
+            .ThenByDescending(e => e.AveragePointsPerGame)
             .ThenByDescending(e => e.GoalDifference)
             .ThenByDescending(e => e.GoalsFor)
             .ThenByDescending(e => e.UserId)
@@ -567,9 +568,8 @@ public class LiveGameweekService : ILiveGameweekService
         var contenders = standings
             .Where(e => !e.IsEliminated)
             .Select(e => new { Entry = e, Average = Average(e.TotalPoints, e.PicksMade) })
-            .OrderBy(x => x.Average)
-            .ThenBy(x => x.Entry.TotalPoints)
-            .ThenBy(x => x.Entry.PicksMade)
+            .OrderBy(x => x.Entry.TotalPoints)
+            .ThenBy(x => x.Average)
             .ThenBy(x => x.Entry.GoalDifference)
             .ThenBy(x => x.Entry.GoalsFor)
             .ThenBy(x => x.Entry.UserId)

@@ -92,7 +92,7 @@ describe('LeagueStandings columns', () => {
 
     await waitFor(() => expect(header('Pts')).toBeInTheDocument());
     const headers = screen.getAllByRole('columnheader').map((h) => h.textContent);
-    expect(headers).toEqual(['#', 'Name', 'Pick', 'GD', 'Avg', 'Pts']);
+    expect(headers).toEqual(['#', 'Name', 'Pick', 'GD', 'Pts']);
   });
 
   it('carries every column on the full table while a gameweek is in progress', async () => {
@@ -111,8 +111,8 @@ describe('LeagueStandings columns', () => {
       'W',
       'D',
       'L',
-      'Avg',
       'Pts',
+      'Avg',
       'GF',
       'GA',
       'GD',
@@ -134,8 +134,8 @@ describe('LeagueStandings columns', () => {
       'W',
       'D',
       'L',
-      'Avg',
       'Pts',
+      'Avg',
       'GF',
       'GA',
       'GD',
@@ -153,15 +153,16 @@ describe('LeagueStandings average', () => {
   it('shows the figure the table is ordered on', async () => {
     render(<LeagueStandings />);
 
-    // Sorting by a number the reader cannot see just looks like a broken table, so the
-    // column is not optional on either variant.
+    // Shown so a reader can see why two players level on points are ordered as they are.
     expect(await screen.findByTestId('standing-average-1')).toHaveTextContent('2.20');
   });
 
-  it('shows it on the compact table too', async () => {
+  it('is left off the compact table', async () => {
     render(<LeagueStandings compact />);
 
-    expect(await screen.findByTestId('standing-average-1')).toHaveTextContent('2.20');
+    // It only breaks a tie on points, and a sixth column pushes the points off the card.
+    await screen.findByTestId('standing-points-1');
+    expect(screen.queryByTestId('standing-average-1')).not.toBeInTheDocument();
   });
 
   it('explains the column in the key', async () => {

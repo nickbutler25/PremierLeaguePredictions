@@ -11,10 +11,14 @@ using Xunit;
 namespace PremierLeaguePredictions.Tests.Unit;
 
 /// <summary>
-/// Eliminations run on the lowest average points per gameweek played, not the raw total. The two
-/// only agree while everyone has played the same number, which is exactly when it does not
-/// matter — these cover the case where they diverge and someone's season depends on it.
+/// Eliminations run the league table's ordering from the bottom: fewest points, then — only
+/// between players level on points — points per game, goal difference and goals for.
 /// </summary>
+/// <remarks>
+/// The chain itself is pinned step by step in <c>LeagueOrderingTests</c>. What matters here is
+/// that the run uses that same chain rather than one of its own, so the table cannot show a
+/// player as safe and the run then take them.
+/// </remarks>
 public class EliminationRankingTests : IDisposable
 {
     private const string SeasonId = "2026-2027";
@@ -144,17 +148,16 @@ public class EliminationRankingTests : IDisposable
     }
 
     [Fact]
-    public async Task ThePlayerWithTheLowestAverageGoesOut_NotTheLowestTotal()
+    public async Task ThePlayerOnTheFewestPointsGoesOut()
     {
         AddPlayedGameweek(1);
         AddPlayedGameweek(2);
         AddPlayedGameweek(3, eliminationCount: 1);
 
-        // Three gameweeks, one win: 3 points from 3 games, an average of 1.00.
+        // Three gameweeks, one win: 3 points.
         var steady = AddPlayer("Steady", new[] { 1, 2, 3 }, new[] { 1 });
 
-        // One gameweek, no win: 0 points from 1 game, an average of 0.00. Fewer points than
-        // Steady, but a total-points rule would have taken Steady instead.
+        // One gameweek, no win: nothing at all, and so the one who goes.
         var latecomer = AddPlayer("Latecomer", new[] { 3 }, Array.Empty<int>());
 
         // Comfortably clear of both.
@@ -170,21 +173,68 @@ public class EliminationRankingTests : IDisposable
     }
 
     [Fact]
-    public async Task APlayerWithNothingScoredYetRanksWithTheWorst()
+    public async Task TheEliminatedAreExactlyTheBottomOfTheLeagueTable()
+    {
+        AddPlayedGameweek(1);
+        AddPlayedGameweek(2);
+        AddPlayedGameweek(3, eliminationCount: 2);
+
+        AddPlayer("Perfect", new[] { 1, 2, 3 }, new[] { 1, 2, 3 });
+        AddPlayer("Two", new[] { 1, 2, 3 }, new[] { 1, 2 });
+        AddPlayer("One", new[] { 1, 2, 3 }, new[] { 1 });
+        AddPlayer("None", new[] { 1, 2, 3 }, Array.Empty<int>());
+        AddPlayer("Partial", new[] { 2, 3 }, Array.Empty<int>());
+        await _context.SaveChangesAsync();
+
+        var standings = await new LeagueService(
+                new UnitOfWork(_context),
+                NullLogger<LeagueService>.Instance,
+                new MemoryCache(new MemoryCacheOptions()))
+            .GetLeagueStandingsAsync(SeasonId);
+
+        var response = await CreateService()
+            .ProcessGameweekEliminationsAsync(SeasonId, 3, Guid.NewGuid());
+
+        // The whole point of sharing a chain: whoever the table puts last is whoever the run
+        // takes, in the same order. If these two ever drift, a player is shown mid-table and
+        // eliminated anyway.
+        var bottomTwo = standings.Standings
+            .OrderByDescending(e => e.Position)
+            .Take(2)
+            .Select(e => e.UserId)
+            .ToList();
+
+        response.EliminatedPlayers
+            .OrderBy(e => e.Position)
+            .Select(e => e.UserId)
+            .Should().Equal(bottomTwo);
+    }
+
+    [Fact]
+    public async Task APlayerWhoNeverPickedIsStillRanked()
     {
         AddPlayedGameweek(1, eliminationCount: 1);
 
         var noPicks = AddPlayer("Absent", Array.Empty<int>(), Array.Empty<int>());
-        AddPlayer("Present", new[] { 1 }, Array.Empty<int>());
+        var lost = AddPlayer("Present", new[] { 1 }, Array.Empty<int>());
         await _context.SaveChangesAsync();
 
         var response = await CreateService()
             .ProcessGameweekEliminationsAsync(SeasonId, 1, Guid.NewGuid());
 
-        // Both average zero; the tie falls to total points and then goal difference, and a
-        // player who has conceded nothing because they never played ranks below one who lost.
+        // Both on nothing, so the chain runs to goal difference — and a player who conceded a
+        // goal is behind one who conceded none because they never played. So the absent player
+        // survives and the one who turned up and lost goes.
+        //
+        // That is a consequence of the elimination chain mirroring the league table's, which
+        // has no notion of a player who has not played. It only bites if a player ever reaches
+        // a settled gameweek with no pick at all — backfill and auto-pick exist to stop that,
+        // and if either fails this is the behaviour to revisit.
         response.PlayersEliminated.Should().Be(1);
-        response.EliminatedPlayers.Single().UserId.Should().Be(noPicks);
+        response.EliminatedPlayers.Single().UserId.Should().Be(lost);
+
+        var stillIn = await CreateService().IsUserEliminatedAsync(noPicks, SeasonId);
+        stillIn.Should().BeFalse();
     }
 
     [Fact]

@@ -19,33 +19,31 @@ The opponent is determined from the fixture — users pick a team, and the syste
 
 ## League Ordering
 
-The table is ordered on **average points per game** — points divided by gameweeks whose fixture
-has a score, the same figure and denominator the elimination rule uses — then goal difference,
-then goals for. A final tiebreak on user id is not a ranking; without it players level on every
-column come back in whatever order the query produced, so positions shuffled between requests.
+The table is ordered on **points**, then — only between players level on points — **points per
+game**, then **goal difference**, then **goals for**. A final tiebreak on user id is not a
+ranking; without it players level on every column come back in whatever order the query
+produced, so positions shuffled between requests.
 
-`LeagueService` and `LiveGameweekService` both sort on this chain, and
-`TheLiveViewAgreesWithTheLeagueTable` pins that they agree. `LeagueOrderingTests` pins the chain
-itself with a fixture where total points and average disagree.
+Points per game only does anything when players are on different numbers of games. Picks are
+backfilled and auto-assigned to a common denominator, so in practice that means **a postponed
+fixture**: whoever picked a team in it has no score for it until the rearranged match is
+played, and level on points off fewer games is the better record.
 
-**Most of the time this orders identically to total points.** Missing picks are backfilled and
-auto-picks fill the rest, so every player carries the same number of games and the average is
-just their total over a common denominator. It only diverges when a player's denominator
-differs from the field's — which in practice means **a postponed fixture**, where whoever picked
-a team in that game has no score for it until the rearranged match is played, and would
-otherwise be scored as having lost a gameweek nobody played.
+Games played counts gameweeks whose fixture has a score (FINISHED, IN_PLAY or PAUSED) — the
+same rule the dashboard's record and picks-made use. A deadline passing is *not* the same
+moment: a Saturday deadline with a Monday kickoff leaves a pick locked but unplayed.
 
-Because denominators are normally equal, the elimination chain (average, total, games played,
-goal difference, goals for) resolves to the same order as this one: with a common denominator a
-tie on average *is* a tie on total, so those two steps drop out and both fall through to goal
-difference. The two can only disagree while a postponement has players on different numbers of
-games.
+**Eliminations run this exact chain from the bottom.** `LeagueService`, `LiveGameweekService`,
+`EliminationService.ProcessGameweekEliminationsAsync` and both danger zones all sort on it.
+`LeagueOrderingTests` pins each step in isolation;
+`TheEliminatedAreExactlyTheBottomOfTheLeagueTable` pins that the run and the table agree; and
+`TheLiveViewAgreesWithTheLeagueTable` pins the gameweek page against the standings.
 
----
-
-## Eliminations
-
-Configurable per season in admin. Each week, X players with the lowest **average points per game** at the end of that gameweek are eliminated — points divided by gameweeks whose fixture has a score (the same count the standings call picks made), so joining late is not scored as a run of nil results. Ties fall to total points, then to who has played fewest, then goal difference. Ranking runs over every approved player, not only those with picks: a player who has never picked has the worst possible record and is meant to be caught by this, not exempt from it.
+One consequence to know: the chain has no notion of a player who has not played, so **a player
+with no pick at all now outranks one who picked and lost** — nothing conceded beats a negative
+goal difference. Backfill and auto-pick exist to stop anyone reaching a settled gameweek
+without a pick; if either ever fails, this is the behaviour to revisit.
+`APlayerWhoNeverPickedIsStillRanked` documents it.
 
 ---
 

@@ -172,10 +172,10 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                     GD
                   </TableHead>
                 )}
-                {/* The table is ordered on this, so it has to be on screen — a table sorted
-                    by a number the reader cannot see just looks wrong. */}
-                <TableHead className={`text-center ${averageWidth} font-bold`}>Avg</TableHead>
-                <TableHead className={`text-center ${pointsWidth}`}>Pts</TableHead>
+                <TableHead className={`text-center ${pointsWidth} font-bold`}>Pts</TableHead>
+                {/* Only breaks a tie on points, so it sits after them — and only on the full
+                    table, where a sixth column does not push the points off the card. */}
+                {!compact && <TableHead className={`text-center ${averageWidth}`}>Avg</TableHead>}
                 {!compact && (
                   <TableHead className="text-center w-16 hidden md:table-cell">GF</TableHead>
                 )}
@@ -276,16 +276,18 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                       {showGoalDifference && compact && goalDifferenceCell(entry)}
                       <TableCell
                         className="text-center font-bold text-xs sm:text-sm tabular-nums"
-                        data-testid={`standing-average-${entry.position}`}
-                      >
-                        {entry.averagePointsPerGame.toFixed(2)}
-                      </TableCell>
-                      <TableCell
-                        className="text-center text-xs sm:text-sm tabular-nums"
                         data-testid={`standing-points-${entry.position}`}
                       >
                         {entry.totalPoints}
                       </TableCell>
+                      {!compact && (
+                        <TableCell
+                          className="text-center text-xs sm:text-sm tabular-nums text-muted-foreground"
+                          data-testid={`standing-average-${entry.position}`}
+                        >
+                          {entry.averagePointsPerGame.toFixed(2)}
+                        </TableCell>
+                      )}
                       {!compact && (
                         <TableCell className="text-center text-xs sm:text-sm hidden md:table-cell">
                           {entry.goalsFor}
@@ -328,9 +330,11 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                 <strong>P:</strong> Played
               </div>
             )}
-            <div>
-              <strong>Avg:</strong> Points per game &mdash; the table is ordered on this
-            </div>
+            {!compact && (
+              <div>
+                <strong>Avg:</strong> Points per game &mdash; breaks a tie on points
+              </div>
+            )}
             {showRecord && (
               <div>
                 <strong>W:</strong> Won
