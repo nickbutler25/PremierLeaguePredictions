@@ -17,9 +17,64 @@ Pick rules are split into two halves of the season (configured in admin):
 
 The opponent is determined from the fixture — users pick a team, and the system knows who that team is facing from the fixture data.
 
+## League Ordering
+
+The table is ordered on **average points per game** — points divided by gameweeks whose fixture
+has a score, the same figure and denominator the elimination rule uses — then goal difference,
+then goals for. A final tiebreak on user id is not a ranking; without it players level on every
+column come back in whatever order the query produced, so positions shuffled between requests.
+
+`LeagueService` and `LiveGameweekService` both sort on this chain, and
+`TheLiveViewAgreesWithTheLeagueTable` pins that they agree. `LeagueOrderingTests` pins the chain
+itself with a fixture where total points and average disagree.
+
+**Most of the time this orders identically to total points.** Missing picks are backfilled and
+auto-picks fill the rest, so every player carries the same number of games and the average is
+just their total over a common denominator. It only diverges when a player's denominator
+differs from the field's — which in practice means **a postponed fixture**, where whoever picked
+a team in that game has no score for it until the rearranged match is played, and would
+otherwise be scored as having lost a gameweek nobody played.
+
+Because denominators are normally equal, the elimination chain (average, total, games played,
+goal difference, goals for) resolves to the same order as this one: with a common denominator a
+tie on average *is* a tie on total, so those two steps drop out and both fall through to goal
+difference. The two can only disagree while a postponement has players on different numbers of
+games.
+
+---
+
 ## Eliminations
 
 Configurable per season in admin. Each week, X players with the lowest **average points per game** at the end of that gameweek are eliminated — points divided by gameweeks whose fixture has a score (the same count the standings call picks made), so joining late is not scored as a run of nil results. Ties fall to total points, then to who has played fewest, then goal difference. Ranking runs over every approved player, not only those with picks: a player who has never picked has the worst possible record and is meant to be caught by this, not exempt from it.
+
+---
+
+## Auto-Picks
+
+A player who misses a deadline has the lowest-ranked team they have not yet used in this half
+assigned to them. They are told twice: a SignalR notification for anyone with the site open,
+and an **email** naming the team, the gameweek and the fact it cannot be changed. The email is
+the one that actually arrives — nobody has the site open at the deadline.
+
+**Both go out only after `SaveChangesAsync`.** They used to be sent inside the assignment loop,
+before the picks were committed: a client that acted on the notification refetched, read the
+database before the transaction landed, got back its old pickless state and cached that for
+five minutes — so the pick did not appear until the page was reloaded by hand.
+`AutoPickNotificationTests.TellsNobodyUntilThePicksAreSaved` pins the ordering.
+
+Emails go in one batch for the same reason reminders do: at a few hundred players, one request
+per recipient outlives cron-job.org's 30s timeout. A mailer failure is logged, never thrown —
+it must not fail a run whose picks are already saved.
+
+Volume is expected to be small — missing a deadline should be rare, and an auto-pick email only
+goes to someone who did. It costs a subset of the people the 3h reminder already went to on the
+same calendar day, so the reminders remain the binding side of the Brevo daily cap. Worth a
+glance only if a week ever produces auto-picks at scale.
+
+On the client, `useDeadlineRefresh` invalidates picks, dashboard, standings and the live
+gameweek on a short ladder after the deadline. The SignalR event only reaches someone connected
+at that moment, and the dashboard query polls while picks and standings do not — without this
+the two disagree on screen until a manual reload.
 
 ---
 

@@ -86,13 +86,23 @@ test.describe('Picks Management', () => {
       const removeButtonCount = await removeButton.count();
 
       if (removeButtonCount > 0 && (await removeButton.isVisible())) {
-        // Click remove button
-        await removeButton.click();
+        // Wait on the request rather than on the button going disabled. Disabled is only true
+        // while the mutation is in flight, and against a local backend that window can close
+        // before the assertion runs — the button flicks back to enabled, or the row re-renders
+        // without it, and the test fails on timing rather than on behaviour.
+        const deleted = page.waitForResponse(
+          (response) =>
+            response.request().method() === 'DELETE' && response.url().includes('/api/v1/picks/')
+        );
 
-        // Verify the delete was triggered: button becomes disabled while the
-        // mutation is pending. Whether the backend accepts or rejects the delete
-        // depends on the gameweek deadline in the test DB, which varies between runs.
-        await expect(removeButton).toBeDisabled({ timeout: 5000 });
+        await removeButton.click();
+        const response = await deleted;
+
+        // Whether the delete is accepted depends on the gameweek deadline in the test DB, which
+        // varies between runs. Only assert the pick is gone when the server actually took it.
+        if (response.ok()) {
+          await expect(row.getByTestId(`pick-team-gw${gw}`)).toBeHidden();
+        }
 
         break;
       }

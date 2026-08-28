@@ -41,6 +41,7 @@ const standings = (overrides?: Partial<LeagueStandingsData['standings'][number]>
         goalsAgainst: 12,
         goalDifference: 16,
         totalPoints: 33,
+        averagePointsPerGame: 2.2,
         isEliminated: false,
         ...overrides,
       },
@@ -91,7 +92,7 @@ describe('LeagueStandings columns', () => {
 
     await waitFor(() => expect(header('Pts')).toBeInTheDocument());
     const headers = screen.getAllByRole('columnheader').map((h) => h.textContent);
-    expect(headers).toEqual(['#', 'Name', 'Pick', 'GD', 'Pts']);
+    expect(headers).toEqual(['#', 'Name', 'Pick', 'GD', 'Avg', 'Pts']);
   });
 
   it('carries every column on the full table while a gameweek is in progress', async () => {
@@ -110,6 +111,7 @@ describe('LeagueStandings columns', () => {
       'W',
       'D',
       'L',
+      'Avg',
       'Pts',
       'GF',
       'GA',
@@ -125,7 +127,48 @@ describe('LeagueStandings columns', () => {
     // Nothing to reveal, so the column would be empty in every row.
     expect(header('Pick')).not.toBeInTheDocument();
     const headers = screen.getAllByRole('columnheader').map((h) => h.textContent);
-    expect(headers).toEqual(['#', 'Name', 'P', 'W', 'D', 'L', 'Pts', 'GF', 'GA', 'GD', 'Form']);
+    expect(headers).toEqual([
+      '#',
+      'Name',
+      'P',
+      'W',
+      'D',
+      'L',
+      'Avg',
+      'Pts',
+      'GF',
+      'GA',
+      'GD',
+      'Form',
+    ]);
+  });
+});
+
+describe('LeagueStandings average', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(leagueService.getStandings).mockResolvedValue(standings());
+  });
+
+  it('shows the figure the table is ordered on', async () => {
+    render(<LeagueStandings />);
+
+    // Sorting by a number the reader cannot see just looks like a broken table, so the
+    // column is not optional on either variant.
+    expect(await screen.findByTestId('standing-average-1')).toHaveTextContent('2.20');
+  });
+
+  it('shows it on the compact table too', async () => {
+    render(<LeagueStandings compact />);
+
+    expect(await screen.findByTestId('standing-average-1')).toHaveTextContent('2.20');
+  });
+
+  it('explains the column in the key', async () => {
+    render(<LeagueStandings />);
+
+    await screen.findByTestId('standing-average-1');
+    expect(screen.getByTestId('league-standings-card')).toHaveTextContent('Points per game');
   });
 });
 

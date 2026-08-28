@@ -98,6 +98,7 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
   const recordWidth = compact ? 'w-9' : 'w-12';
   const goalDifferenceWidth = compact ? 'w-12' : 'w-16';
   const pointsWidth = compact ? 'w-12' : 'w-16';
+  const averageWidth = compact ? 'w-12' : 'w-16';
 
   const goalDifferenceCell = (entry: StandingEntry) => (
     <TableCell
@@ -171,7 +172,10 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                     GD
                   </TableHead>
                 )}
-                <TableHead className={`text-center ${pointsWidth} font-bold`}>Pts</TableHead>
+                {/* The table is ordered on this, so it has to be on screen — a table sorted
+                    by a number the reader cannot see just looks wrong. */}
+                <TableHead className={`text-center ${averageWidth} font-bold`}>Avg</TableHead>
+                <TableHead className={`text-center ${pointsWidth}`}>Pts</TableHead>
                 {!compact && (
                   <TableHead className="text-center w-16 hidden md:table-cell">GF</TableHead>
                 )}
@@ -271,7 +275,13 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                       )}
                       {showGoalDifference && compact && goalDifferenceCell(entry)}
                       <TableCell
-                        className="text-center font-bold text-xs sm:text-sm"
+                        className="text-center font-bold text-xs sm:text-sm tabular-nums"
+                        data-testid={`standing-average-${entry.position}`}
+                      >
+                        {entry.averagePointsPerGame.toFixed(2)}
+                      </TableCell>
+                      <TableCell
+                        className="text-center text-xs sm:text-sm tabular-nums"
                         data-testid={`standing-points-${entry.position}`}
                       >
                         {entry.totalPoints}
@@ -318,6 +328,9 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                 <strong>P:</strong> Played
               </div>
             )}
+            <div>
+              <strong>Avg:</strong> Points per game &mdash; the table is ordered on this
+            </div>
             {showRecord && (
               <div>
                 <strong>W:</strong> Won

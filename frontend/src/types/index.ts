@@ -140,6 +140,8 @@ export interface StandingEntry {
   goalsFor: number;
   goalsAgainst: number;
   goalDifference: number;
+  /** Points per gameweek played, to two decimals — what the table is ordered on. */
+  averagePointsPerGame: number;
   isEliminated: boolean;
   eliminatedInGameweek?: number;
   eliminationPosition?: number;

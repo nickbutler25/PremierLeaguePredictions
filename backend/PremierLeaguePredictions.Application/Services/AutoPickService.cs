@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using PremierLeaguePredictions.Application.DTOs;
 using PremierLeaguePredictions.Application.Interfaces;
@@ -11,17 +12,26 @@ public class AutoPickService : IAutoPickService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly INotificationService _notificationService;
+    private readonly IEmailService _emailService;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<AutoPickService> _logger;
 
     public AutoPickService(
         IUnitOfWork unitOfWork,
         INotificationService notificationService,
+        IEmailService emailService,
+        IConfiguration configuration,
         ILogger<AutoPickService> logger)
     {
         _unitOfWork = unitOfWork;
         _notificationService = notificationService;
+        _emailService = emailService;
+        _configuration = configuration;
         _logger = logger;
     }
+
+    /// <summary>One assignment, held back until the picks are safely saved.</summary>
+    private sealed record Assignment(Guid UserId, string TeamName);
 
     public async Task<AutoPickResult> AssignMissedPicksForGameweekAsync(string seasonId, int gameweekNumber, CancellationToken cancellationToken = default)
     {
@@ -99,6 +109,7 @@ public class AutoPickService : IAutoPickService
         // Assign picks for each user
         int assignedCount = 0;
         int failedCount = 0;
+        var assignments = new List<Assignment>();
         foreach (var userId in usersNeedingPicks)
         {
             try
@@ -129,16 +140,10 @@ public class AutoPickService : IAutoPickService
 
                     await _unitOfWork.Picks.AddAsync(pick, cancellationToken);
                     assignedCount++;
+                    assignments.Add(new Assignment(userId, assignedTeam.Name));
 
-                    var user = await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken);
-                    _logger.LogInformation("Auto-assigned {TeamName} to {UserName} for Gameweek {WeekNumber}",
-                        assignedTeam.Name, user != null ? $"{user.FirstName} {user.LastName}" : "Unknown", gameweek.WeekNumber);
-
-                    // Send real-time notification to user
-                    await _notificationService.SendAutoPickAssignedNotificationAsync(
-                        userId,
-                        assignedTeam.Name,
-                        gameweek.WeekNumber);
+                    _logger.LogInformation("Auto-assigned {TeamName} to {UserId} for Gameweek {WeekNumber}",
+                        assignedTeam.Name, userId, gameweek.WeekNumber);
                 }
                 else
                 {
@@ -160,12 +165,233 @@ public class AutoPickService : IAutoPickService
         _logger.LogInformation("Auto-assigned {AssignedCount} picks for Gameweek {WeekNumber}, {FailedCount} failed",
             assignedCount, gameweek.WeekNumber, failedCount);
 
+        // Only once the picks are actually persisted. Telling a player which team they have been
+        // given and then failing to save it is worse than telling them nothing.
+        await NotifyAssignedPlayersAsync(gameweek, assignments, cancellationToken);
+
         return new AutoPickResult
         {
             PicksAssigned = assignedCount,
             PicksFailed = failedCount,
             GameweeksProcessed = 1
         };
+    }
+
+    /// <summary>
+    /// Tells each player which team they were given, and why — live on the site, and by email.
+    /// </summary>
+    /// <remarks>
+    /// Both happen only after the picks are committed. The SignalR notification used to be sent
+    /// inside the assignment loop, before <c>SaveChangesAsync</c>: a client that acted on it
+    /// refetched and read the database before the transaction landed, got back its old
+    /// pickless state and cached that for five minutes — so the pick did not appear until the
+    /// page was reloaded by hand, which is exactly the bug this ordering fixes.
+    ///
+    /// The email exists because the SignalR event only reaches someone who happens to have the
+    /// site open at the moment the deadline passes, which is nobody's normal Saturday.
+    ///
+    /// Emails go in one batch: auto-pick runs for the whole field at once, and at a few hundred
+    /// players one request per recipient outlives cron-job.org's 30s request timeout long
+    /// before the last is attempted. Failures are logged, never thrown — a mailer problem must
+    /// not fail a run whose picks are already saved.
+    /// </remarks>
+    private async Task NotifyAssignedPlayersAsync(
+        Gameweek gameweek, List<Assignment> assignments, CancellationToken cancellationToken)
+    {
+        if (assignments.Count == 0)
+            return;
+
+        foreach (var assignment in assignments)
+        {
+            try
+            {
+                await _notificationService.SendAutoPickAssignedNotificationAsync(
+                    assignment.UserId, assignment.TeamName, gameweek.WeekNumber);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Could not push the auto-pick notification to user {UserId} for GW{WeekNumber}",
+                    assignment.UserId, gameweek.WeekNumber);
+            }
+        }
+
+        var userIds = assignments.Select(a => a.UserId).ToList();
+        var users = (await _unitOfWork.Users.FindAsync(
+                u => userIds.Contains(u.Id), trackChanges: false, cancellationToken))
+            .ToDictionary(u => u.Id);
+
+        var gameweekUrl = AppLinks.Gameweek(_configuration);
+        if (gameweekUrl == null)
+        {
+            _logger.LogWarning(
+                "{Key} is not configured, so auto-pick emails go out with no link to the site",
+                AppLinks.ConfigurationKey);
+        }
+
+        var recipients = new List<Assignment>();
+        var messages = new List<EmailMessage>();
+
+        foreach (var assignment in assignments)
+        {
+            if (!users.TryGetValue(assignment.UserId, out var user) || string.IsNullOrWhiteSpace(user.Email))
+            {
+                _logger.LogWarning(
+                    "Auto-picked user {UserId} for GW{WeekNumber} has no record or no email address",
+                    assignment.UserId, gameweek.WeekNumber);
+                continue;
+            }
+
+            recipients.Add(assignment);
+            messages.Add(BuildAutoPickMessage(
+                user.Email,
+                $"{user.FirstName} {user.LastName}",
+                assignment.TeamName,
+                gameweek.WeekNumber,
+                gameweek.Deadline,
+                gameweekUrl));
+        }
+
+        if (messages.Count == 0)
+            return;
+
+        IReadOnlyList<EmailSendResult> outcomes;
+        try
+        {
+            outcomes = await _emailService.SendBulkAsync(messages, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            // The picks stand regardless. A player who hears nothing still finds the pick on the
+            // gameweek page, which beats the run reporting a failure over an email.
+            _logger.LogError(ex, "Auto-pick emails for GW{WeekNumber} could not be sent", gameweek.WeekNumber);
+            return;
+        }
+
+        int sent = 0, failed = 0, skipped = 0;
+        for (var i = 0; i < recipients.Count; i++)
+        {
+            switch (outcomes[i])
+            {
+                case EmailSendResult.Sent:
+                    sent++;
+                    break;
+
+                case EmailSendResult.Skipped:
+                    skipped++;
+                    break;
+
+                default:
+                    failed++;
+                    _logger.LogError(
+                        "Auto-pick email to user {UserId} for GW{WeekNumber} was not accepted by the email provider",
+                        recipients[i].UserId, gameweek.WeekNumber);
+                    break;
+            }
+        }
+
+        _logger.LogInformation("Auto-pick emails for GW{WeekNumber}: {Sent} sent, {Failed} failed, {Skipped} skipped",
+            gameweek.WeekNumber, sent, failed, skipped);
+    }
+
+    private static EmailMessage BuildAutoPickMessage(
+        string toEmail,
+        string userName,
+        string teamName,
+        int gameweekNumber,
+        DateTime deadline,
+        string? gameweekUrl)
+    {
+        return new EmailMessage(
+            toEmail,
+            $"⚽ Gameweek {gameweekNumber}: {teamName} was picked for you",
+            AutoPickEmailHtml(userName, teamName, gameweekNumber, deadline, gameweekUrl),
+            AutoPickEmailPlainText(userName, teamName, gameweekNumber, deadline, gameweekUrl));
+    }
+
+    private static string AutoPickEmailHtml(
+        string userName, string teamName, int gameweekNumber, DateTime deadline, string? gameweekUrl)
+    {
+        var deadlineFormatted = deadline.ToString("dddd, MMMM d 'at' h:mm tt 'UTC'");
+
+        return $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background-color: #ea580c; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }}
+        .content {{ background-color: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }}
+        .team-box {{ background-color: #fff; border-left: 4px solid #ea580c; padding: 15px; margin: 20px 0; border-radius: 4px; }}
+        .team-box strong {{ color: #ea580c; font-size: 20px; }}
+        .button {{ background-color: #37003c; color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; display: inline-block; margin-top: 20px; font-weight: bold; }}
+        .footer {{ text-align: center; padding: 20px; color: #666; font-size: 12px; }}
+    </style>
+</head>
+<body>
+    <div class=""container"">
+        <div class=""header"">
+            <h1>&#9917; A pick was made for you</h1>
+        </div>
+        <div class=""content"">
+            <h2>Hi {userName},</h2>
+            <p>The deadline for <strong>Gameweek {gameweekNumber}</strong> passed at {deadlineFormatted} without a pick from you, so one was assigned automatically.</p>
+
+            <div class=""team-box"">
+                <p style=""margin: 0; font-size: 14px; color: #666;"">Your Gameweek {gameweekNumber} pick</p>
+                <p style=""margin: 4px 0 0 0;""><strong>{teamName}</strong></p>
+            </div>
+
+            <p><strong>Why this team?</strong></p>
+            <p>An auto-pick takes the lowest-ranked team in the Premier League table that you have not already used in this half of the season.</p>
+
+            <p><strong>It counts.</strong> It scores exactly like a pick you make yourself &mdash; 3 points for a win, 1 for a draw &mdash; and it uses up {teamName} for the rest of this half. It cannot be changed now the deadline has passed.</p>
+
+            <p>To avoid this next time, make your pick before the deadline. Reminders go out 24 hours and 3 hours beforehand.</p>
+
+            {(gameweekUrl == null ? "" : $@"<a href=""{gameweekUrl}"" class=""button"">See the gameweek</a>")}
+        </div>
+        <div class=""footer"">
+            <p>Premier League Predictions</p>
+            <p>You're receiving this because you're participating in the current season.</p>
+        </div>
+    </div>
+</body>
+</html>";
+    }
+
+    private static string AutoPickEmailPlainText(
+        string userName, string teamName, int gameweekNumber, DateTime deadline, string? gameweekUrl)
+    {
+        var deadlineFormatted = deadline.ToString("dddd, MMMM d 'at' h:mm tt 'UTC'");
+
+        return $@"
+A PICK WAS MADE FOR YOU - GAMEWEEK {gameweekNumber}
+
+Hi {userName},
+
+The deadline for Gameweek {gameweekNumber} passed at {deadlineFormatted} without a pick from
+you, so one was assigned automatically.
+
+YOUR GAMEWEEK {gameweekNumber} PICK: {teamName}
+
+WHY THIS TEAM?
+An auto-pick takes the lowest-ranked team in the Premier League table that you have not
+already used in this half of the season.
+
+IT COUNTS. It scores exactly like a pick you make yourself - 3 points for a win, 1 for a
+draw - and it uses up {teamName} for the rest of this half. It cannot be changed now the
+deadline has passed.
+
+To avoid this next time, make your pick before the deadline. Reminders go out 24 hours and
+3 hours beforehand.
+
+{(gameweekUrl == null ? "Visit the site to see the gameweek." : $"See the gameweek: {gameweekUrl}")}
+
+Premier League Predictions
+You're receiving this because you're participating in the current season.
+";
     }
 
     public async Task<AutoPickResult> AssignAllMissedPicksAsync(CancellationToken cancellationToken = default)

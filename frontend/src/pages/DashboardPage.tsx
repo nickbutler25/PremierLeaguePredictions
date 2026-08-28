@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { AxiosError } from 'axios';
 import { dashboardService } from '@/services/dashboard';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDeadlineRefresh } from '@/hooks/useDeadlineRefresh';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { haptics } from '@/utils/haptics';
 import { Summary } from '@/components/dashboard/Summary';
@@ -21,6 +22,11 @@ export function DashboardPage() {
     enabled: !!user?.id,
     refetchInterval: 120000, // Refetch every 2 minutes to show live points during matches
   });
+
+  // The dashboard query polls, but the picks control and the standings do not — they are
+  // push-driven. Without this they keep showing no pick after an auto-pick until the page is
+  // reloaded by hand, while the summary above them already counts it.
+  useDeadlineRefresh(data?.currentGameweek?.deadline);
 
   // Pull-to-refresh functionality
   const { isPulling, pullDistance } = usePullToRefresh({

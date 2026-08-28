@@ -294,10 +294,9 @@ public class LiveGameweekService : ILiveGameweekService
                     EliminationPosition = elimination?.Position
                 };
             })
-            .OrderByDescending(e => e.TotalPoints)
+            .OrderByDescending(e => e.AveragePointsPerGame)
             .ThenByDescending(e => e.GoalDifference)
             .ThenByDescending(e => e.GoalsFor)
-            .ThenBy(e => e.PicksMade)
             .ThenByDescending(e => e.UserId)
             .ToList();
 

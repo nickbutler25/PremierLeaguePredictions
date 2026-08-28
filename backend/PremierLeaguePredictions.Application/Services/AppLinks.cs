@@ -19,6 +19,12 @@ public static class AppLinks
     /// <summary>Where a player lands to make a pick. Null when the site URL is not configured.</summary>
     public static string? Dashboard(IConfiguration configuration) => Page(configuration, "dashboard");
 
+    /// <summary>
+    /// The gameweek in progress, where a player can see the pick they were given and what the
+    /// rest of the field took. Null when the site URL is not configured.
+    /// </summary>
+    public static string? Gameweek(IConfiguration configuration) => Page(configuration, "gameweek");
+
     private static string? Page(IConfiguration configuration, string path)
     {
         var baseUrl = configuration[ConfigurationKey]?.Trim();
