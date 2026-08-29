@@ -13,6 +13,7 @@ public class ResultsService : IResultsService
     private readonly IFootballDataService _footballDataService;
     private readonly IAdminService _adminService;
     private readonly IEliminationService _eliminationService;
+    private readonly ILeagueService _leagueService;
     private readonly IHubContext<Hub> _hubContext;
     private readonly ILogger<ResultsService> _logger;
 
@@ -21,6 +22,7 @@ public class ResultsService : IResultsService
         IFootballDataService footballDataService,
         IAdminService adminService,
         IEliminationService eliminationService,
+        ILeagueService leagueService,
         IHubContext<Hub> hubContext,
         ILogger<ResultsService> logger)
     {
@@ -28,6 +30,7 @@ public class ResultsService : IResultsService
         _footballDataService = footballDataService;
         _adminService = adminService;
         _eliminationService = eliminationService;
+        _leagueService = leagueService;
         _hubContext = hubContext;
         _logger = logger;
     }
@@ -242,6 +245,11 @@ public class ResultsService : IResultsService
 
             _logger.LogInformation("Recalculated {Count} picks for GW {WeekNumber}",
                 response.PicksRecalculated, gameweek.WeekNumber);
+
+            // Drop the cached standings before telling clients. They refetch the moment the
+            // SignalR event lands, and a refetch served from a five-minute-old cache would
+            // hand back the scores they were just told had changed.
+            _leagueService.InvalidateStandings(seasonId);
 
             // Send SignalR notification to all connected clients
             await NotifyResultsUpdatedAsync(response, cancellationToken);

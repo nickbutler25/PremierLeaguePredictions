@@ -22,7 +22,7 @@ test.describe('League Standings', () => {
     const table = page.getByTestId('standings-table');
     await expect(table.getByText('#')).toBeVisible(); // Position
     await expect(table.getByText('Name')).toBeVisible();
-    await expect(table.getByText('PT')).toBeVisible(); // Points
+    await expect(table.getByText('Pts')).toBeVisible(); // Points
     await expect(table.getByText('W')).toBeVisible(); // Wins
     await expect(table.getByRole('columnheader', { name: 'D', exact: true })).toBeVisible(); // Draws
     await expect(table.getByRole('columnheader', { name: 'L', exact: true })).toBeVisible(); // Losses
@@ -173,17 +173,21 @@ test.describe('League Standings', () => {
   });
 
   test('should show played count on larger screens', async ({ page, viewport }) => {
-    // Skip if viewport is small
+    // The played column is hidden below sm.
     if (viewport && viewport.width < 640) {
       test.skip();
     }
 
+    // Not the dashboard, which every other test in this file uses: its standings are compact,
+    // and the compact table drops played, goals and form so six columns of padding do not push
+    // the points off the card. The full standings page is where those columns live.
+    await page.goto('/league');
+    await page.waitForSelector('[data-testid="standings-table"]', { state: 'visible' });
+
     const firstRow = page.getByTestId('standing-row-1');
 
     if (await firstRow.isVisible()) {
-      // Played column should be visible on larger screens
-      const played = firstRow.getByTestId('standing-played-1');
-      await expect(played).toBeVisible();
+      await expect(firstRow.getByTestId('standing-played-1')).toBeVisible();
     }
   });
 

@@ -151,7 +151,7 @@ export function LoginPage() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 p-4"
+      className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#E8F2FF] to-[#F4F8FC] dark:from-[#0B0820] dark:to-[#150F35] p-4"
       data-testid="login-page"
     >
       <Card className="w-full max-w-md" data-testid="login-card">

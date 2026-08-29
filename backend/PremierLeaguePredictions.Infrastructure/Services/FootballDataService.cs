@@ -10,6 +10,14 @@ public class FootballDataService : IFootballDataService
     private readonly HttpClient _httpClient;
     private readonly ILogger<FootballDataService> _logger;
     private readonly string _apiKey;
+
+    /// <summary>
+    /// When true, every response body is written to the log verbatim. Off by default — this is
+    /// polled every two minutes per live fixture, so it is a debugging switch rather than
+    /// something to leave on. Set FootballData__LogRawResponses=true to turn it on without a
+    /// code change.
+    /// </summary>
+    private readonly bool _logRawResponses;
     private const string BaseUrl = "https://api.football-data.org/v4/";
     private const string PremierLeagueCode = "PL";
 
@@ -18,6 +26,9 @@ public class FootballDataService : IFootballDataService
         _httpClient = httpClient;
         _logger = logger;
         _apiKey = configuration["FootballData:ApiKey"] ?? throw new InvalidOperationException("Football Data API key not configured");
+        // Read through the indexer rather than GetValue<bool>: the latter goes via GetSection,
+        // which not every IConfiguration implementation provides.
+        _logRawResponses = bool.TryParse(configuration["FootballData:LogRawResponses"], out var logRaw) && logRaw;
 
         _httpClient.BaseAddress = new Uri(BaseUrl);
         _httpClient.DefaultRequestHeaders.Add("X-Auth-Token", _apiKey);
@@ -80,7 +91,42 @@ public class FootballDataService : IFootballDataService
             PropertyNameCaseInsensitive = true
         });
 
+        LogFixtureResponse(externalId, content, fixture);
+
         return fixture;
+    }
+
+    /// <summary>
+    /// Records what the provider actually sent for a fixture.
+    /// </summary>
+    /// <remarks>
+    /// Logged as the parsed values rather than trusted silently: a match sitting at 0-0 and a
+    /// provider returning no score at all are indistinguishable once the response is discarded,
+    /// and that ambiguity has already cost an afternoon of guessing. Empty score fields here
+    /// mean the provider sent null, not that the game is goalless.
+    /// </remarks>
+    private void LogFixtureResponse(int externalId, string rawContent, ExternalFixture? fixture)
+    {
+        if (fixture == null)
+        {
+            _logger.LogWarning("football-data {ExternalId}: response did not deserialise into a fixture", externalId);
+            return;
+        }
+
+        _logger.LogInformation(
+            "football-data {ExternalId}: status={Status} fullTime={FtHome}-{FtAway} halfTime={HtHome}-{HtAway} kickoff={Kickoff:u}",
+            externalId,
+            fixture.Status,
+            fixture.Score?.FullTime?.Home,
+            fixture.Score?.FullTime?.Away,
+            fixture.Score?.HalfTime?.Home,
+            fixture.Score?.HalfTime?.Away,
+            fixture.UtcDate);
+
+        if (_logRawResponses)
+        {
+            _logger.LogInformation("football-data {ExternalId} raw response: {Response}", externalId, rawContent);
+        }
     }
 
     public async Task<int> GetCurrentSeasonAsync(CancellationToken cancellationToken = default)

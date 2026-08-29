@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { AxiosError } from 'axios';
 import { dashboardService } from '@/services/dashboard';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDeadlineRefresh } from '@/hooks/useDeadlineRefresh';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { haptics } from '@/utils/haptics';
 import { Summary } from '@/components/dashboard/Summary';
@@ -21,6 +22,11 @@ export function DashboardPage() {
     enabled: !!user?.id,
     refetchInterval: 120000, // Refetch every 2 minutes to show live points during matches
   });
+
+  // The dashboard query polls, but the picks control and the standings do not — they are
+  // push-driven. Without this they keep showing no pick after an auto-pick until the page is
+  // reloaded by hand, while the summary above them already counts it.
+  useDeadlineRefresh(data?.currentGameweek?.deadline);
 
   // Pull-to-refresh functionality
   const { isPulling, pullDistance } = usePullToRefresh({
@@ -125,11 +131,11 @@ export function DashboardPage() {
               There is currently no active season or gameweeks scheduled.
             </p>
             {user?.isAdmin && (
-              <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
-                <h3 className="font-semibold text-blue-800 dark:text-blue-300 mb-2">
+              <div className="bg-blue-50 dark:bg-violet-500/10 p-4 rounded-lg border border-blue-200 dark:border-violet-800/60">
+                <h3 className="font-semibold text-blue-800 dark:text-violet-300 mb-2">
                   Admin Action Required
                 </h3>
-                <p className="text-sm text-blue-700 dark:text-blue-400 mb-4">
+                <p className="text-sm text-blue-700 dark:text-violet-300 mb-4">
                   As an admin, you can create a new season and generate gameweeks to get started.
                 </p>
                 <Link

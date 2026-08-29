@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using PremierLeaguePredictions.Application.Interfaces;
+using PremierLeaguePredictions.Application.Services;
 
 namespace PremierLeaguePredictions.Infrastructure.Services;
 
@@ -9,15 +11,18 @@ public class SignalRNotificationService : INotificationService
 {
     private readonly IHubContext<Hub> _hubContext;
     private readonly IEmailService _emailService;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<SignalRNotificationService> _logger;
 
     public SignalRNotificationService(
         IHubContext<Hub> hubContext,
         IEmailService emailService,
+        IConfiguration configuration,
         ILogger<SignalRNotificationService> logger)
     {
         _hubContext = hubContext;
         _emailService = emailService;
+        _configuration = configuration;
         _logger = logger;
     }
 
@@ -96,12 +101,22 @@ public class SignalRNotificationService : INotificationService
                 ? $"Welcome to {seasonName}!"
                 : $"Season Participation Update - {seasonName}";
 
+            var dashboardUrl = AppLinks.Dashboard(_configuration);
+            if (isApproved && dashboardUrl == null)
+            {
+                // Better a mail with no button than one with a button that goes nowhere, but the
+                // whole point of this mail is to get the player to the site, so say so loudly.
+                _logger.LogWarning(
+                    "{Key} is not configured, so the approval email to {Email} has no link to the site",
+                    AppLinks.ConfigurationKey, toEmail);
+            }
+
             var htmlBody = isApproved
-                ? GetApprovalEmailHtml(userName, seasonName)
+                ? GetApprovalEmailHtml(userName, seasonName, dashboardUrl)
                 : GetRejectionEmailHtml(userName, seasonName);
 
             var plainTextBody = isApproved
-                ? GetApprovalEmailPlainText(userName, seasonName)
+                ? GetApprovalEmailPlainText(userName, seasonName, dashboardUrl)
                 : GetRejectionEmailPlainText(userName, seasonName);
 
             await _emailService.SendEmailAsync(toEmail, subject, htmlBody, plainTextBody);
@@ -144,7 +159,7 @@ public class SignalRNotificationService : INotificationService
         }
     }
 
-    private static string GetApprovalEmailHtml(string userName, string seasonName)
+    private static string GetApprovalEmailHtml(string userName, string seasonName, string? dashboardUrl)
     {
         return $@"
 <!DOCTYPE html>
@@ -174,7 +189,7 @@ public class SignalRNotificationService : INotificationService
                 <li>Track your progress throughout the season</li>
             </ul>
             <p>Remember, you can pick each team once per half of the season. Choose wisely!</p>
-            <a href=""https://your-app-url.com"" class=""button"">Go to Dashboard</a>
+            {(dashboardUrl == null ? "" : $@"<a href=""{dashboardUrl}"" class=""button"">Go to Dashboard</a>")}
         </div>
         <div class=""footer"">
             <p>Premier League Predictions</p>
@@ -185,7 +200,7 @@ public class SignalRNotificationService : INotificationService
 </html>";
     }
 
-    private static string GetApprovalEmailPlainText(string userName, string seasonName)
+    private static string GetApprovalEmailPlainText(string userName, string seasonName, string? dashboardUrl)
     {
         return $@"
 Welcome {userName}!
@@ -199,7 +214,7 @@ You can now:
 
 Remember, you can pick each team once per half of the season. Choose wisely!
 
-Visit the dashboard to get started.
+{(dashboardUrl == null ? "Visit the dashboard to get started." : $"Get started here: {dashboardUrl}")}
 
 Good luck this season!
 

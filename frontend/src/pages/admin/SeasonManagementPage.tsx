@@ -358,11 +358,11 @@ export function SeasonManagementPage() {
                   Cancel
                 </Button>
               </div>
-              <div className="rounded-lg bg-blue-50 dark:bg-blue-950 p-4 border border-blue-200 dark:border-blue-800">
-                <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
+              <div className="rounded-lg bg-blue-50 dark:bg-violet-950/40 p-4 border border-blue-200 dark:border-violet-800/60">
+                <p className="text-sm font-medium text-blue-900 dark:text-violet-100 mb-2">
                   Steps after creating a season:
                 </p>
-                <ol className="text-sm text-blue-800 dark:text-blue-200 list-decimal list-inside space-y-1">
+                <ol className="text-sm text-blue-800 dark:text-violet-200 list-decimal list-inside space-y-1">
                   <li>Sync teams from the Football Data API (automatic)</li>
                   <li>Mark relegated teams as inactive in Team Status section</li>
                   <li>Sync fixtures for the new season (automatic)</li>
@@ -414,7 +414,7 @@ export function SeasonManagementPage() {
                       </span>
                     )}
                     {season.isArchived && (
-                      <span className="px-2 py-1 text-xs bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 rounded">
+                      <span className="px-2 py-1 text-xs bg-gray-100 text-gray-800 dark:bg-secondary dark:text-foreground rounded">
                         Archived
                       </span>
                     )}
@@ -487,7 +487,7 @@ export function SeasonManagementPage() {
                   onClick={() => syncResultsMutation.mutate()}
                   disabled={syncResultsMutation.isPending}
                   variant="default"
-                  className="bg-green-600 hover:bg-green-700"
+                  className="bg-green-700 hover:bg-green-800"
                 >
                   🔄 Sync Results & Update Points
                 </Button>

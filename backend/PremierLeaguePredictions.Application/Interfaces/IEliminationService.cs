@@ -10,6 +10,15 @@ public interface IEliminationService
     Task<List<UserEliminationDto>> GetSeasonEliminationsAsync(string seasonId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// The eliminations page: who has gone out, and who the next gameweek threatens.
+    /// </summary>
+    /// <remarks>
+    /// Player-facing, so it leaves out the admin trail the admin view carries.
+    /// </remarks>
+    Task<EliminationsOverviewDto> GetEliminationsOverviewAsync(
+        string? seasonId = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Gets eliminations for a specific gameweek
     /// </summary>
     Task<List<UserEliminationDto>> GetGameweekEliminationsAsync(string seasonId, int gameweekNumber, CancellationToken cancellationToken = default);

@@ -21,6 +21,19 @@ public class StandingEntryDto
     public int GoalsFor { get; set; }
     public int GoalsAgainst { get; set; }
     public int GoalDifference { get; set; }
+
+    /// <summary>
+    /// Points per gameweek played, to two decimals — the figure the table is ordered on.
+    /// </summary>
+    /// <remarks>
+    /// Derived rather than stored so it cannot drift from the points and games it is made of.
+    /// Games played counts gameweeks whose fixture has a score, the same denominator the
+    /// elimination rule uses, so a player who joined late is not scored as having lost the
+    /// gameweeks they were not in.
+    /// </remarks>
+    public decimal AveragePointsPerGame =>
+        PicksMade == 0 ? 0m : Math.Round((decimal)TotalPoints / PicksMade, 2);
+
     public bool IsEliminated { get; set; }
     public int? EliminatedInGameweek { get; set; }
     public int? EliminationPosition { get; set; }

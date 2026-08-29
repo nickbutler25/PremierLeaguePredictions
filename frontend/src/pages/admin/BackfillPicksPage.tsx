@@ -313,11 +313,11 @@ export function BackfillPicksPage() {
               </Button>
             </div>
 
-            <div className="rounded-lg bg-blue-50 dark:bg-blue-950 p-4 border border-blue-200 dark:border-blue-800">
-              <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
+            <div className="rounded-lg bg-blue-50 dark:bg-violet-950/40 p-4 border border-blue-200 dark:border-violet-800/60">
+              <p className="text-sm font-medium text-blue-900 dark:text-violet-100 mb-2">
                 Important Notes:
               </p>
-              <ul className="text-sm text-blue-800 dark:text-blue-200 list-disc list-inside space-y-1">
+              <ul className="text-sm text-blue-800 dark:text-violet-200 list-disc list-inside space-y-1">
                 <li>You can leave gameweeks blank if you don't want to backfill them</li>
                 <li>Points will be automatically calculated based on match results</li>
                 <li>If a pick already exists for a gameweek, it will be updated</li>

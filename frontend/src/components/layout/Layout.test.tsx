@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { describe, it, expect, vi } from 'vitest';
 import { Layout } from './Layout';
@@ -163,6 +163,73 @@ describe('Layout Accessibility', () => {
 
     const nav = screen.getByRole('navigation', { name: 'Main navigation' });
     expect(nav).toBeInTheDocument();
-    expect(screen.getByText('Admin')).toBeInTheDocument();
+    // Scoped to the header: the bottom tab bar carries an Admin tab of its own, so a bare
+    // query matches twice.
+    expect(within(nav).getByText('Admin')).toBeInTheDocument();
+  });
+
+  describe('bottom tab bar', () => {
+    it('gives a phone a way to reach every section', () => {
+      render(
+        <BrowserRouter>
+          <AuthContext.Provider value={mockAuthContextValue}>
+            <ThemeProvider>
+              <Layout>
+                <div>Content</div>
+              </Layout>
+            </ThemeProvider>
+          </AuthContext.Provider>
+        </BrowserRouter>
+      );
+
+      // The header nav is hidden below md, so without these the league, the gameweek and the
+      // eliminations cannot be reached on a phone at all.
+      const bar = screen.getByTestId('mobile-navigation');
+      expect(within(bar).getByTestId('mobile-dashboard-link')).toHaveAttribute(
+        'href',
+        '/dashboard'
+      );
+      expect(within(bar).getByTestId('mobile-gameweek-link')).toHaveAttribute('href', '/gameweek');
+      expect(within(bar).getByTestId('mobile-league-link')).toHaveAttribute('href', '/league');
+      expect(within(bar).getByTestId('mobile-eliminations-link')).toHaveAttribute(
+        'href',
+        '/eliminations'
+      );
+    });
+
+    it('keeps admin out of it for an ordinary player', () => {
+      render(
+        <BrowserRouter>
+          <AuthContext.Provider value={mockAuthContextValue}>
+            <ThemeProvider>
+              <Layout>
+                <div>Content</div>
+              </Layout>
+            </ThemeProvider>
+          </AuthContext.Provider>
+        </BrowserRouter>
+      );
+
+      expect(screen.queryByTestId('mobile-admin-link')).not.toBeInTheDocument();
+    });
+
+    it('is named apart from the header nav', () => {
+      render(
+        <BrowserRouter>
+          <AuthContext.Provider value={mockAuthContextValue}>
+            <ThemeProvider>
+              <Layout>
+                <div>Content</div>
+              </Layout>
+            </ThemeProvider>
+          </AuthContext.Provider>
+        </BrowserRouter>
+      );
+
+      // Both are in the DOM at once — only CSS hides one — so a screen reader needs to be able
+      // to tell the two landmarks apart.
+      expect(screen.getByRole('navigation', { name: 'Main navigation' })).toBeInTheDocument();
+      expect(screen.getByRole('navigation', { name: 'Mobile navigation' })).toBeInTheDocument();
+    });
   });
 });

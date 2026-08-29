@@ -8,6 +8,14 @@ namespace PremierLeaguePredictions.Application.Services;
 
 public class DashboardService : IDashboardService
 {
+    /// <summary>
+    /// Statuses that mean a fixture has a score, so a pick on it counts. Matches
+    /// <see cref="LeagueService"/> and the standings query — a pick is played or it is not, and
+    /// two screens must not disagree about which.
+    /// </summary>
+    private static readonly HashSet<string> ScoringStatuses =
+        new(StringComparer.OrdinalIgnoreCase) { "FINISHED", "IN_PLAY", "PAUSED" };
+
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<DashboardService> _logger;
 
@@ -44,15 +52,26 @@ public class DashboardService : IDashboardService
         var picks = await _unitOfWork.Picks.FindAsync(p => p.UserId == userId, trackChanges: false, cancellationToken);
         var picksList = picks.ToList();
 
-        // Get all gameweeks to determine which are completed
         var allGameweeks = await _unitOfWork.Gameweeks.GetAllAsync(trackChanges: false, cancellationToken);
-        var completedGameweekKeys = allGameweeks
-            .Where(g => g.Deadline < DateTime.UtcNow)
-            .Select(g => new { g.SeasonId, GameweekNumber = g.WeekNumber })
+        var allFixtures = await _unitOfWork.Fixtures.GetAllAsync(trackChanges: false, cancellationToken);
+
+        // A pick counts once its own fixture has a score — not merely because the deadline has
+        // passed. Those are different moments: a Saturday deadline with a Monday kickoff leaves
+        // a pick locked but unplayed for two days, and counting it then scored a nil-nothing as
+        // a defeat and inflated the picks-made count. This is the same rule the standings use
+        // for picks made, so the two now agree about what has been played.
+        var playedPicks = allFixtures
+            .Where(f => ScoringStatuses.Contains(f.Status))
+            .SelectMany(f => new[]
+            {
+                (f.SeasonId, f.GameweekNumber, TeamId: f.HomeTeamId),
+                (f.SeasonId, f.GameweekNumber, TeamId: f.AwayTeamId)
+            })
             .ToHashSet();
 
-        // Only count W/D/L for picks in completed gameweeks
-        var completedPicks = picksList.Where(p => completedGameweekKeys.Contains(new { p.SeasonId, p.GameweekNumber })).ToList();
+        var completedPicks = picksList
+            .Where(p => playedPicks.Contains((p.SeasonId, p.GameweekNumber, p.TeamId)))
+            .ToList();
 
         int totalWins = 0;
         int totalDraws = 0;
@@ -66,7 +85,7 @@ public class DashboardService : IDashboardService
         }
 
         var totalPoints = picksList.Sum(p => p.Points);
-        var totalPicks = completedPicks.Count; // Only count completed picks
+        var totalPicks = completedPicks.Count; // Only count picks whose fixture has been played
 
         // Get current/upcoming gameweeks
         // Current gameweek could be:
@@ -79,8 +98,7 @@ public class DashboardService : IDashboardService
         _logger.LogInformation("Current UTC time: {Now}, checking {GameweekCount} gameweeks for user {UserId}",
             now, allGameweeksOrdered.Count, userId);
 
-        // Get all fixtures to check gameweek status
-        var allFixtures = await _unitOfWork.Fixtures.GetAllAsync(trackChanges: false, cancellationToken);
+        // Fixtures were loaded above for the played-picks check; grouped here for gameweek status.
         var fixturesByGameweek = allFixtures.GroupBy(f => new { f.SeasonId, GameweekNumber = f.GameweekNumber }).ToDictionary(g => g.Key, g => g.ToList());
 
         GameweekDto? currentGameweek = null;

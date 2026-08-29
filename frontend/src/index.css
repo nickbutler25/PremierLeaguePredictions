@@ -3,49 +3,64 @@
 @tailwind utilities;
 
 @layer base {
+  /* Light Ocean — cool blue fading into crisp white.
+     Surfaces run the other way to the dark theme: the page is the tinted one (#E8F2FF) and
+     cards are pure white, so a card reads as lifted by being *lighter* than what surrounds it.
+     Every neutral keeps a blue cast rather than going grey. */
   :root {
-    --background: 250 100% 98%;
-    --foreground: 280 85% 15%;
+    --background: 214 100% 95%; /* #E8F2FF */
+    --foreground: 215 56% 13%;
     --card: 0 0% 100%;
-    --card-foreground: 280 85% 15%;
+    --card-foreground: 215 56% 13%;
     --popover: 0 0% 100%;
-    --popover-foreground: 280 85% 15%;
-    --primary: 280 80% 50%;
+    --popover-foreground: 215 56% 13%;
+    --primary: 213 60% 49%; /* #3276C8 */
     --primary-foreground: 0 0% 100%;
-    --secondary: 270 60% 96%;
-    --secondary-foreground: 280 85% 15%;
-    --muted: 270 50% 95%;
-    --muted-foreground: 280 30% 40%;
-    --accent: 330 80% 60%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 84.2% 60.2%;
+    --secondary: 210 57% 97%; /* #F4F8FC */
+    --secondary-foreground: 215 56% 13%;
+    --muted: 210 57% 97%;
+    --muted-foreground: 215 16% 47%; /* #64748B */
+    /* Accent is the quiet hover surface, not a second brand colour — a saturated accent here
+       turns every nav hover into a shout. */
+    --accent: 216 43% 93%; /* #E6ECF5 */
+    --accent-foreground: 215 56% 13%;
+    --destructive: 0 72% 51%; /* #DC2626 */
     --destructive-foreground: 0 0% 100%;
-    --border: 270 30% 85%;
-    --input: 270 30% 85%;
-    --ring: 280 80% 50%;
+    --border: 216 43% 93%;
+    --input: 216 43% 93%;
+    --ring: 213 60% 49%;
     --radius: 0.5rem;
   }
 
+  /* Nebula Night — cosmic purple glow over deep blue undertones.
+     Surfaces step #080414 (page) -> #11112B (card) -> #1E1B4B (raised), so a card lifts off the
+     page and a raised element off the card without any of them turning grey. Hue stays in the
+     240-260 band throughout: the near-black is a very dark violet, not black with a filter. */
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --background: 255 67% 5%; /* #080414 */
+    --foreground: 250 40% 96%;
+    --card: 240 43% 12%; /* #11112B */
+    --card-foreground: 250 40% 96%;
+    --popover: 258 55% 8%; /* between page and card, so popovers read as floating */
+    --popover-foreground: 250 40% 96%;
+    /* Violet accent, matching the light theme's purple rather than shadcn's white-on-dark.
+       Damped to 50% lightness and 58% saturation: on near-black surfaces a bright violet fill
+       glares, and this still carries the accent. White label text sits at 7.35:1, against
+       4.31:1 at the original 258 90% 66%, which was below the 4.5:1 minimum. */
+    --primary: 257 58% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 244 47% 20%; /* #1E1B4B */
+    --secondary-foreground: 250 40% 96%;
+    --muted: 243 40% 15%;
+    --muted-foreground: 245 25% 68%;
+    --accent: 244 47% 20%;
+    --accent-foreground: 250 40% 96%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    /* Borders sit just above the card so edges register without drawing a line of their own. */
+    --border: 245 35% 18%;
+    --input: 245 35% 18%;
+    --ring: 257 58% 50%;
   }
 }
 
@@ -55,6 +70,30 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+
+  /* Light Ocean fades the other way to the dark theme: the blue sits at the top and gives way
+     to white further down, so content lower on a long page sits on the crisp end. */
+  body {
+    background-image: linear-gradient(
+      to bottom,
+      hsl(214 100% 95%) 0%,
+      hsl(210 60% 98%) 42%,
+      hsl(0 0% 100%) 100%
+    );
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+  }
+
+  /* The glow that makes it Nebula Night rather than a flat near-black: two wide, low-opacity
+     pools of colour bled in from the top corners — indigo on the left, violet on the right.
+     Fixed, so they stay put while the page scrolls instead of tiling down a long table. */
+  .dark body {
+    background-image:
+      radial-gradient(75rem 45rem at 12% -12%, hsl(244 60% 32% / 0.5), transparent 62%),
+      radial-gradient(65rem 40rem at 92% -6%, hsl(276 65% 34% / 0.34), transparent 58%);
+    background-attachment: fixed;
+    background-repeat: no-repeat;
   }
 
   /* Theme-aware scrollbars — the muted token flips with the .dark class, so these adapt
@@ -78,5 +117,90 @@
   }
   *::-webkit-scrollbar-thumb:hover {
     background-color: hsl(var(--muted-foreground) / 0.55);
+  }
+}
+
+@layer components {
+  /*
+   * Card surface. A flat white panel on a tinted page reads as a hole rather than a card, so
+   * the surface carries three very quiet layers:
+   *   1. a fine grain, so it catches light like paper instead of glass;
+   *   2. a wash from white down to the faintest blue, tying it to the page behind it;
+   *   3. a hairline highlight along the top edge, which is what reads as "raised".
+   * All of it sits near the threshold of visible — the test is that removing it looks flat,
+   * not that adding it looks decorated.
+   */
+  .card-surface {
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.16'/%3E%3C/svg%3E"),
+      linear-gradient(to bottom, hsl(0 0% 100%) 0%, hsl(210 60% 99%) 55%, hsl(213 45% 98%) 100%);
+    background-size:
+      140px 140px,
+      100% 100%;
+    /* multiply, not soft-light: soft-light against near-white barely moves a pixel, so the
+       grain has to darken very slightly instead. Hence the low opacity on the noise itself. */
+    background-blend-mode: multiply, normal;
+    box-shadow:
+      inset 0 1px 0 hsl(0 0% 100%),
+      0 1px 2px hsl(213 40% 60% / 0.08),
+      0 4px 12px hsl(213 40% 55% / 0.06);
+  }
+
+  /*
+   * Dark keeps the grain but nothing else: the nebula surfaces already have depth from the
+   * glow behind them, and a white top highlight on a near-black card reads as a scratch.
+   */
+  .dark .card-surface {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.09'/%3E%3C/svg%3E");
+    background-size: 140px 140px;
+    /* screen, not overlay: overlay against a near-black card returns the card. Grain on a dark
+       surface has to lighten, so the speckles are what carry it. */
+    background-blend-mode: screen;
+    box-shadow:
+      inset 0 1px 0 hsl(250 40% 96% / 0.04),
+      0 2px 10px hsl(258 60% 4% / 0.5);
+  }
+
+  /* Texture is decoration; anyone who has asked for less motion or contrast gets the flat card. */
+  @media (prefers-contrast: more) {
+    .card-surface,
+    .dark .card-surface {
+      background-image: none;
+    }
+  }
+}
+
+@layer components {
+  /*
+   * Filled buttons in dark. Flat saturated fills read as stickers against the textured cards,
+   * so each one gets the same treatment the surfaces got: a grain, a top-lit gradient, and a
+   * lip along the top and bottom edges so it reads as a key rather than a painted rectangle.
+   * Light mode leaves them flat — the fills are already sitting on white and need no help.
+   */
+  .dark .btn-surface {
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E"),
+      linear-gradient(
+        to bottom,
+        hsl(0 0% 100% / 0.08) 0%,
+        hsl(0 0% 100% / 0) 45%,
+        hsl(0 0% 0% / 0.18) 100%
+      );
+    background-size:
+      90px 90px,
+      100% 100%;
+    /* soft-light works here where it failed on the cards: these fills are mid-tones, and that
+       is the range the blend actually moves. */
+    background-blend-mode: soft-light, normal;
+    box-shadow:
+      inset 0 1px 0 hsl(0 0% 100% / 0.1),
+      inset 0 -1px 0 hsl(0 0% 0% / 0.26);
+  }
+
+  @media (prefers-contrast: more) {
+    .dark .btn-surface {
+      background-image: none;
+      box-shadow: none;
+    }
   }
 }

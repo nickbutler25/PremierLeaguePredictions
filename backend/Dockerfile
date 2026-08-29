@@ -32,5 +32,10 @@ COPY --from=build /app/publish .
 
 # Set environment variable for ASP.NET to listen on all interfaces
 ENV ASPNETCORE_URLS=http://+:8080
+# Do not watch appsettings*.json for changes. Each watched file opens an inotify instance, and
+# the host limit (128 per user) is shared across containers — exhausting it makes the app crash
+# during WebApplication.CreateBuilder, before any of our code runs. Configuration comes from
+# environment variables here and the files never change at runtime, so there is nothing to watch.
+ENV DOTNET_hostBuilder__reloadConfigOnChange=false
 
 ENTRYPOINT ["dotnet", "PremierLeaguePredictions.API.dll"]

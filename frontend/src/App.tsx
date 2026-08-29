@@ -10,6 +10,9 @@ import { Layout } from '@/components/layout/Layout';
 import { LoginPage } from '@/pages/LoginPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { ProfilePage } from '@/pages/ProfilePage';
+import { UserProfilePage } from '@/pages/UserProfilePage';
+import { EliminationsPage } from '@/pages/EliminationsPage';
+import { GameweekPage } from '@/pages/GameweekPage';
 import { PendingApprovalPage } from '@/pages/PendingApprovalPage';
 import { LeagueStandings } from '@/components/league/LeagueStandings';
 import { SeasonManagementPage } from '@/pages/admin/SeasonManagementPage';
@@ -124,6 +127,48 @@ function AppRoutes() {
               <div className="container mx-auto p-6">
                 <LeagueStandings />
               </div>
+            </Layout>
+          </ApprovalCheckRoute>
+        }
+      />
+      <Route
+        path="/gameweek"
+        element={
+          <ApprovalCheckRoute>
+            <Layout>
+              <GameweekPage />
+            </Layout>
+          </ApprovalCheckRoute>
+        }
+      />
+      {/* Separate route rather than an optional segment, which React Router does not support.
+          The bare path stays the most recent gameweek so it does not go stale in a bookmark. */}
+      <Route
+        path="/gameweek/:gameweekNumber"
+        element={
+          <ApprovalCheckRoute>
+            <Layout>
+              <GameweekPage />
+            </Layout>
+          </ApprovalCheckRoute>
+        }
+      />
+      <Route
+        path="/eliminations"
+        element={
+          <ApprovalCheckRoute>
+            <Layout>
+              <EliminationsPage />
+            </Layout>
+          </ApprovalCheckRoute>
+        }
+      />
+      <Route
+        path="/users/:userId"
+        element={
+          <ApprovalCheckRoute>
+            <Layout>
+              <UserProfilePage />
             </Layout>
           </ApprovalCheckRoute>
         }

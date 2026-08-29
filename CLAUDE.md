@@ -17,9 +17,99 @@ Pick rules are split into two halves of the season (configured in admin):
 
 The opponent is determined from the fixture — users pick a team, and the system knows who that team is facing from the fixture data.
 
-## Eliminations
+## League Ordering
 
-Configurable per season in admin. Each week, X players with the lowest **average points per game** at the end of that gameweek are eliminated.
+The table is ordered on **points**, then — only between players level on points — **points per
+game**, then **goal difference**, then **goals for**. A final tiebreak on user id is not a
+ranking; without it players level on every column come back in whatever order the query
+produced, so positions shuffled between requests.
+
+Points per game only does anything when players are on different numbers of games. Picks are
+backfilled and auto-assigned to a common denominator, so in practice that means **a postponed
+fixture**: whoever picked a team in it has no score for it until the rearranged match is
+played, and level on points off fewer games is the better record.
+
+Games played counts gameweeks whose fixture has a score (FINISHED, IN_PLAY or PAUSED) — the
+same rule the dashboard's record and picks-made use. A deadline passing is *not* the same
+moment: a Saturday deadline with a Monday kickoff leaves a pick locked but unplayed.
+
+**Eliminations run this exact chain from the bottom.** `LeagueService`, `LiveGameweekService`,
+`EliminationService.ProcessGameweekEliminationsAsync` and both danger zones all sort on it.
+`LeagueOrderingTests` pins each step in isolation;
+`TheEliminatedAreExactlyTheBottomOfTheLeagueTable` pins that the run and the table agree; and
+`TheLiveViewAgreesWithTheLeagueTable` pins the gameweek page against the standings.
+
+One consequence to know: the chain has no notion of a player who has not played, so **a player
+with no pick at all now outranks one who picked and lost** — nothing conceded beats a negative
+goal difference. Backfill and auto-pick exist to stop anyone reaching a settled gameweek
+without a pick; if either ever fails, this is the behaviour to revisit.
+`APlayerWhoNeverPickedIsStillRanked` documents it.
+
+---
+
+## Auto-Picks
+
+A player who misses a deadline has the lowest-ranked team they have not yet used in this half
+assigned to them. They are told twice: a SignalR notification for anyone with the site open,
+and an **email** naming the team, the gameweek and the fact it cannot be changed. The email is
+the one that actually arrives — nobody has the site open at the deadline.
+
+**Both go out only after `SaveChangesAsync`.** They used to be sent inside the assignment loop,
+before the picks were committed: a client that acted on the notification refetched, read the
+database before the transaction landed, got back its old pickless state and cached that for
+five minutes — so the pick did not appear until the page was reloaded by hand.
+`AutoPickNotificationTests.TellsNobodyUntilThePicksAreSaved` pins the ordering.
+
+Emails go in one batch for the same reason reminders do: at a few hundred players, one request
+per recipient outlives cron-job.org's 30s timeout. A mailer failure is logged, never thrown —
+it must not fail a run whose picks are already saved.
+
+Volume is expected to be small — missing a deadline should be rare, and an auto-pick email only
+goes to someone who did. It costs a subset of the people the 3h reminder already went to on the
+same calendar day, so the reminders remain the binding side of the Brevo daily cap. Worth a
+glance only if a week ever produces auto-picks at scale.
+
+On the client, `useDeadlineRefresh` invalidates picks, dashboard, standings and the live
+gameweek on a short ladder after the deadline. The SignalR event only reaches someone connected
+at that moment, and the dashboard query polls while picks and standings do not — without this
+the two disagree on screen until a manual reload.
+
+---
+
+## The Gameweek Page (`/gameweek`, `/gameweek/:n`)
+
+A per-player view of one gameweek: their own pick with its score, what share of the field took
+each team, who is closing on them in the table, whether the week put them out, the fixtures with
+how many players each carries, and what the pick left them for the rest of the half.
+
+**A gameweek is served only once its deadline has passed.** `GET /api/v1/gameweek` answers
+`isRevealed: false` with the next deadline for anything else — including a gameweek asked for by
+number that has not locked, which is answered the same way rather than 404, so the response does
+not confirm which gameweeks exist. The payload names every player's pick, so serving it early
+would let a player pick around the field. Same rule as the reveal gate on
+`PickService.GetPicksByGameweekAsync`; `LiveGameweekServiceTests` pins it, and
+`availableGameweeks` only ever lists revealed gameweeks so the selector cannot reach past it.
+
+With no `gameweek` param it returns the one being played, and the most recent one played when
+nothing is live — so the page falls back to history rather than to a dead countdown. `IsLive`
+means "still being played" (via `ActiveGameweekFinder`, shared with the standings so the two
+cannot disagree about which gameweek is current); `IsRevealed` means "there is content".
+
+**The table is rebuilt as it stood at the end of the selected gameweek**, not read from
+`LeagueService`, because the standings only know about now — today's positions against a pick
+from twelve weeks ago would answer a different question. Position movement is that aggregate at
+`n` against the same at `n-1`; there is no stored mid-week snapshot to read. For the live
+gameweek the rebuild and the standings are answering the same question, and
+`TheLiveViewAgreesWithTheLeagueTable` pins that they match — **the standings remain the
+authority, and this must not be allowed to drift from them.**
+
+Eliminations on the page are a forecast only while the gameweek is live and unprocessed. Once
+run, the same section shows what actually happened (`isSettled`). A gameweek that finished
+without being processed gets nothing — guessing would name players in a drop zone that may never
+be applied.
+
+The page is **push-driven, not polled**: `useResultsUpdates` invalidates `['live-gameweek']` on the
+SignalR `ResultsUpdated` event. Do not add a `refetchInterval`.
 
 ---
 
@@ -146,6 +236,9 @@ develop   → main     (PR, tests must pass → auto-deploy to Render)
 | EF Core context | `backend/PremierLeaguePredictions.Infrastructure/Data/ApplicationDbContext.cs` |
 | Auth policies | `backend/PremierLeaguePredictions.API/Authorization/AdminPolicies.cs` |
 | API container build (prod / dev) | `backend/Dockerfile` / `backend/Dockerfile.dev` |
+| Gameweek page service | `backend/PremierLeaguePredictions.Application/Services/LiveGameweekService.cs` |
+| Gameweek page endpoint | `backend/PremierLeaguePredictions.API/Controllers/GameweekController.cs` |
+| Gameweek page (UI) | `frontend/src/pages/GameweekPage.tsx` + `frontend/src/components/gameweek/` |
 | Frontend routes | `frontend/App.tsx` |
 | Auth context | `frontend/src/contexts/` |
 

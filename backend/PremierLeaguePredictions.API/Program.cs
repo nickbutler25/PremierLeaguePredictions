@@ -33,6 +33,20 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 // Configure Serilog based on environment
 builder.Host.UseSerilog((context, config) =>
 {
+    // Framework logging is turned down so the application's own lines stay readable. At
+    // Information, EF Core writes the full SQL of every query — during a live gameweek the
+    // 2-minute score sync buries "Updated fixture: ..." under dozens of SELECTs — and ASP.NET
+    // adds four lines per request (endpoint, route match, action, result) on top of the
+    // one-line summary UseSerilogRequestLogging already produces.
+    //
+    // Raise either back to Information temporarily when diagnosing a query or a routing problem.
+    config
+        .MinimumLevel.Information()
+        .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command", Serilog.Events.LogEventLevel.Warning)
+        .MinimumLevel.Override("Microsoft.AspNetCore", Serilog.Events.LogEventLevel.Warning)
+        .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Infrastructure", Serilog.Events.LogEventLevel.Warning)
+        .MinimumLevel.Override("System.Net.Http.HttpClient", Serilog.Events.LogEventLevel.Warning);
+
     config.WriteTo.Console();
 
     if (context.HostingEnvironment.IsDevelopment())
@@ -262,8 +276,10 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<ILeagueService, LeagueService>();
+builder.Services.AddScoped<IUserProfileService, UserProfileService>();
 builder.Services.AddScoped<ISeasonParticipationService, SeasonParticipationService>();
 builder.Services.AddScoped<IEliminationService, EliminationService>();
+builder.Services.AddScoped<ILiveGameweekService, LiveGameweekService>();
 builder.Services.AddScoped<IGameweekCompletionService, GameweekCompletionService>();
 builder.Services.AddScoped<IAutoPickService, AutoPickService>();
 builder.Services.AddScoped<IPickReminderService, PickReminderService>();
@@ -283,9 +299,11 @@ builder.Services.AddScoped<INotificationService>(sp =>
 {
     var hubContext = sp.GetRequiredService<IHubContext<PremierLeaguePredictions.API.Hubs.NotificationHub>>();
     var emailService = sp.GetRequiredService<IEmailService>();
+    var configuration = sp.GetRequiredService<IConfiguration>();
     var logger = sp.GetRequiredService<ILogger<SignalRNotificationService>>();
     // Cast to IHubContext<Hub> since that's what SignalRNotificationService expects
-    return new SignalRNotificationService((IHubContext<Hub>)(object)hubContext, emailService, logger);
+    return new SignalRNotificationService(
+        (IHubContext<Hub>)(object)hubContext, emailService, configuration, logger);
 });
 
 // Register Football Data API services
@@ -297,10 +315,11 @@ builder.Services.AddScoped<IResultsService>(sp =>
     var footballDataService = sp.GetRequiredService<IFootballDataService>();
     var adminService = sp.GetRequiredService<IAdminService>();
     var eliminationService = sp.GetRequiredService<IEliminationService>();
+    var leagueService = sp.GetRequiredService<ILeagueService>();
     var hubContext = sp.GetRequiredService<IHubContext<PremierLeaguePredictions.API.Hubs.NotificationHub>>();
     var logger = sp.GetRequiredService<ILogger<ResultsService>>();
     // Cast to IHubContext<Hub> for ResultsService
-    return new ResultsService(unitOfWork, footballDataService, adminService, eliminationService, (IHubContext<Hub>)(object)hubContext, logger);
+    return new ResultsService(unitOfWork, footballDataService, adminService, eliminationService, leagueService, (IHubContext<Hub>)(object)hubContext, logger);
 });
 
 // Register Cron Scheduler services

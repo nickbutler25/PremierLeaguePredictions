@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import type { StandingEntry } from '@/types';
 import { Link } from 'react-router-dom';
 import { leagueService } from '@/services/league';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,6 +13,7 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PickCrest } from './PickCrest';
+import { FormBadge } from './FormBadge';
 
 interface LeagueStandingsProps {
   compact?: boolean;
@@ -23,7 +25,10 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
   const { data, isLoading, error } = useQuery({
     queryKey: ['league-standings'],
     queryFn: () => leagueService.getStandings(),
-    refetchInterval: 120000, // Refetch every 2 minutes to show live points during matches
+    // No polling: useResultsUpdates (mounted in Layout) invalidates this key whenever the
+    // score sync reports a change, so the table refreshes on the event rather than on a timer.
+    // Polling every 2 minutes from every client is also the load the server-side cache exists
+    // to absorb — at a few hundred players that is a request every second or so, all day.
   });
 
   if (isLoading) {
@@ -63,6 +68,54 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
     return null;
   }
 
+  // The server attaches a current pick only once a gameweek's deadline has passed and it still
+  // has a match to play — the same gameweek the dashboard calls in progress. Reading it from
+  // the payload keeps the columns and the data they hold from ever disagreeing, and needs no
+  // second request on the full standings route, which has no page component to thread a prop
+  // through.
+  const gameweekInProgress = data.standings.some((entry) => entry.currentPick);
+
+  // Between gameweeks there is no pick to reveal, so the column would be empty in every row.
+  const showPick = gameweekInProgress;
+
+  // The full table carries the rest regardless. The compact one on the dashboard is narrow
+  // enough that it has to choose: while a gameweek is being played, how everyone's goal
+  // difference is moving is the live interest; between gameweeks nothing is moving, so the
+  // season record is what there is to look at.
+  const showRecord = !compact || !gameweekInProgress;
+  const showGoalDifference = !compact || gameweekInProgress;
+
+  // Compact columns are shown at every width — the dashboard table is only a few columns wide,
+  // so there is nothing to gain by hiding them on small screens.
+  const recordVisibility = compact ? '' : 'hidden sm:table-cell';
+  const goalDifferenceVisibility = compact ? '' : 'hidden lg:table-cell';
+
+  // The dashboard sits in a narrow column, and it now carries three stat columns rather than
+  // one. At the full table's widths the last of them is pushed off the card, so the compact
+  // table gets its own tighter set — the values are one or two characters either way.
+  const positionWidth = compact ? 'w-8' : 'w-12';
+  const nameWidth = compact ? 'min-w-[100px]' : 'min-w-[120px] sm:min-w-[150px]';
+  const recordWidth = compact ? 'w-9' : 'w-12';
+  const goalDifferenceWidth = compact ? 'w-12' : 'w-16';
+  const pointsWidth = compact ? 'w-12' : 'w-16';
+  const averageWidth = compact ? 'w-12' : 'w-16';
+
+  const goalDifferenceCell = (entry: StandingEntry) => (
+    <TableCell
+      className={`text-center text-xs sm:text-sm ${goalDifferenceVisibility} ${
+        entry.goalDifference > 0
+          ? 'text-green-600 dark:text-green-400'
+          : entry.goalDifference < 0
+            ? 'text-red-600 dark:text-red-400'
+            : ''
+      }`}
+      data-testid={`standing-gd-${entry.position}`}
+    >
+      {entry.goalDifference > 0 ? '+' : ''}
+      {entry.goalDifference}
+    </TableCell>
+  );
+
   return (
     <Card data-testid="league-standings-card">
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
@@ -77,28 +130,66 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
         )}
       </CardHeader>
       <CardContent>
-        <div className={`rounded-md border ${compact ? '' : 'overflow-x-auto'}`}>
+        {/* The compact table trades the default cell padding for tighter columns: at the
+            dashboard's width, six columns of px-4 spend more room on padding than on values
+            and push the last column off the card. overflow-x-auto is the backstop for a name
+            long enough to overflow anyway — scrolling beats clipping the points. */}
+        <div
+          className={`rounded-md border overflow-x-auto ${
+            compact ? '[&_th]:px-2 [&_td]:px-2' : ''
+          }`}
+        >
           <Table data-testid="standings-table">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-12 text-center">#</TableHead>
-                <TableHead className="min-w-[120px] sm:min-w-[150px]">Name</TableHead>
-                <TableHead className="text-center w-12">Pick</TableHead>
-                <TableHead className="text-center w-12 hidden sm:table-cell">P</TableHead>
-                <TableHead className="text-center w-12">W</TableHead>
-                <TableHead className="text-center w-12">D</TableHead>
-                <TableHead className="text-center w-12">L</TableHead>
-                <TableHead className="text-center w-16 font-bold">PT</TableHead>
+                <TableHead className={`${positionWidth} text-center`}>#</TableHead>
+                <TableHead className={nameWidth}>Name</TableHead>
+                {showPick && <TableHead className="text-center w-12">Pick</TableHead>}
+                {!compact && (
+                  <TableHead className="text-center w-12 hidden sm:table-cell">P</TableHead>
+                )}
+                {showRecord && (
+                  <TableHead className={`text-center ${recordWidth} ${recordVisibility}`}>
+                    W
+                  </TableHead>
+                )}
+                {showRecord && (
+                  <TableHead className={`text-center ${recordWidth} ${recordVisibility}`}>
+                    D
+                  </TableHead>
+                )}
+                {showRecord && (
+                  <TableHead className={`text-center ${recordWidth} ${recordVisibility}`}>
+                    L
+                  </TableHead>
+                )}
+                {/* On the dashboard GD comes before Pts so points stay the last column;
+                    the full table keeps it with the other goal columns, after Pts. */}
+                {showGoalDifference && compact && (
+                  <TableHead
+                    className={`text-center ${goalDifferenceWidth} ${goalDifferenceVisibility}`}
+                  >
+                    GD
+                  </TableHead>
+                )}
+                <TableHead className={`text-center ${pointsWidth} font-bold`}>Pts</TableHead>
+                {/* Only breaks a tie on points, so it sits after them — and only on the full
+                    table, where a sixth column does not push the points off the card. */}
+                {!compact && <TableHead className={`text-center ${averageWidth}`}>Avg</TableHead>}
                 {!compact && (
                   <TableHead className="text-center w-16 hidden md:table-cell">GF</TableHead>
                 )}
                 {!compact && (
                   <TableHead className="text-center w-16 hidden md:table-cell">GA</TableHead>
                 )}
-                {!compact && (
-                  <TableHead className="text-center w-16 hidden lg:table-cell">GD</TableHead>
+                {showGoalDifference && !compact && (
+                  <TableHead
+                    className={`text-center ${goalDifferenceWidth} ${goalDifferenceVisibility}`}
+                  >
+                    GD
+                  </TableHead>
                 )}
-                {!compact && <TableHead className="w-[220px] hidden md:table-cell">Form</TableHead>}
+                {!compact && <TableHead className="w-[200px] hidden lg:table-cell">Form</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -112,7 +203,7 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                       data-testid={`standing-row-${entry.position}`}
                       className={
                         isCurrentUser
-                          ? 'bg-blue-50 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-950/40'
+                          ? 'bg-blue-50 dark:bg-violet-500/10 hover:bg-blue-100 dark:hover:bg-blue-950/40'
                           : ''
                       }
                     >
@@ -126,54 +217,77 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                         className={`text-xs sm:text-sm ${isCurrentUser ? 'font-bold' : ''}`}
                         data-testid={`standing-name-${entry.position}`}
                       >
-                        <span className="block sm:inline truncate max-w-[100px] sm:max-w-none">
+                        <Link
+                          to={`/users/${entry.userId}`}
+                          className="block sm:inline truncate max-w-[100px] sm:max-w-none hover:underline underline-offset-4"
+                          data-testid={`standing-name-link-${entry.position}`}
+                        >
                           {entry.userName}
-                        </span>
+                        </Link>
                         {isCurrentUser && (
                           <span
-                            className="ml-1 sm:ml-2 text-xs text-blue-600 dark:text-blue-400"
+                            className="ml-1 sm:ml-2 text-xs text-blue-600 dark:text-violet-300"
                             data-testid="current-user-indicator"
                           >
                             (You)
                           </span>
                         )}
                       </TableCell>
+                      {showPick && (
+                        <TableCell
+                          className="text-center"
+                          data-testid={`standing-pick-${entry.position}`}
+                        >
+                          <PickCrest pick={entry.currentPick} showResultLetter />
+                        </TableCell>
+                      )}
+                      {!compact && (
+                        <TableCell
+                          className="text-center text-xs sm:text-sm hidden sm:table-cell"
+                          data-testid={`standing-played-${entry.position}`}
+                        >
+                          {entry.picksMade}
+                        </TableCell>
+                      )}
+                      {showRecord && (
+                        <TableCell
+                          className={`text-center text-xs sm:text-sm ${recordVisibility} text-green-600 dark:text-green-400`}
+                          data-testid={`standing-wins-${entry.position}`}
+                        >
+                          {entry.wins}
+                        </TableCell>
+                      )}
+                      {showRecord && (
+                        <TableCell
+                          className={`text-center text-xs sm:text-sm ${recordVisibility} text-yellow-600 dark:text-yellow-400`}
+                          data-testid={`standing-draws-${entry.position}`}
+                        >
+                          {entry.draws}
+                        </TableCell>
+                      )}
+                      {showRecord && (
+                        <TableCell
+                          className={`text-center text-xs sm:text-sm ${recordVisibility} text-red-600 dark:text-red-400`}
+                          data-testid={`standing-losses-${entry.position}`}
+                        >
+                          {entry.losses}
+                        </TableCell>
+                      )}
+                      {showGoalDifference && compact && goalDifferenceCell(entry)}
                       <TableCell
-                        className="text-center"
-                        data-testid={`standing-pick-${entry.position}`}
-                      >
-                        <PickCrest pick={entry.currentPick} showResultLetter />
-                      </TableCell>
-                      <TableCell
-                        className="text-center text-xs sm:text-sm hidden sm:table-cell"
-                        data-testid={`standing-played-${entry.position}`}
-                      >
-                        {entry.picksMade}
-                      </TableCell>
-                      <TableCell
-                        className="text-center text-xs sm:text-sm text-green-600 dark:text-green-400"
-                        data-testid={`standing-wins-${entry.position}`}
-                      >
-                        {entry.wins}
-                      </TableCell>
-                      <TableCell
-                        className="text-center text-xs sm:text-sm text-yellow-600 dark:text-yellow-400"
-                        data-testid={`standing-draws-${entry.position}`}
-                      >
-                        {entry.draws}
-                      </TableCell>
-                      <TableCell
-                        className="text-center text-xs sm:text-sm text-red-600 dark:text-red-400"
-                        data-testid={`standing-losses-${entry.position}`}
-                      >
-                        {entry.losses}
-                      </TableCell>
-                      <TableCell
-                        className="text-center font-bold text-xs sm:text-sm"
+                        className="text-center font-bold text-xs sm:text-sm tabular-nums"
                         data-testid={`standing-points-${entry.position}`}
                       >
                         {entry.totalPoints}
                       </TableCell>
+                      {!compact && (
+                        <TableCell
+                          className="text-center text-xs sm:text-sm tabular-nums text-muted-foreground"
+                          data-testid={`standing-average-${entry.position}`}
+                        >
+                          {entry.averagePointsPerGame.toFixed(2)}
+                        </TableCell>
+                      )}
                       {!compact && (
                         <TableCell className="text-center text-xs sm:text-sm hidden md:table-cell">
                           {entry.goalsFor}
@@ -184,34 +298,16 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                           {entry.goalsAgainst}
                         </TableCell>
                       )}
+                      {showGoalDifference && !compact && goalDifferenceCell(entry)}
                       {!compact && (
                         <TableCell
-                          className={`text-center text-xs sm:text-sm hidden lg:table-cell ${
-                            entry.goalDifference > 0
-                              ? 'text-green-600 dark:text-green-400'
-                              : entry.goalDifference < 0
-                                ? 'text-red-600 dark:text-red-400'
-                                : ''
-                          }`}
-                        >
-                          {entry.goalDifference > 0 ? '+' : ''}
-                          {entry.goalDifference}
-                        </TableCell>
-                      )}
-                      {!compact && (
-                        <TableCell
-                          className="hidden md:table-cell"
+                          className="hidden lg:table-cell"
                           data-testid={`standing-form-${entry.position}`}
                         >
                           {entry.form && entry.form.length > 0 ? (
                             <span className="flex items-center gap-1">
                               {entry.form.map((pick) => (
-                                <PickCrest
-                                  key={pick.gameweekNumber}
-                                  pick={pick}
-                                  size="sm"
-                                  showGameweek
-                                />
+                                <FormBadge key={pick.gameweekNumber} pick={pick} />
                               ))}
                             </span>
                           ) : (
@@ -229,20 +325,33 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
         <div className="mt-4 text-xs sm:text-sm text-muted-foreground">
           <p className="font-semibold mb-2">Column Key:</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
-            <div className="hidden sm:block">
-              <strong>P:</strong> Played
-            </div>
+            {!compact && (
+              <div className="hidden sm:block">
+                <strong>P:</strong> Played
+              </div>
+            )}
+            {!compact && (
+              <div>
+                <strong>Avg:</strong> Points per game &mdash; breaks a tie on points
+              </div>
+            )}
+            {showRecord && (
+              <div>
+                <strong>W:</strong> Won
+              </div>
+            )}
+            {showRecord && (
+              <div>
+                <strong>D:</strong> Drawn
+              </div>
+            )}
+            {showRecord && (
+              <div>
+                <strong>L:</strong> Lost
+              </div>
+            )}
             <div>
-              <strong>W:</strong> Won
-            </div>
-            <div>
-              <strong>D:</strong> Drawn
-            </div>
-            <div>
-              <strong>L:</strong> Lost
-            </div>
-            <div>
-              <strong>PT:</strong> Points
+              <strong>Pts:</strong> Points
             </div>
             {!compact && (
               <div className="hidden md:block">
@@ -254,8 +363,8 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                 <strong>GA:</strong> Goals Against
               </div>
             )}
-            {!compact && (
-              <div className="hidden lg:block">
+            {showGoalDifference && (
+              <div className={compact ? '' : 'hidden lg:block'}>
                 <strong>GD:</strong> Goal Difference
               </div>
             )}

@@ -37,6 +37,7 @@ export function useResultsUpdates() {
       queryClient.invalidateQueries({ queryKey: ['gameweeks'] });
       queryClient.invalidateQueries({ queryKey: ['picks'] });
       queryClient.invalidateQueries({ queryKey: ['league-standings'] });
+      queryClient.invalidateQueries({ queryKey: ['live-gameweek'] });
     };
 
     // Register handler

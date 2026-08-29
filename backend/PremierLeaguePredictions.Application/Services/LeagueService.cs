@@ -32,6 +32,17 @@ public class LeagueService : ILeagueService
         _cache = cache;
     }
 
+    public void InvalidateStandings(string seasonId)
+    {
+        if (string.IsNullOrEmpty(seasonId))
+            return;
+
+        _cache.Remove(CacheKey(seasonId));
+        _logger.LogDebug("Invalidated cached standings for season {SeasonId}", seasonId);
+    }
+
+    private static string CacheKey(string seasonId) => $"standings_{seasonId}";
+
     public async Task<LeagueStandingsDto> GetLeagueStandingsAsync(string? seasonId = null, CancellationToken cancellationToken = default)
     {
         // Get active season if not specified
@@ -60,7 +71,7 @@ public class LeagueService : ILeagueService
 
         // Check cache first. Only the aggregate is cached — current picks are attached after,
         // because they carry live scores and must not be five minutes stale.
-        var cacheKey = $"standings_{seasonId}";
+        var cacheKey = CacheKey(seasonId);
         if (_cache.TryGetValue(cacheKey, out LeagueStandingsDto? cachedStandings) && cachedStandings != null)
         {
             _logger.LogDebug("Returning standings from cache for season {SeasonId}", seasonId);
@@ -111,11 +122,20 @@ public class LeagueService : ILeagueService
             Rank = 0 // Will be calculated after sorting
         }).ToList();
 
-        // Sort in memory (minimal data already loaded from database)
+        // Points first, as the table has always been read. Points per game, goal difference and
+        // goals for only separate players who are level on points — and points per game only
+        // does that when a postponement has left the field on different numbers of games, since
+        // picks are otherwise backfilled to a common denominator.
+        //
+        // The id is not a ranking, but without it players level on every column come back in
+        // whatever order the query happened to produce, so positions shuffled between requests.
+        // The elimination run reads this same chain from the bottom.
         var sortedStandings = standings
             .OrderByDescending(s => s.TotalPoints)
+            .ThenByDescending(s => s.AveragePointsPerGame)
             .ThenByDescending(s => s.GoalDifference)
             .ThenByDescending(s => s.GoalsFor)
+            .ThenByDescending(s => s.UserId)
             .ToList();
 
         // Assign positions and ranks
@@ -207,7 +227,7 @@ public class LeagueService : ILeagueService
                 if (!fixturesByGameweek.TryGetValue(pick.GameweekNumber, out var gameweekFixtures))
                     continue;
 
-                var summary = BuildPickSummary(pick.GameweekNumber, pick.TeamId, gameweekFixtures, teams);
+                var summary = PickSummaryFactory.Build(pick.GameweekNumber, pick.TeamId, gameweekFixtures, teams);
 
                 // The gameweek is complete, so nothing here should be live or unplayed. The
                 // remaining case is a pick on a team with no fixture that gameweek, which has
@@ -234,7 +254,7 @@ public class LeagueService : ILeagueService
     private async Task<LeagueStandingsDto> WithCurrentPicksAsync(
         LeagueStandingsDto standings, string seasonId, CancellationToken cancellationToken)
     {
-        var gameweek = await FindActiveGameweekAsync(seasonId, cancellationToken);
+        var gameweek = await ActiveGameweekFinder.FindAsync(_unitOfWork, seasonId, cancellationToken);
         if (gameweek == null)
             return standings;
 
@@ -265,7 +285,7 @@ public class LeagueService : ILeagueService
             {
                 var copy = entry.Copy();
                 if (picksByUser.TryGetValue(entry.UserId, out var pick))
-                    copy.CurrentPick = BuildPickSummary(gameweek.WeekNumber, pick.TeamId, fixtures, teams);
+                    copy.CurrentPick = PickSummaryFactory.Build(gameweek.WeekNumber, pick.TeamId, fixtures, teams);
                 return copy;
             })
             .ToList();
@@ -276,86 +296,5 @@ public class LeagueService : ILeagueService
             TotalPlayers = standings.TotalPlayers,
             LastUpdated = standings.LastUpdated
         };
-    }
-
-    /// <summary>
-    /// The gameweek whose picks are in play: the most recent one whose deadline has passed and
-    /// which still has a fixture unfinished or yet to kick off. Matches the definition the
-    /// dashboard uses, so the two never disagree about which gameweek is current.
-    /// </summary>
-    private async Task<Gameweek?> FindActiveGameweekAsync(string seasonId, CancellationToken cancellationToken)
-    {
-        var now = DateTime.UtcNow;
-
-        var candidates = (await _unitOfWork.Gameweeks.FindAsync(
-                g => g.SeasonId == seasonId && g.Deadline <= now,
-                trackChanges: false, cancellationToken))
-            .OrderByDescending(g => g.Deadline)
-            .ToList();
-
-        foreach (var gameweek in candidates)
-        {
-            var fixtures = await _unitOfWork.Fixtures.FindAsync(
-                f => f.SeasonId == seasonId && f.GameweekNumber == gameweek.WeekNumber,
-                trackChanges: false, cancellationToken);
-
-            var fixtureList = fixtures.ToList();
-            if (fixtureList.Count == 0)
-                continue;
-
-            var stillRunning = fixtureList.Any(f => f.Status != "FINISHED") ||
-                               fixtureList.Any(f => f.KickoffTime > now);
-
-            if (stillRunning)
-                return gameweek;
-
-            // Deadlines are ordered, so once a gameweek is fully played every earlier one is too.
-            break;
-        }
-
-        return null;
-    }
-
-    private static PickSummaryDto? BuildPickSummary(
-        int gameweekNumber, int teamId, IReadOnlyCollection<Fixture> fixtures, Dictionary<int, Team> teams)
-    {
-        if (!teams.TryGetValue(teamId, out var team))
-            return null;
-
-        var pick = new PickSummaryDto
-        {
-            GameweekNumber = gameweekNumber,
-            TeamId = team.Id,
-            TeamName = team.Name,
-            TeamShortName = team.MediumName ?? team.Code,
-            LogoUrl = team.LogoUrl
-        };
-
-        var fixture = fixtures.FirstOrDefault(f => f.HomeTeamId == teamId || f.AwayTeamId == teamId);
-        if (fixture == null)
-            return pick; // picked a team with no fixture this gameweek — nothing to report on
-
-        var isHome = fixture.HomeTeamId == teamId;
-        var opponentId = isHome ? fixture.AwayTeamId : fixture.HomeTeamId;
-        pick.OpponentName = teams.TryGetValue(opponentId, out var opponent) ? opponent.Name : null;
-
-        // PAUSED covers half time, where a score exists and the match is not over.
-        var isLive = fixture.Status is "IN_PLAY" or "PAUSED";
-        var isFinished = fixture.Status == "FINISHED";
-
-        if (!isLive && !isFinished)
-            return pick; // not kicked off — revealed, but no result to colour it by
-
-        var teamScore = (isHome ? fixture.HomeScore : fixture.AwayScore) ?? 0;
-        var opponentScore = (isHome ? fixture.AwayScore : fixture.HomeScore) ?? 0;
-
-        pick.TeamScore = teamScore;
-        pick.OpponentScore = opponentScore;
-        pick.IsLive = isLive;
-        pick.Outcome = teamScore > opponentScore ? PickOutcome.Win
-                     : teamScore == opponentScore ? PickOutcome.Draw
-                     : PickOutcome.Loss;
-
-        return pick;
     }
 }

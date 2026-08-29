@@ -401,12 +401,13 @@ public class N1QueryPerformanceTests
             entry.TotalPoints.Should().BeGreaterThanOrEqualTo(0);
         });
 
-        // Verify standings are sorted correctly
-        var sortedByPoints = result.Standings.OrderByDescending(s => s.TotalPoints)
+        // Verify standings are sorted correctly: points per game, then goal difference, then
+        // goals for.
+        var sorted = result.Standings.OrderByDescending(s => s.AveragePointsPerGame)
             .ThenByDescending(s => s.GoalDifference)
             .ThenByDescending(s => s.GoalsFor)
             .ToList();
-        result.Standings.Should().Equal(sortedByPoints);
+        result.Standings.Should().Equal(sorted);
 
         // Verify AsNoTracking was used
         dbContext.ChangeTracker.Entries().Should().BeEmpty("because read-only operations should use AsNoTracking");

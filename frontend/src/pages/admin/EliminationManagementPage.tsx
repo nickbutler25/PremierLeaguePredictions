@@ -156,7 +156,7 @@ export default function EliminationManagementPage() {
           <Button
             onClick={handleBulkSave}
             disabled={bulkUpdateMutation.isPending}
-            className="bg-green-600 hover:bg-green-700"
+            className="bg-green-700 hover:bg-green-800"
           >
             💾 Save All Changes ({Object.keys(eliminationCounts).length})
           </Button>

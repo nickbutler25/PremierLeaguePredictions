@@ -4,6 +4,7 @@ using Asp.Versioning;
 using PremierLeaguePredictions.Application.DTOs;
 using PremierLeaguePredictions.Infrastructure.Data;
 using PremierLeaguePredictions.Infrastructure.Services;
+using PremierLeaguePredictions.API.Authorization;
 
 namespace PremierLeaguePredictions.API.Controllers;
 
@@ -17,19 +18,22 @@ public class DevController : ControllerBase
     private readonly DbSeeder _seeder;
     private readonly ILogger<DevController> _logger;
     private readonly IWebHostEnvironment _env;
+    private readonly IConfiguration _configuration;
 
     public DevController(
         ApplicationDbContext context,
         ITokenService tokenService,
         DbSeeder seeder,
         ILogger<DevController> logger,
-        IWebHostEnvironment env)
+        IWebHostEnvironment env,
+        IConfiguration configuration)
     {
         _context = context;
         _tokenService = tokenService;
         _seeder = seeder;
         _logger = logger;
         _env = env;
+        _configuration = configuration;
     }
 
     private IActionResult? EnforceDevOnly()
@@ -39,15 +43,7 @@ public class DevController : ControllerBase
         return null;
     }
 
-    // Development (Render dev) is cross-site with the Vercel frontend, so SameSite=None; Secure=true is required.
-    // Testing (CI, localhost HTTP) is same-site, so Lax + not-secure is fine.
-    private CookieOptions DevCookieOptions() => new CookieOptions
-    {
-        HttpOnly = true,
-        Secure = _env.IsDevelopment(),
-        SameSite = _env.IsDevelopment() ? SameSiteMode.None : SameSiteMode.Lax,
-        Expires = DateTimeOffset.UtcNow.AddDays(1)
-    };
+    private CookieOptions DevCookieOptions() => AuthCookie.Options(Request, _configuration);
 
     [HttpPost("seed")]
     public async Task<IActionResult> SeedDatabase()
@@ -71,7 +67,7 @@ public class DevController : ControllerBase
 
         var token = _tokenService.GenerateToken(adminUser);
 
-        Response.Cookies.Append("auth_token", token, DevCookieOptions());
+        Response.Cookies.Append(AuthCookie.Name, token, DevCookieOptions());
 
         var authResponse = new AuthResponse
         {
@@ -105,7 +101,7 @@ public class DevController : ControllerBase
 
         var token = _tokenService.GenerateToken(testUser);
 
-        Response.Cookies.Append("auth_token", token, DevCookieOptions());
+        Response.Cookies.Append(AuthCookie.Name, token, DevCookieOptions());
 
         var authResponse = new AuthResponse
         {
