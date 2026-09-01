@@ -7,7 +7,7 @@ import { render, createMockUser } from '@/test/test-utils';
 import { dashboardService } from '@/services/dashboard';
 import { leagueService } from '@/services/league';
 import { usersService } from '@/services/users';
-import type { LeagueStandingsData, StandingEntry, UserProfile } from '@/types';
+import type { LeagueStandings as LeagueStandingsData, StandingEntry, UserProfile } from '@/types';
 
 vi.mock('@/services/dashboard', () => ({
   dashboardService: { getDashboard: vi.fn() },
@@ -56,8 +56,11 @@ const standing = (overrides: Partial<StandingEntry> = {}): StandingEntry =>
     ...overrides,
   }) as StandingEntry;
 
-const standings = (entries: StandingEntry[]) =>
-  ({ seasonId: '2026-2027', standings: entries }) as LeagueStandingsData;
+const standings = (entries: StandingEntry[]): LeagueStandingsData => ({
+  standings: entries,
+  totalPlayers: entries.length,
+  lastUpdated: new Date().toISOString(),
+});
 
 const dashboard = () => ({
   user: {

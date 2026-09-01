@@ -1,4 +1,4 @@
-import type { AuthResponse } from '@/types';
+import type { AuthResponse, User } from '@/types';
 
 // Mock user data for testing
 const mockUser = {
@@ -80,7 +80,14 @@ export const mockAuthService = {
     return { token: mockToken, user: mockUser };
   },
 
-  changePassword: async (currentPassword: string, _newPassword: string, _confirm: string) => {
+  // Annotated rather than inferred: without it the return type is the literal shape of mockUser
+  // (googleId, createdAt, updatedAt and all), which the real service does not have. Callers then
+  // see the intersection of the two and cannot satisfy either.
+  changePassword: async (
+    currentPassword: string,
+    _newPassword: string,
+    _confirm: string
+  ): Promise<User> => {
     console.log('[MOCK AUTH] Change password called');
     await delay(500);
     if (currentPassword === 'wrong') {
