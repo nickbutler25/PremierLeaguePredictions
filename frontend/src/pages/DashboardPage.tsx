@@ -4,6 +4,7 @@ import { AxiosError } from 'axios';
 import { dashboardService } from '@/services/dashboard';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDeadlineRefresh } from '@/hooks/useDeadlineRefresh';
+import { useMyStanding } from '@/hooks/useMyStanding';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { haptics } from '@/utils/haptics';
 import { Summary } from '@/components/dashboard/Summary';
@@ -15,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 export function DashboardPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { isEliminated } = useMyStanding();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['dashboard', user?.id],
@@ -174,24 +176,43 @@ export function DashboardPage() {
       {/* Summary Header */}
       <Summary />
 
-      {/* Main Content Area: 3 Column Layout */}
+      {/* Three columns normally, two once a player is out. The picks control is not merely
+          disabled for them, it is gone — they cannot pick again this season, so it would be a
+          permanently dead card taking a third of the width. Dropping to two columns fills the
+          space it leaves rather than parking an empty one on the end. */}
       <div
-        className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+        className={`grid gap-4 grid-cols-1 md:grid-cols-2 ${
+          isEliminated ? 'lg:grid-cols-2' : 'lg:grid-cols-3'
+        }`}
         data-testid="dashboard-grid"
       >
-        {/* Left Column - Picks */}
-        <div data-testid="dashboard-picks-column">
-          <Picks />
-        </div>
+        {/* Picks is lifted out of the flow for the same reason as the standings below: its table
+            runs to 38 gameweeks, so in the flow it would set the row height and the other two
+            would stretch to it. With both positioned, Fixtures is the only card left deciding
+            the row, and all three end up its height. */}
+        {!isEliminated && (
+          <div data-testid="dashboard-picks-column" className="md:relative">
+            <div className="md:absolute md:inset-0">
+              <Picks />
+            </div>
+          </div>
+        )}
 
-        {/* Middle Column - Fixtures */}
         <div data-testid="dashboard-fixtures-column">
           <Fixtures />
         </div>
 
-        {/* Right Column - League Standings */}
-        <div data-testid="dashboard-standings-column">
-          <LeagueStandings compact />
+        {/* The standings card is lifted out of the flow from md up so it cannot set the row's
+            height. A grid row is as tall as its tallest item's content, so while the card was in
+            the flow a 266-row table made the row 266 rows tall and every "fill the cell" rule
+            resolved to exactly that — no constraint, no scrollbar. Absolutely positioned, it no
+            longer contributes a height, so Picks and Fixtures decide the row and the card fills
+            whatever they settle on. Below md there is a single column and nothing to match, so it
+            stays in the flow and the card's own max-height caps it. */}
+        <div data-testid="dashboard-standings-column" className="md:relative">
+          <div className="md:absolute md:inset-0">
+            <LeagueStandings compact />
+          </div>
         </div>
       </div>
     </div>

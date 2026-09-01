@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { Home, Radio, Trophy, Skull, Settings } from 'lucide-react';
+import { Home, Radio, Trophy, Skull, Settings, Users } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -22,6 +22,15 @@ const tabs: Tab[] = [
     matchPrefix: true,
   },
   { to: '/league', label: 'League', icon: Trophy, testId: 'mobile-league-link' },
+  {
+    to: '/users',
+    label: 'Players',
+    icon: Users,
+    testId: 'mobile-players-link',
+    // /users/:id is the same page reached by tapping a name in the league table, so the tab
+    // stays lit when browsing someone else.
+    matchPrefix: true,
+  },
   { to: '/eliminations', label: 'Out', icon: Skull, testId: 'mobile-eliminations-link' },
 ];
 
@@ -46,8 +55,10 @@ const adminTab: Tab = {
  * shrunk to phone width.
  */
 export function MobileNav({ isAdmin }: { isAdmin: boolean }) {
-  // Five is the most iOS shows before collapsing the rest behind "More", and admins land
-  // exactly on it.
+  // Five for a player, six for an admin. Five was the ceiling when the bar was built — what iOS
+  // shows before collapsing the rest behind "More" — and the Players tab spends it. These are
+  // flex-1 cells rather than a real iOS tab bar so a sixth fits, but at ~62px on a 375px phone
+  // the labels are at their limit. Anything further needs the bar rethought, not another tab.
   const items = isAdmin ? [...tabs, adminTab] : tabs;
 
   // Named apart from the header's "Main navigation": both are in the DOM at once — only CSS

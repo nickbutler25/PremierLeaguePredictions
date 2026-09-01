@@ -1,8 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
 import type { StandingEntry } from '@/types';
 import { Link } from 'react-router-dom';
 import { leagueService } from '@/services/league';
 import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -21,6 +24,26 @@ interface LeagueStandingsProps {
 
 export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
   const { user } = useAuth();
+
+  const [nameFilter, setNameFilter] = useState('');
+  const myRowRef = useRef<HTMLTableRowElement>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+
+  // Shorter on the dashboard purely for room: the card is a third of the width and the header
+  // has to carry the controls beside it. The card sits under a "League" heading in context
+  // anyway, so nothing is lost.
+  const title = compact ? 'Standings' : 'League Standings';
+
+  // Jumping happens in an effect rather than in the click handler because the click also clears
+  // the filter: if the player is currently filtered out, their row does not exist in the DOM yet
+  // and there is nothing to scroll to. The effect runs after React has committed the cleared
+  // filter, by which point the row is there.
+  const [pendingJump, setPendingJump] = useState(false);
+  useEffect(() => {
+    if (!pendingJump) return;
+    myRowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setPendingJump(false);
+  }, [pendingJump]);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['league-standings'],
@@ -78,6 +101,16 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
   // Between gameweeks there is no pick to reveal, so the column would be empty in every row.
   const showPick = gameweekInProgress;
 
+  // Eliminated players are not in the table, so a player who is out has no row to jump to and
+  // gets no button. Their season lives on their player page instead.
+  const listed = data.standings.filter((entry) => !entry.isEliminated);
+  const meIsListed = listed.some((entry) => entry.userId === user?.id);
+
+  const query = nameFilter.trim().toLowerCase();
+  const visible = query
+    ? listed.filter((entry) => entry.userName.toLowerCase().includes(query))
+    : listed;
+
   // The full table carries the rest regardless. The compact one on the dashboard is narrow
   // enough that it has to choose: while a gameweek is being played, how everyone's goal
   // difference is moving is the live interest; between gameweeks nothing is moving, so the
@@ -116,26 +149,114 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
   );
 
   return (
-    <Card data-testid="league-standings-card">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0">
-        <CardTitle>League Standings</CardTitle>
-        {compact && (
-          <Link
-            to="/league"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Full standings →
-          </Link>
+    // The dashboard card fills the height it is given rather than setting its own. DashboardPage
+    // lifts it out of the grid flow from md up so that height comes from Picks and Fixtures; here
+    // the card just has to stretch to it and let the table scroll inside.
+    <Card
+      data-testid="league-standings-card"
+      className={compact ? 'flex flex-col h-full' : undefined}
+    >
+      <CardHeader className="space-y-3 shrink-0">
+        <div className="flex flex-row items-center justify-between gap-2 space-y-0">
+          <CardTitle>{title}</CardTitle>
+          {compact && (
+            <div className="flex items-center gap-1.5">
+              {/* The card scrolls its own rows, so once you have jumped to yourself there is no
+                  page scroll to get you back — this returns the table to first place. */}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => scrollerRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+                data-testid="standings-scroll-top"
+                className="h-7 px-2 text-xs whitespace-nowrap"
+              >
+                Top
+              </Button>
+              {meIsListed && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPendingJump(true)}
+                  data-testid="standings-jump-to-me-compact"
+                  className="h-7 px-2 text-xs whitespace-nowrap"
+                >
+                  Jump to me
+                </Button>
+              )}
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 text-xs whitespace-nowrap"
+              >
+                <Link to="/league">Full Table</Link>
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* At a few hundred players, scrolling to find a name is the slow way round. The filter
+            runs over the rows already in hand, so it needs no request and no debounce. */}
+        {!compact && (
+          <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+            <Input
+              type="search"
+              value={nameFilter}
+              onChange={(e) => setNameFilter(e.target.value)}
+              placeholder="Filter by name"
+              aria-label="Filter standings by player name"
+              data-testid="standings-filter"
+              className="h-9 sm:max-w-xs"
+            />
+            {meIsListed && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  // Clearing first, because jumping to a row the filter is hiding cannot work.
+                  setNameFilter('');
+                  setPendingJump(true);
+                }}
+                data-testid="standings-jump-to-me"
+                className="h-9 shrink-0"
+              >
+                Jump to me
+              </Button>
+            )}
+            {query && (
+              <span
+                className="text-sm text-muted-foreground"
+                data-testid="standings-filter-count"
+                role="status"
+              >
+                {visible.length} of {listed.length}
+              </span>
+            )}
+          </div>
         )}
       </CardHeader>
-      <CardContent>
+      <CardContent className={compact ? 'flex flex-col flex-1 min-h-0' : undefined}>
         {/* The compact table trades the default cell padding for tighter columns: at the
             dashboard's width, six columns of px-4 spend more room on padding than on values
             and push the last column off the card. overflow-x-auto is the backstop for a name
             long enough to overflow anyway — scrolling beats clipping the points. */}
+        {/* The dashboard card scrolls its own rows rather than growing to fit them: at a few
+            hundred players an uncapped table makes that column several screens taller than
+            Picks and Fixtures beside it.
+
+            From md up the card is given a height by DashboardPage, so flex-1 takes whatever is
+            left after the header and the key. min-h-0 is what allows it to shrink below its
+            content; without it a flex child refuses to and the scrollbar never appears. Below md
+            there is a single column and nothing to match, so the max-height is the cap. */}
         <div
+          ref={scrollerRef}
           className={`rounded-md border overflow-x-auto ${
-            compact ? '[&_th]:px-2 [&_td]:px-2' : ''
+            compact
+              ? '[&_th]:px-2 [&_td]:px-2 overflow-y-auto max-h-[26rem] md:max-h-none md:flex-1 md:min-h-0'
+              : ''
           }`}
         >
           <Table data-testid="standings-table">
@@ -192,13 +313,12 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.standings
-                .filter((entry) => !entry.isEliminated)
-                .map((entry) => {
+              {visible.map((entry) => {
                   const isCurrentUser = entry.userId === user?.id;
                   return (
                     <TableRow
                       key={entry.userId}
+                      ref={isCurrentUser ? myRowRef : undefined}
                       data-testid={`standing-row-${entry.position}`}
                       className={
                         isCurrentUser
@@ -311,9 +431,18 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                 })}
             </TableBody>
           </Table>
+
+          {visible.length === 0 && (
+            <p
+              className="text-sm text-muted-foreground text-center py-8"
+              data-testid="standings-no-matches"
+            >
+              No players match &ldquo;{nameFilter.trim()}&rdquo;.
+            </p>
+          )}
         </div>
 
-        <div className="mt-4 text-xs sm:text-sm text-muted-foreground">
+        <div className="mt-4 text-xs sm:text-sm text-muted-foreground shrink-0">
           <p className="font-semibold mb-2">Column Key:</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
             {!compact && (

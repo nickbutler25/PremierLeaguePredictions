@@ -4,11 +4,13 @@ import { useState, useEffect } from 'react';
 import { dashboardService } from '@/services/dashboard';
 import { leagueService } from '@/services/league';
 import { useAuth } from '@/contexts/AuthContext';
+import { useMyStanding } from '@/hooks/useMyStanding';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export function Summary() {
   const { user } = useAuth();
+  const { standing, isEliminated, eliminatedInGameweek } = useMyStanding();
   const [countdown, setCountdown] = useState<string>('');
 
   const { data, isLoading } = useQuery({
@@ -88,14 +90,9 @@ export function Summary() {
 
   const { user: userStats, upcomingGameweeks } = data;
 
-  // Check if current user is eliminated
-  const currentUserStanding = leagueData?.standings.find((s) => s.userId === user?.id);
-  const isEliminated = currentUserStanding?.isEliminated || false;
-  const eliminatedInGameweek = currentUserStanding?.eliminatedInGameweek;
-
   // Calculate active players count
   const activePlayers = leagueData?.standings.filter((s) => !s.isEliminated).length || 0;
-  const userPosition = currentUserStanding?.position;
+  const userPosition = standing?.position;
 
   // Helper function to add ordinal suffix (1st, 2nd, 3rd, etc.)
   const getOrdinal = (n: number): string => {
@@ -127,8 +124,15 @@ export function Summary() {
                 You were eliminated after Gameweek {eliminatedInGameweek}. You cannot make new
                 picks, and the league table now shows only players still in. Your season is kept on
                 your{' '}
-                <Link to="/profile" className="underline underline-offset-4">
-                  profile
+                {/* The player page, not /profile — that one is account settings (name, photo,
+                    password) and has nothing of their season on it. This is where the record
+                    they are being pointed at actually lives. */}
+                <Link
+                  to={user ? `/users/${user.id}` : '/users'}
+                  className="underline underline-offset-4"
+                  data-testid="eliminated-player-page-link"
+                >
+                  player page
                 </Link>{' '}
                 and on the{' '}
                 <Link to="/eliminations" className="underline underline-offset-4">

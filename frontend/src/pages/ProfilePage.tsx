@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { usersService } from '@/services/users';
+import { authService } from '@/services/auth';
 import { resizeImageForUpload } from '@/lib/image';
 import { UserAvatar } from '@/components/UserAvatar';
 
@@ -23,7 +24,43 @@ export function ProfilePage() {
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
   if (!user) return null;
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Checked here too so the mismatch is caught before a round trip.
+    if (newPassword !== confirmPassword) {
+      setStatus({ type: 'error', message: 'Passwords do not match.' });
+      return;
+    }
+
+    setIsChangingPassword(true);
+    setStatus(null);
+    try {
+      const updated = await authService.changePassword(currentPassword, newPassword, confirmPassword);
+      updateUser(updated);
+
+      // Cleared on success so the new password is not left sitting in the form.
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setStatus({ type: 'success', message: 'Password updated.' });
+    } catch (err) {
+      const message =
+        err instanceof Error && err.message
+          ? err.message
+          : 'Could not change your password. Please try again.';
+      setStatus({ type: 'error', message });
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -169,6 +206,67 @@ export function ProfilePage() {
           </form>
         </CardContent>
       </Card>
+
+      {/* Left out entirely for an account that signs in with Google: there is no current password
+          to check a change against, so the form would have nothing to do. A disabled control
+          would just read as broken. */}
+      {user.hasPassword && (
+        <Card data-testid="change-password-card">
+          <CardHeader>
+            <CardTitle>Password</CardTitle>
+            <CardDescription>Change the password you use to sign in.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              <div className="space-y-1">
+                <Label htmlFor="profile-currentPassword">Current password</Label>
+                <Input
+                  id="profile-currentPassword"
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="profile-newPassword">New password</Label>
+                  <Input
+                    id="profile-newPassword"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                    minLength={8}
+                    autoComplete="new-password"
+                  />
+                  <p className="text-xs text-muted-foreground">At least 8 characters.</p>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="profile-confirmPassword">Confirm new password</Label>
+                  <Input
+                    id="profile-confirmPassword"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    minLength={8}
+                    autoComplete="new-password"
+                  />
+                </div>
+              </div>
+              <Button
+                type="submit"
+                disabled={isChangingPassword}
+                data-testid="change-password-button"
+              >
+                {isChangingPassword ? 'Saving...' : 'Change password'}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      )}
 
       {status && (
         <div

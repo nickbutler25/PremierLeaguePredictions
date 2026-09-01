@@ -27,6 +27,7 @@ public class UnitOfWork : IUnitOfWork
         SeasonParticipations = new Repository<SeasonParticipation>(_context);
         UserEliminations = new Repository<UserElimination>(_context);
         PickRules = new Repository<PickRule>(_context);
+        PasswordResetTokens = new Repository<PasswordResetToken>(_context);
     }
 
     public IRepository<User> Users { get; }
@@ -41,6 +42,7 @@ public class UnitOfWork : IUnitOfWork
     public IRepository<SeasonParticipation> SeasonParticipations { get; }
     public IRepository<UserElimination> UserEliminations { get; }
     public IRepository<PickRule> PickRules { get; }
+    public IRepository<PasswordResetToken> PasswordResetTokens { get; }
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {

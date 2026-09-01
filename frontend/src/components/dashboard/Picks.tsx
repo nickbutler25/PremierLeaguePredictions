@@ -238,12 +238,16 @@ export function Picks() {
   const gameweeks = Array.from({ length: 38 }, (_, i) => i + 1);
 
   return (
-    <Card data-testid="picks-card">
-      <CardHeader>
+    <Card data-testid="picks-card" className="flex flex-col h-full">
+      <CardHeader className="shrink-0">
         <CardTitle>Your Picks</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="rounded-md border max-h-[600px] overflow-y-auto">
+      <CardContent className="flex flex-col flex-1 min-h-0">
+        {/* From md up DashboardPage gives the card a height, so the table takes what is left
+            rather than its own 600px — that is what makes it match Fixtures instead of merely
+            being near it. Below md there is a single column and nothing to match, so the fixed
+            cap still applies. min-h-0 is what lets a flex child shrink enough to scroll. */}
+        <div className="rounded-md border overflow-y-auto max-h-[600px] md:max-h-none md:flex-1 md:min-h-0">
           <Table data-testid="picks-table">
             {/* bg-card, not bg-background: this header sticks inside a Card, so it has to match the
                 surface it sits on. The two tokens were the same colour in the old dark theme,
@@ -395,7 +399,7 @@ export function Picks() {
             </TableBody>
           </Table>
         </div>
-        <div className="mt-4 text-xs sm:text-sm text-muted-foreground space-y-1">
+        <div className="mt-4 text-xs sm:text-sm text-muted-foreground space-y-1 shrink-0">
           <p>• Current gameweek is highlighted</p>
           <p>• Picks cannot be changed after deadline 🔒</p>
           {currentGameweek <= 20

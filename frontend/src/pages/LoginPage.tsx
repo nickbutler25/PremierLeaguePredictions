@@ -10,6 +10,7 @@ import { apiClient } from '@/services/api';
 import { usersService } from '@/services/users';
 import { resizeImageForUpload } from '@/lib/image';
 import { useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { ApiResponse, AuthResponse } from '@/types';
 
 type AuthMode = 'google' | 'email-login' | 'email-register';
@@ -234,6 +235,15 @@ export function LoginPage() {
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? 'Signing in...' : 'Sign In'}
               </Button>
+              <p className="text-center text-sm">
+                <Link
+                  to="/forgot-password"
+                  className="text-primary underline-offset-4 hover:underline"
+                  data-testid="forgot-password-link"
+                >
+                  Forgotten your password?
+                </Link>
+              </p>
               <p className="text-center text-sm text-muted-foreground">
                 No account?{' '}
                 <button

@@ -126,6 +126,19 @@ export function Layout({ children }: LayoutProps) {
                 League
               </NavLink>
               <NavLink
+                to="/users"
+                className={({ isActive }) =>
+                  `text-sm px-3 py-1.5 rounded-md font-medium transition-colors ${
+                    isActive
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-foreground hover:bg-accent'
+                  }`
+                }
+                data-testid="players-link"
+              >
+                Players
+              </NavLink>
+              <NavLink
                 to="/eliminations"
                 className={({ isActive }) =>
                   `text-sm px-3 py-1.5 rounded-md font-medium transition-colors ${

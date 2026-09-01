@@ -11,5 +11,15 @@ public interface IUserService
     Task<UserDto> SetUserPhotoAsync(Guid id, string? photoUrl, CancellationToken cancellationToken = default);
     Task<UserDto> SetThemePreferenceAsync(Guid id, string theme, CancellationToken cancellationToken = default);
     Task<UserDto> SetUserAdminAsync(Guid id, bool isAdmin, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Changes a password from inside a signed-in session, having checked the current one.
+    /// </summary>
+    /// <returns>
+    /// The updated user, or null when the current password did not match — the caller turns that
+    /// into a 400 rather than an exception, since a wrong password is an ordinary outcome.
+    /// </returns>
+    Task<UserDto?> ChangePasswordAsync(
+        Guid id, string currentPassword, string newPassword, CancellationToken cancellationToken = default);
     Task DeleteUserAsync(Guid id, CancellationToken cancellationToken = default);
 }

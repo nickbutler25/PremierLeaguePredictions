@@ -9,6 +9,7 @@ const mockUser = {
   photoUrl: 'https://i.pravatar.cc/150?img=3',
   googleId: 'mock-google-id',
   isAdmin: false,
+  hasPassword: true,
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 };
@@ -54,6 +55,38 @@ export const mockAuthService = {
     console.log('[MOCK AUTH] Password login called for:', email);
     await delay(500);
     return { token: mockToken, user: { ...mockUser, email } };
+  },
+
+  forgotPassword: async (email: string): Promise<string> => {
+    console.log('[MOCK AUTH] Forgot password called for:', email);
+    await delay(500);
+    return "If an account exists for that address, we've sent a link to reset the password.";
+  },
+
+  resetPassword: async (
+    token: string,
+    _password: string,
+    _confirmPassword: string
+  ): Promise<AuthResponse> => {
+    console.log('[MOCK AUTH] Reset password called with token:', token);
+    await delay(500);
+
+    // Mirrors the real endpoint, which cannot tell a made-up token from an expired one and
+    // answers the same way for both.
+    if (token === 'expired') {
+      throw new Error('This reset link is no longer valid. Please request a new one.');
+    }
+
+    return { token: mockToken, user: mockUser };
+  },
+
+  changePassword: async (currentPassword: string, _newPassword: string, _confirm: string) => {
+    console.log('[MOCK AUTH] Change password called');
+    await delay(500);
+    if (currentPassword === 'wrong') {
+      throw new Error('Your current password is incorrect');
+    }
+    return mockUser;
   },
 
   logout: async (): Promise<void> => {

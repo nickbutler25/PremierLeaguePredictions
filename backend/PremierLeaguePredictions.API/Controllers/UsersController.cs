@@ -112,6 +112,25 @@ public class UsersController : ControllerBase
         return Ok(ApiResponse<UserDto>.SuccessResult(user));
     }
 
+    [HttpPost("me/password")]
+    [ServiceFilter(typeof(Filters.ValidationFilter<ChangePasswordRequest>))]
+    public async Task<ActionResult<ApiResponse<UserDto>>> ChangePassword([FromBody] ChangePasswordRequest request)
+    {
+        var userId = GetUserIdFromClaims();
+        var user = await _userService.ChangePasswordAsync(userId, request.CurrentPassword, request.NewPassword);
+
+        if (user == null)
+        {
+            // Covers both a wrong current password and an account that has none. Kept as one
+            // message: an account without a password is a Google account, and saying so here
+            // would answer a question the caller has no business asking of another session.
+            return BadRequest(ApiResponse<UserDto>.FailureResult("Your current password is incorrect"));
+        }
+
+        _logger.LogInformation("Password changed for user {UserId}", userId);
+        return Ok(ApiResponse<UserDto>.SuccessResult(user, "Password updated"));
+    }
+
     [HttpPatch("{id}/admin")]
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<ApiResponse<UserDto>>> UpdateUserAdmin(Guid id, [FromBody] UpdateUserAdminRequest request)

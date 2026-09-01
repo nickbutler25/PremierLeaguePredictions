@@ -8,6 +8,8 @@ import { SignalRProvider } from '@/contexts/SignalRContext';
 import { queryClient } from '@/lib/queryClient';
 import { Layout } from '@/components/layout/Layout';
 import { LoginPage } from '@/pages/LoginPage';
+import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage';
+import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { UserProfilePage } from '@/pages/UserProfilePage';
@@ -90,6 +92,14 @@ function AppRoutes() {
         path="/login"
         element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />}
       />
+      {/* Both are public: someone who has forgotten their password cannot be signed in, and the
+          reset link arrives by email in whatever browser they happen to open it in. A signed-in
+          user is bounced to the dashboard, the same as /login. */}
+      <Route
+        path="/forgot-password"
+        element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <ForgotPasswordPage />}
+      />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route
         path="/pending-approval"
         element={
@@ -159,6 +169,19 @@ function AppRoutes() {
           <ApprovalCheckRoute>
             <Layout>
               <EliminationsPage />
+            </Layout>
+          </ApprovalCheckRoute>
+        }
+      />
+      {/* Bare /users is the nav destination and shows the signed-in player. Kept as its own
+          route rather than a redirect so the header link is a fixed string that does not have to
+          wait for the user to load. */}
+      <Route
+        path="/users"
+        element={
+          <ApprovalCheckRoute>
+            <Layout>
+              <UserProfilePage />
             </Layout>
           </ApprovalCheckRoute>
         }

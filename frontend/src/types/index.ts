@@ -6,6 +6,11 @@ export interface User {
   photoUrl?: string;
   isAdmin: boolean;
   themePreference?: 'light' | 'dark';
+  /**
+   * Whether the account has a password at all. False for a Google-only account, which is how the
+   * profile page knows to leave the change-password section out entirely.
+   */
+  hasPassword?: boolean;
 }
 
 export interface UpdateUserRequest {

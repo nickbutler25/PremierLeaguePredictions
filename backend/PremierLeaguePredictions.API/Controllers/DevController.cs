@@ -72,16 +72,7 @@ public class DevController : ControllerBase
         var authResponse = new AuthResponse
         {
             Token = token,
-            User = new UserDto
-            {
-                Id = adminUser.Id,
-                Email = adminUser.Email,
-                FirstName = adminUser.FirstName,
-                LastName = adminUser.LastName,
-                PhotoUrl = adminUser.PhotoUrl,
-                IsAdmin = adminUser.IsAdmin,
-                ThemePreference = adminUser.ThemePreference
-            }
+            User = UserDto.From(adminUser)
         };
 
         return Ok(ApiResponse<AuthResponse>.SuccessResult(authResponse, "Logged in as admin"));
@@ -106,16 +97,7 @@ public class DevController : ControllerBase
         var authResponse = new AuthResponse
         {
             Token = token,
-            User = new UserDto
-            {
-                Id = testUser.Id,
-                Email = testUser.Email,
-                FirstName = testUser.FirstName,
-                LastName = testUser.LastName,
-                PhotoUrl = testUser.PhotoUrl,
-                IsAdmin = testUser.IsAdmin,
-                ThemePreference = testUser.ThemePreference
-            }
+            User = UserDto.From(testUser)
         };
 
         return Ok(ApiResponse<AuthResponse>.SuccessResult(authResponse, "Logged in as test user"));

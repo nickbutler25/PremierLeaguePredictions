@@ -22,6 +22,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<SeasonParticipation> SeasonParticipations { get; set; }
     public DbSet<UserElimination> UserEliminations { get; set; }
     public DbSet<PickRule> PickRules { get; set; }
+    public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -345,6 +346,28 @@ public class ApplicationDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(e => new { e.SeasonId, e.Half }).IsUnique();
+        });
+
+        // PasswordResetToken configuration
+        modelBuilder.Entity<PasswordResetToken>(entity =>
+        {
+            entity.ToTable("password_reset_tokens");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id").HasDefaultValueSql("uuid_generate_v4()");
+            entity.Property(e => e.UserId).HasColumnName("user_id").IsRequired();
+            entity.Property(e => e.TokenHash).HasColumnName("token_hash").HasMaxLength(64).IsRequired();
+            entity.Property(e => e.ExpiresAt).HasColumnName("expires_at").IsRequired();
+            entity.Property(e => e.UsedAt).HasColumnName("used_at");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Every lookup is by hash — the token from the link is hashed and matched against
+            // this. Unique because two live tokens hashing the same would mean a repeated token.
+            entity.HasIndex(e => e.TokenHash).IsUnique();
         });
     }
 }

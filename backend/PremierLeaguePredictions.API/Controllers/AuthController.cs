@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PremierLeaguePredictions.Infrastructure.Data;
 using PremierLeaguePredictions.Application.DTOs;
+using PremierLeaguePredictions.Application.Interfaces;
 using PremierLeaguePredictions.Core.Entities;
 using PremierLeaguePredictions.Infrastructure.Services;
 using PremierLeaguePredictions.API.Authorization;
@@ -17,6 +18,7 @@ public class AuthController : ControllerBase
     private readonly ApplicationDbContext _context;
     private readonly ITokenService _tokenService;
     private readonly IGoogleAuthService _googleAuthService;
+    private readonly IPasswordResetService _passwordResetService;
     private readonly ILogger<AuthController> _logger;
     private readonly IConfiguration _configuration;
 
@@ -24,12 +26,14 @@ public class AuthController : ControllerBase
         ApplicationDbContext context,
         ITokenService tokenService,
         IGoogleAuthService googleAuthService,
+        IPasswordResetService passwordResetService,
         ILogger<AuthController> logger,
         IConfiguration configuration)
     {
         _context = context;
         _tokenService = tokenService;
         _googleAuthService = googleAuthService;
+        _passwordResetService = passwordResetService;
         _logger = logger;
         _configuration = configuration;
     }
@@ -206,6 +210,75 @@ public class AuthController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Starts a password reset. Always answers the same way, whatever the address turns out to be.
+    /// </summary>
+    [HttpPost("forgot-password")]
+    [ServiceFilter(typeof(Filters.ValidationFilter<ForgotPasswordRequest>))]
+    public async Task<ActionResult<ApiResponse>> ForgotPassword(
+        [FromBody] ForgotPasswordRequest request, CancellationToken cancellationToken)
+    {
+        // Deliberately identical for a known address, an unknown one and a Google-only account.
+        // Varying it would let anyone ask this endpoint who is in the league.
+        const string SameAnswerForEveryone =
+            "If an account exists for that address, we've sent a link to reset the password.";
+
+        try
+        {
+            await _passwordResetService.RequestResetAsync(request.Email, cancellationToken);
+        }
+        catch (InvalidOperationException ex)
+        {
+            // AppBaseUrl is unset, so the link would be dead. Better a plain failure than an
+            // email the player cannot act on.
+            _logger.LogError(ex, "Password reset could not be sent");
+            return StatusCode(500, ApiResponse.FailureResult(
+                "Password reset is not available at the moment. Please contact the league admin."));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error handling a forgot-password request");
+            return StatusCode(500, ApiResponse.FailureResult("An error occurred. Please try again."));
+        }
+
+        return Ok(ApiResponse.SuccessResult(SameAnswerForEveryone));
+    }
+
+    /// <summary>
+    /// Finishes a password reset and signs the player in.
+    /// </summary>
+    [HttpPost("reset-password")]
+    [ServiceFilter(typeof(Filters.ValidationFilter<ResetPasswordRequest>))]
+    public async Task<ActionResult<ApiResponse<AuthResponse>>> ResetPassword(
+        [FromBody] ResetPasswordRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var (outcome, user) = await _passwordResetService.ResetAsync(
+                request.Token, request.Password, cancellationToken);
+
+            if (outcome != PasswordResetOutcome.Success || user == null)
+            {
+                // One message for every way a token can be no good. Which one it was is in the
+                // log; telling the client would only help someone probing tokens.
+                return BadRequest(ApiResponse<AuthResponse>.FailureResult(
+                    "This reset link is no longer valid. Please request a new one."));
+            }
+
+            // They have proved they own the inbox and just chosen the password, so a login form
+            // here would be friction rather than a check.
+            var token = _tokenService.GenerateToken(user);
+            Response.Cookies.Append(AuthCookie.Name, token, GetCookieOptions());
+
+            return Ok(ApiResponse<AuthResponse>.SuccessResult(BuildAuthResponse(user), "Password updated"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error resetting a password");
+            return StatusCode(500, ApiResponse<AuthResponse>.FailureResult("An error occurred. Please try again."));
+        }
+    }
+
     [HttpPost("logout")]
     public IActionResult Logout()
     {
@@ -224,16 +297,7 @@ public class AuthController : ControllerBase
     private AuthResponse BuildAuthResponse(User user) => new AuthResponse
     {
         Token = null,
-        User = new UserDto
-        {
-            Id = user.Id,
-            Email = user.Email,
-            FirstName = user.FirstName,
-            LastName = user.LastName,
-            PhotoUrl = user.PhotoUrl,
-            IsAdmin = user.IsAdmin,
-            ThemePreference = user.ThemePreference
-        }
+        User = UserDto.From(user)
     };
 
     private CookieOptions GetCookieOptions(bool expired = false)
