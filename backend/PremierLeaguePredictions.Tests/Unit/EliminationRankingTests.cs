@@ -260,4 +260,56 @@ public class EliminationRankingTests : IDisposable
 
         response.EliminatedPlayers.Single().UserId.Should().Be(heavyDefeats);
     }
+
+    /// <summary>
+    /// An unattended run records no admin at all, rather than the empty guid.
+    /// </summary>
+    /// <remarks>
+    /// EliminatedBy is a foreign key to users. Guid.Empty is not a stand-in for "nobody" — it is
+    /// an ordinary value matching no row, so every automatic elimination died on
+    /// <c>23503 … FK_user_eliminations_users_eliminated_by</c>. The scheduled completion job and
+    /// the results sync both caught and logged it, so each run reported success while GW2 stayed
+    /// open and two players were never eliminated.
+    ///
+    /// Note what this test can and cannot do: the in-memory provider does not enforce foreign
+    /// keys, which is exactly why the original bug passed a green suite. It pins the intent — a
+    /// system run attributes to null — and would catch a regression to Guid.Empty. It would not
+    /// have caught the constraint. Only a test against real Postgres does that, and the ones we
+    /// have need a live database on localhost:5433.
+    /// </remarks>
+    [Fact]
+    public async Task ASystemTriggeredEliminationIsAttributedToNobody()
+    {
+        AddPlayedGameweek(1, eliminationCount: 1);
+
+        AddPlayer("Doomed", new[] { 1 }, Array.Empty<int>());
+        AddPlayer("Safe", new[] { 1 }, new[] { 1 });
+        await _context.SaveChangesAsync();
+
+        var response = await CreateService()
+            .ProcessGameweekEliminationsAsync(SeasonId, 1, adminUserId: null);
+
+        response.PlayersEliminated.Should().Be(1);
+        response.EliminatedPlayers.Single().EliminatedBy.Should().BeNull();
+
+        var persisted = await _context.UserEliminations.SingleAsync();
+        persisted.EliminatedBy.Should().BeNull();
+    }
+
+    /// <summary>An admin-triggered run still records who did it.</summary>
+    [Fact]
+    public async Task AnAdminTriggeredEliminationRecordsTheAdmin()
+    {
+        AddPlayedGameweek(1, eliminationCount: 1);
+
+        AddPlayer("Doomed", new[] { 1 }, Array.Empty<int>());
+        AddPlayer("Safe", new[] { 1 }, new[] { 1 });
+        var admin = AddPlayer("Admin", Array.Empty<int>(), Array.Empty<int>());
+        await _context.SaveChangesAsync();
+
+        var response = await CreateService()
+            .ProcessGameweekEliminationsAsync(SeasonId, 1, admin);
+
+        response.EliminatedPlayers.Single().EliminatedBy.Should().Be(admin);
+    }
 }

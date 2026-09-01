@@ -310,8 +310,10 @@ public class ResultsService : IResultsService
 
         try
         {
-            // Use a system admin ID (Guid.Empty) for automatic eliminations
-            var systemAdminId = Guid.Empty;
+            // Nobody triggered this run, so it is attributed to nobody. Null rather than
+            // Guid.Empty: EliminatedBy is a foreign key to users, and the empty guid matches no
+            // row — it failed every automatic elimination on a 23503 until it became null.
+            Guid? systemAdminId = null;
             var eliminationResponse = await _eliminationService.ProcessGameweekEliminationsAsync(
                 gameweek.SeasonId,
                 gameweek.WeekNumber,

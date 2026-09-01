@@ -234,7 +234,7 @@ public class EliminationService : IEliminationService
         return zone;
     }
 
-    public async Task<ProcessEliminationsResponse> ProcessGameweekEliminationsAsync(string seasonId, int gameweekNumber, Guid adminUserId, CancellationToken cancellationToken = default)
+    public async Task<ProcessEliminationsResponse> ProcessGameweekEliminationsAsync(string seasonId, int gameweekNumber, Guid? adminUserId, CancellationToken cancellationToken = default)
     {
         var response = new ProcessEliminationsResponse();
 

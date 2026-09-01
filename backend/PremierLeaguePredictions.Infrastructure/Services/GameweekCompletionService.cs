@@ -19,10 +19,16 @@ public class GameweekCompletionService : IGameweekCompletionService
     private static readonly string[] SettledStatuses = ["FINISHED", "AWARDED", "CANCELLED"];
 
     /// <summary>
-    /// Eliminations performed by the scheduler are attributed to the empty guid rather than a
-    /// person. Matches what the automatic path in ResultsService already records.
+    /// Eliminations performed by the scheduler are attributed to nobody. Matches what the
+    /// automatic path in ResultsService records.
     /// </summary>
-    private static readonly Guid SystemAdminId = Guid.Empty;
+    /// <remarks>
+    /// Null, not <see cref="Guid.Empty"/>. EliminatedBy is a foreign key to users, so the empty
+    /// guid is not a stand-in for "no admin" — it is a value matching no row, and every automatic
+    /// elimination died on a 23503 against FK_user_eliminations_users_eliminated_by until this
+    /// became null. The column is already nullable; nothing needed a migration.
+    /// </remarks>
+    private static readonly Guid? SystemAdminId = null;
 
     private readonly IUnitOfWork _unitOfWork;
     private readonly IResultsService _resultsService;

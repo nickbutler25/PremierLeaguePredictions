@@ -98,7 +98,6 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
   const recordWidth = compact ? 'w-9' : 'w-12';
   const goalDifferenceWidth = compact ? 'w-12' : 'w-16';
   const pointsWidth = compact ? 'w-12' : 'w-16';
-  const averageWidth = compact ? 'w-12' : 'w-16';
 
   const goalDifferenceCell = (entry: StandingEntry) => (
     <TableCell
@@ -173,9 +172,9 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                   </TableHead>
                 )}
                 <TableHead className={`text-center ${pointsWidth} font-bold`}>Pts</TableHead>
-                {/* Only breaks a tie on points, so it sits after them — and only on the full
-                    table, where a sixth column does not push the points off the card. */}
-                {!compact && <TableHead className={`text-center ${averageWidth}`}>Avg</TableHead>}
+                {/* Points per game is still the first tiebreak in the ordering chain, but it is
+                    not shown: it only ever moves players level on points, and a column that is
+                    identical down the whole table on a normal week reads as noise. */}
                 {!compact && (
                   <TableHead className="text-center w-16 hidden md:table-cell">GF</TableHead>
                 )}
@@ -281,14 +280,6 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                         {entry.totalPoints}
                       </TableCell>
                       {!compact && (
-                        <TableCell
-                          className="text-center text-xs sm:text-sm tabular-nums text-muted-foreground"
-                          data-testid={`standing-average-${entry.position}`}
-                        >
-                          {entry.averagePointsPerGame.toFixed(2)}
-                        </TableCell>
-                      )}
-                      {!compact && (
                         <TableCell className="text-center text-xs sm:text-sm hidden md:table-cell">
                           {entry.goalsFor}
                         </TableCell>
@@ -328,11 +319,6 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
             {!compact && (
               <div className="hidden sm:block">
                 <strong>P:</strong> Played
-              </div>
-            )}
-            {!compact && (
-              <div>
-                <strong>Avg:</strong> Points per game &mdash; breaks a tie on points
               </div>
             )}
             {showRecord && (

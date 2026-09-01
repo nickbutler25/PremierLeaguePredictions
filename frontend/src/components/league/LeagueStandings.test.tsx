@@ -112,7 +112,6 @@ describe('LeagueStandings columns', () => {
       'D',
       'L',
       'Pts',
-      'Avg',
       'GF',
       'GA',
       'GD',
@@ -135,7 +134,6 @@ describe('LeagueStandings columns', () => {
       'D',
       'L',
       'Pts',
-      'Avg',
       'GF',
       'GA',
       'GD',
@@ -150,26 +148,24 @@ describe('LeagueStandings average', () => {
     vi.mocked(leagueService.getStandings).mockResolvedValue(standings());
   });
 
-  it('shows the figure the table is ordered on', async () => {
-    render(<LeagueStandings />);
+  // Points per game remains the first tiebreak in the ordering chain and is still carried on
+  // the DTO — it is simply not displayed. These pin that it stays out of the table, so it is
+  // not reinstated by reflex on the grounds that the standings are sorted on it.
+  it.each([
+    ['full', undefined],
+    ['compact', true],
+  ])('is not shown on the %s table', async (_name, compact) => {
+    render(<LeagueStandings compact={compact} />);
 
-    // Shown so a reader can see why two players level on points are ordered as they are.
-    expect(await screen.findByTestId('standing-average-1')).toHaveTextContent('2.20');
-  });
-
-  it('is left off the compact table', async () => {
-    render(<LeagueStandings compact />);
-
-    // It only breaks a tie on points, and a sixth column pushes the points off the card.
     await screen.findByTestId('standing-points-1');
     expect(screen.queryByTestId('standing-average-1')).not.toBeInTheDocument();
   });
 
-  it('explains the column in the key', async () => {
+  it('leaves it out of the key', async () => {
     render(<LeagueStandings />);
 
-    await screen.findByTestId('standing-average-1');
-    expect(screen.getByTestId('league-standings-card')).toHaveTextContent('Points per game');
+    await screen.findByTestId('standing-points-1');
+    expect(screen.getByTestId('league-standings-card')).not.toHaveTextContent('Points per game');
   });
 });
 
