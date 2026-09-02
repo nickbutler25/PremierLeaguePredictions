@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import type { StandingEntry } from '@/types';
 import { Link } from 'react-router-dom';
 import { leagueService } from '@/services/league';
@@ -34,16 +35,18 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
   // anyway, so nothing is lost.
   const title = compact ? 'Standings' : 'League Standings';
 
-  // Jumping happens in an effect rather than in the click handler because the click also clears
-  // the filter: if the player is currently filtered out, their row does not exist in the DOM yet
-  // and there is nothing to scroll to. The effect runs after React has committed the cleared
-  // filter, by which point the row is there.
-  const [pendingJump, setPendingJump] = useState(false);
-  useEffect(() => {
-    if (!pendingJump) return;
+  /**
+   * Scrolls the signed-in player's row into view.
+   *
+   * The filter has to be cleared first — a row the filter is hiding is not in the DOM, so there
+   * would be nothing to scroll to — and that clear has to be committed before we look for the
+   * row. React batches state updates in event handlers, so without flushSync the scroll would
+   * run against the markup as it was before the click.
+   */
+  const jumpToMe = () => {
+    if (nameFilter) flushSync(() => setNameFilter(''));
     myRowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    setPendingJump(false);
-  }, [pendingJump]);
+  };
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['league-standings'],
@@ -178,7 +181,7 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setPendingJump(true)}
+                  onClick={jumpToMe}
                   data-testid="standings-jump-to-me-compact"
                   className="h-7 px-2 text-xs whitespace-nowrap"
                 >
@@ -215,11 +218,7 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => {
-                  // Clearing first, because jumping to a row the filter is hiding cannot work.
-                  setNameFilter('');
-                  setPendingJump(true);
-                }}
+                onClick={jumpToMe}
                 data-testid="standings-jump-to-me"
                 className="h-9 shrink-0"
               >

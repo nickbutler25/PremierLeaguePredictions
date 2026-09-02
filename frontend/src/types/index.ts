@@ -249,9 +249,21 @@ export interface EliminatedPlayer {
   photoUrl?: string | null;
   /** The gameweek after which they went out. */
   gameweekNumber: number;
+  /**
+   * Where they finished — their place in the table when the elimination ran. Read from the
+   * elimination record, not the standings, which no longer contain them.
+   */
+  finalPosition: number;
   totalPoints: number;
   picksMade: number;
   averagePointsPerGame: number;
+  /** The same record the full league table shows. */
+  wins: number;
+  draws: number;
+  losses: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalDifference: number;
   eliminatedAt: string;
 }
 
@@ -264,6 +276,13 @@ export interface DangerZone {
   deadlinePassed: boolean;
   /** Worst first. */
   players: AtRiskPlayer[];
+  /**
+   * Players still safe but within `pointsFromDangerThreshold` of the best player in the zone.
+   * Worst first, so the one nearest the line comes first.
+   */
+  justSafe: AtRiskPlayer[];
+  /** How close to the zone a safe player has to be to appear in `justSafe`. */
+  pointsFromDangerThreshold: number;
 }
 
 export interface AtRiskPlayer {
@@ -274,7 +293,18 @@ export interface AtRiskPlayer {
   totalPoints: number;
   picksMade: number;
   averagePointsPerGame: number;
-  /** Points per game separating them from the first player out of the zone. */
+  /** The same record the eliminated list and the full table carry. */
+  wins: number;
+  draws: number;
+  losses: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalDifference: number;
+  /** Points separating them from the first player out of the zone. */
+  pointsBehindSafety: number;
+  /** For a player in `justSafe`, how many points clear of the zone. Zero for one already in it. */
+  pointsClearOfZone: number;
+  /** The same gap in points per game. Used by the gameweek page's threat card. */
   averageBehindSafety: number;
 }
 

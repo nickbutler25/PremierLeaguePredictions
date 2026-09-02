@@ -14,6 +14,7 @@ import { DashboardPage } from '@/pages/DashboardPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { UserProfilePage } from '@/pages/UserProfilePage';
 import { EliminationsPage } from '@/pages/EliminationsPage';
+import { DangerZonePage } from '@/pages/DangerZonePage';
 import { GameweekPage } from '@/pages/GameweekPage';
 import { PendingApprovalPage } from '@/pages/PendingApprovalPage';
 import { LeagueStandings } from '@/components/league/LeagueStandings';
@@ -159,6 +160,16 @@ function AppRoutes() {
           <ApprovalCheckRoute>
             <Layout>
               <GameweekPage />
+            </Layout>
+          </ApprovalCheckRoute>
+        }
+      />
+      <Route
+        path="/danger-zone"
+        element={
+          <ApprovalCheckRoute>
+            <Layout>
+              <DangerZonePage />
             </Layout>
           </ApprovalCheckRoute>
         }

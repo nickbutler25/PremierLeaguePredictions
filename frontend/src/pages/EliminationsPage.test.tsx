@@ -17,16 +17,6 @@ const overview = (overrides?: Partial<EliminationsOverview>): EliminationsOvervi
   ...overrides,
 });
 
-const atRisk = (userId: string, userName: string, average: number, behind: number) => ({
-  userId,
-  userName,
-  position: 21,
-  totalPoints: 3,
-  picksMade: 4,
-  averagePointsPerGame: average,
-  averageBehindSafety: behind,
-});
-
 describe('EliminationsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -43,10 +33,9 @@ describe('EliminationsPage', () => {
     render(<EliminationsPage />);
 
     expect(await screen.findByTestId('no-eliminations')).toBeInTheDocument();
-    expect(screen.queryByTestId('danger-zone')).not.toBeInTheDocument();
   });
 
-  it('names who the next gameweek threatens', async () => {
+  it('leaves the danger zone to its own page', async () => {
     vi.mocked(eliminationsService.getOverview).mockResolvedValue(
       overview({
         dangerZone: {
@@ -54,55 +43,19 @@ describe('EliminationsPage', () => {
           deadline: '2026-09-12T13:00:00Z',
           eliminationCount: 2,
           deadlinePassed: false,
-          players: [atRisk('u1', 'Bob Smith', 0.5, 0.75), atRisk('u2', 'Eve Martinez', 0.6, 0.65)],
+          players: [],
+          justSafe: [],
+          pointsFromDangerThreshold: 3,
         },
       })
     );
 
     render(<EliminationsPage />);
 
-    const zone = await screen.findByTestId('danger-zone');
-    expect(zone).toHaveTextContent('Danger zone');
-    expect(zone).toHaveTextContent('GW5');
-    expect(zone).toHaveTextContent('2 players go out');
-    expect(zone).toHaveTextContent('Bob Smith');
-    expect(zone).toHaveTextContent('0.75 behind safety');
-  });
-
-  it('says the zone can still change while picks are open', async () => {
-    vi.mocked(eliminationsService.getOverview).mockResolvedValue(
-      overview({
-        dangerZone: {
-          gameweekNumber: 5,
-          deadline: '2026-09-12T13:00:00Z',
-          eliminationCount: 1,
-          deadlinePassed: false,
-          players: [atRisk('u1', 'Bob Smith', 0.5, 0.75)],
-        },
-      })
-    );
-
-    render(<EliminationsPage />);
-
-    expect(await screen.findByText(/so this can still change/i)).toBeInTheDocument();
-  });
-
-  it('says results alone decide it once the deadline has passed', async () => {
-    vi.mocked(eliminationsService.getOverview).mockResolvedValue(
-      overview({
-        dangerZone: {
-          gameweekNumber: 5,
-          deadline: '2026-09-12T13:00:00Z',
-          eliminationCount: 1,
-          deadlinePassed: true,
-          players: [atRisk('u1', 'Bob Smith', 0.5, 0.75)],
-        },
-      })
-    );
-
-    render(<EliminationsPage />);
-
-    expect(await screen.findByText(/only results can change this now/i)).toBeInTheDocument();
+    // This page is a record of who has gone out. Who is about to go out is a different question
+    // and gets the room to answer it properly elsewhere.
+    await screen.findByTestId('eliminations-page');
+    expect(screen.queryByTestId('danger-zone')).not.toBeInTheDocument();
   });
 
   it('groups those already out by the gameweek they went out in', async () => {
@@ -114,18 +67,32 @@ describe('EliminationsPage', () => {
             userId: 'u3',
             userName: 'Charlie Davis',
             gameweekNumber: 4,
+            finalPosition: 19,
             totalPoints: 2,
             picksMade: 4,
             averagePointsPerGame: 0.5,
+            wins: 0,
+            draws: 2,
+            losses: 2,
+            goalsFor: 3,
+            goalsAgainst: 7,
+            goalDifference: -4,
             eliminatedAt: '2026-09-08T10:00:00Z',
           },
           {
             userId: 'u4',
             userName: 'Diana Wilson',
             gameweekNumber: 3,
+            finalPosition: 20,
             totalPoints: 1,
             picksMade: 3,
             averagePointsPerGame: 0.33,
+            wins: 0,
+            draws: 1,
+            losses: 2,
+            goalsFor: 1,
+            goalsAgainst: 6,
+            goalDifference: -5,
             eliminatedAt: '2026-09-01T10:00:00Z',
           },
         ],
@@ -138,6 +105,38 @@ describe('EliminationsPage', () => {
     expect(screen.getByText('After gameweek 3')).toBeInTheDocument();
     expect(screen.getByText('19 of 22 still in · 2 out')).toBeInTheDocument();
     expect(screen.queryByTestId('no-eliminations')).not.toBeInTheDocument();
+  });
+
+  it('shows where an eliminated player finished, not where they sit now', async () => {
+    vi.mocked(eliminationsService.getOverview).mockResolvedValue(
+      overview({
+        activePlayers: 21,
+        eliminated: [
+          {
+            userId: 'u3',
+            userName: 'Charlie Davis',
+            gameweekNumber: 4,
+            finalPosition: 22,
+            totalPoints: 2,
+            picksMade: 4,
+            averagePointsPerGame: 0.5,
+            wins: 0,
+            draws: 2,
+            losses: 2,
+            goalsFor: 3,
+            goalsAgainst: 7,
+            goalDifference: -4,
+            eliminatedAt: '2026-09-08T10:00:00Z',
+          },
+        ],
+      })
+    );
+
+    render(<EliminationsPage />);
+
+    // The number comes from the elimination record, so it stays put as the players still in
+    // score. It used to be read from the live standings and drifted.
+    expect(await screen.findByTestId('player-position-u3')).toHaveTextContent('22');
   });
 
   it('reports a page it cannot load', async () => {

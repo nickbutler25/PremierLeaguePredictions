@@ -150,32 +150,33 @@ describe('Dashboard standings column height', () => {
     vi.mocked(leagueService.getStandings).mockResolvedValue(standings([standing()]));
   });
 
-  it('lifts the standings card out of the grid flow so it cannot set the row height', async () => {
+  it('takes the row height from the viewport, not from any card', async () => {
     render(<DashboardPage />, { user: createMockUser(), token: 'jwt' });
 
-    const column = await screen.findByTestId('dashboard-standings-column');
+    const content = await screen.findByTestId('dashboard-content');
+    const grid = screen.getByTestId('dashboard-grid');
 
-    // A grid row is as tall as its tallest item's content. While the card was in the flow, a
-    // 266-row table made the row 266 rows tall and every "fill the cell" rule resolved to
-    // exactly that. Positioned, it contributes no height and Picks and Fixtures decide the row.
-    expect(column).toHaveClass('md:relative');
-    expect(column.firstElementChild).toHaveClass('md:absolute', 'md:inset-0');
+    // A grid row is as tall as its tallest item's content, so while the cards set the height a
+    // 266-row table made the row 266 rows tall and the page ran off the screen — worse for an
+    // eliminated player, whose banner takes another chunk of it. The dashboard is pinned to the
+    // viewport instead and the row takes what is left under the summary.
+    expect(content).toHaveClass('md:h-[calc(100dvh-65px)]', 'md:flex', 'md:flex-col');
+    expect(grid).toHaveClass('md:flex-1', 'md:min-h-0');
   });
 
-  it('lifts the picks card out too, leaving Fixtures to set the height', async () => {
-    render(<DashboardPage />, { user: createMockUser(), token: 'jwt' });
+  it.each(['picks', 'fixtures', 'standings'])(
+    'lifts the %s card out of the grid flow so it cannot set the height',
+    async (name) => {
+      render(<DashboardPage />, { user: createMockUser(), token: 'jwt' });
 
-    const column = await screen.findByTestId('dashboard-picks-column');
+      const column = await screen.findByTestId(`dashboard-${name}-column`);
 
-    // Picks runs to 38 gameweeks, so in the flow it would set the row height and the other two
-    // would stretch to it. With Picks and Standings both positioned, Fixtures is the only card
-    // left deciding the row and all three come out its height.
-    expect(column).toHaveClass('md:relative');
-    expect(column.firstElementChild).toHaveClass('md:absolute', 'md:inset-0');
-
-    const fixtures = screen.getByTestId('dashboard-fixtures-column');
-    expect(fixtures).not.toHaveClass('md:relative');
-  });
+      // All three are positioned. Leaving any one in the flow would let its content push the row
+      // past the viewport again, which is the whole thing being fixed.
+      expect(column).toHaveClass('md:relative');
+      expect(column.firstElementChild).toHaveClass('md:absolute', 'md:inset-0');
+    }
+  );
 });
 
 describe('Player selector', () => {

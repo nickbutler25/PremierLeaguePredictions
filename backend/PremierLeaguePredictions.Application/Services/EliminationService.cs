@@ -141,9 +141,20 @@ public class EliminationService : IEliminationService
                     UserName = entry.UserName,
                     PhotoUrl = photoByUser.GetValueOrDefault(e.UserId),
                     GameweekNumber = e.GameweekNumber,
+                    // The position recorded when they went out, never the live standings one.
+                    // An eliminated player's season is over, so their place is settled — reading
+                    // it from the current table would have it drift every time somebody still in
+                    // scored.
+                    FinalPosition = e.Position,
                     TotalPoints = entry.TotalPoints,
                     PicksMade = entry.PicksMade,
                     AveragePointsPerGame = Average(entry.TotalPoints, entry.PicksMade),
+                    Wins = entry.Wins,
+                    Draws = entry.Draws,
+                    Losses = entry.Losses,
+                    GoalsFor = entry.GoalsFor,
+                    GoalsAgainst = entry.GoalsAgainst,
+                    GoalDifference = entry.GoalDifference,
                     EliminatedAt = e.EliminatedAt
                 };
             })
@@ -189,11 +200,7 @@ public class EliminationService : IEliminationService
 
         var contenders = standings.Standings
             .Where(e => !e.IsEliminated)
-            .Select(e => new
-            {
-                Entry = e,
-                Average = Average(e.TotalPoints, e.PicksMade)
-            })
+            .Select(e => new Contender(e, Average(e.TotalPoints, e.PicksMade)))
             .OrderBy(x => x.Entry.TotalPoints)
             .ThenBy(x => x.Average)
             .ThenBy(x => x.Entry.GoalDifference)
@@ -214,25 +221,65 @@ public class EliminationService : IEliminationService
             ? contenders[next.EliminationCount].Average
             : (decimal?)null;
 
-        zone.Players = contenders
-            .Take(next.EliminationCount)
-            .Select(x => new AtRiskPlayerDto
-            {
-                UserId = x.Entry.UserId,
-                UserName = x.Entry.UserName,
-                PhotoUrl = photoByUser.GetValueOrDefault(x.Entry.UserId),
-                Position = x.Entry.Position,
-                TotalPoints = x.Entry.TotalPoints,
-                PicksMade = x.Entry.PicksMade,
-                AveragePointsPerGame = x.Average,
-                AverageBehindSafety = safetyAverage.HasValue
-                    ? Math.Round(safetyAverage.Value - x.Average, 2)
-                    : 0m
-            })
-            .ToList();
+        var safetyPoints = contenders.Count > next.EliminationCount
+            ? contenders[next.EliminationCount].Entry.TotalPoints
+            : (int?)null;
+
+        var inZone = contenders.Take(next.EliminationCount).ToList();
+
+        AtRiskPlayerDto Map(Contender x, int pointsClear) => new AtRiskPlayerDto
+        {
+            UserId = x.Entry.UserId,
+            UserName = x.Entry.UserName,
+            PhotoUrl = photoByUser.GetValueOrDefault(x.Entry.UserId),
+            Position = x.Entry.Position,
+            TotalPoints = x.Entry.TotalPoints,
+            PicksMade = x.Entry.PicksMade,
+            AveragePointsPerGame = x.Average,
+            Wins = x.Entry.Wins,
+            Draws = x.Entry.Draws,
+            Losses = x.Entry.Losses,
+            GoalsFor = x.Entry.GoalsFor,
+            GoalsAgainst = x.Entry.GoalsAgainst,
+            GoalDifference = x.Entry.GoalDifference,
+            PointsClearOfZone = pointsClear,
+            PointsBehindSafety = safetyPoints.HasValue
+                ? Math.Max(0, safetyPoints.Value - x.Entry.TotalPoints)
+                : 0,
+            AverageBehindSafety = safetyAverage.HasValue
+                ? Math.Round(safetyAverage.Value - x.Average, 2)
+                : 0m
+        };
+
+        zone.Players = inZone.Select(x => Map(x, 0)).ToList();
+        zone.PointsFromDangerThreshold = PointsFromDangerThreshold;
+
+        // Everyone still safe but close enough to be caught. Measured against the best player in
+        // the zone, because that is who would overtake them first — the gap that actually decides
+        // whether they stay up. With nobody in the zone there is no line to be near.
+        var topOfZonePoints = inZone.Count > 0
+            ? inZone.Max(x => x.Entry.TotalPoints)
+            : (int?)null;
+
+        if (topOfZonePoints.HasValue)
+        {
+            zone.JustSafe = contenders
+                .Skip(next.EliminationCount)
+                .Where(x => x.Entry.TotalPoints - topOfZonePoints.Value <= PointsFromDangerThreshold)
+                .Select(x => Map(x, x.Entry.TotalPoints - topOfZonePoints.Value))
+                .ToList();
+        }
 
         return zone;
     }
+
+    /// <summary>
+    /// How close to the drop zone a safe player has to be before the danger zone lists them.
+    /// </summary>
+    private const int PointsFromDangerThreshold = 3;
+
+    /// <summary>A player still in, with the average the elimination chain ranks on.</summary>
+    private sealed record Contender(StandingEntryDto Entry, decimal Average);
 
     public async Task<ProcessEliminationsResponse> ProcessGameweekEliminationsAsync(string seasonId, int gameweekNumber, Guid? adminUserId, CancellationToken cancellationToken = default)
     {
@@ -365,9 +412,24 @@ public class EliminationService : IEliminationService
         _logger.LogInformation("Eliminating {Count} users from GW{WeekNumber}",
             usersToEliminate.Count, gameweek.WeekNumber);
 
-        // Create elimination records
-        int position = 1;
-        foreach (var userToEliminate in usersToEliminate)
+        // Create elimination records.
+        //
+        // Position is the player's place in the league at the moment they go out, and is never
+        // revisited: once eliminated, where they finished is settled and cannot move as the
+        // players still in gain points.
+        //
+        // userStandings is worst-first among the players still in, so the worst of them finishes
+        // last of that group. Anyone eliminated in an earlier gameweek sits below, having lasted
+        // less long — which is why counting down from the number still in gives a position no
+        // later run can collide with. With 266 in and 2 going out, they take 266 and 265;
+        // the next run has 264 still in and its bottom player takes 264.
+        //
+        // It used to store 1, 2, 3 — the order within the batch — while being documented as a
+        // league position, so the eliminations page showed the bottom two as having finished
+        // first and second.
+        var fieldStillIn = userStandings.Count;
+
+        foreach (var (userToEliminate, index) in usersToEliminate.Select((u, i) => (u, i)))
         {
             var elimination = new UserElimination
             {
@@ -375,7 +437,7 @@ public class EliminationService : IEliminationService
                 UserId = userToEliminate.UserId,
                 SeasonId = gameweek.SeasonId,
                 GameweekNumber = gameweekNumber,
-                Position = position,
+                Position = fieldStillIn - index,
                 TotalPoints = userToEliminate.TotalPoints,
                 EliminatedAt = DateTime.UtcNow,
                 EliminatedBy = adminUserId
@@ -398,8 +460,6 @@ public class EliminationService : IEliminationService
                 EliminatedAt = elimination.EliminatedAt,
                 EliminatedBy = elimination.EliminatedBy
             });
-
-            position++;
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);

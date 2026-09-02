@@ -74,10 +74,28 @@ public class EliminatedPlayerDto
     /// <summary>The gameweek after which they went out.</summary>
     public int GameweekNumber { get; set; }
 
+    /// <summary>
+    /// Where they finished: their position in the table at the moment they were eliminated.
+    /// </summary>
+    /// <remarks>
+    /// Read from the elimination record rather than recomputed. The standings only know about
+    /// now, and an eliminated player is not in them at all — so their place has to come from
+    /// what was written down when the run took them.
+    /// </remarks>
+    public int FinalPosition { get; set; }
+
     /// <summary>Their points when they went out.</summary>
     public int TotalPoints { get; set; }
     public int PicksMade { get; set; }
     public decimal AveragePointsPerGame { get; set; }
+
+    // The same record the full league table shows, so a player's season reads the same on both.
+    public int Wins { get; set; }
+    public int Draws { get; set; }
+    public int Losses { get; set; }
+    public int GoalsFor { get; set; }
+    public int GoalsAgainst { get; set; }
+    public int GoalDifference { get; set; }
 
     public DateTime EliminatedAt { get; set; }
 }
@@ -98,6 +116,21 @@ public class DangerZoneDto
 
     /// <summary>The players currently filling those places, worst first.</summary>
     public List<AtRiskPlayerDto> Players { get; set; } = new();
+
+    /// <summary>
+    /// Players who are safe but close enough to be caught: within
+    /// <see cref="PointsFromDangerThreshold"/> of the best player in the zone. Worst first, so
+    /// the one nearest the line comes first.
+    /// </summary>
+    /// <remarks>
+    /// Measured against the top of the zone rather than the bottom of the table, because that is
+    /// the player who would overtake them first — the gap that actually decides whether they
+    /// stay up.
+    /// </remarks>
+    public List<AtRiskPlayerDto> JustSafe { get; set; } = new();
+
+    /// <summary>How close to the zone a safe player has to be to appear in <see cref="JustSafe"/>.</summary>
+    public int PointsFromDangerThreshold { get; set; }
 }
 
 public class AtRiskPlayerDto
@@ -109,6 +142,30 @@ public class AtRiskPlayerDto
     public int TotalPoints { get; set; }
     public int PicksMade { get; set; }
     public decimal AveragePointsPerGame { get; set; }
+
+    // The same record the eliminated list and the full table carry, so the two halves of the
+    // eliminations page read identically rather than each showing its own selection.
+    public int Wins { get; set; }
+    public int Draws { get; set; }
+    public int Losses { get; set; }
+    public int GoalsFor { get; set; }
+    public int GoalsAgainst { get; set; }
+    public int GoalDifference { get; set; }
+
+    /// <summary>Points separating them from the first player out of the zone.</summary>
+    /// <remarks>
+    /// In points, matching what the page shows. <see cref="AverageBehindSafety"/> is the same
+    /// gap in points per game and is what the gameweek page's threat card uses; both are kept
+    /// because a column reading "0.33 behind" beside a column of whole points invites the wrong
+    /// reading.
+    /// </remarks>
+    public int PointsBehindSafety { get; set; }
+
+    /// <summary>
+    /// For a player in <see cref="DangerZoneDto.JustSafe"/>, how many points clear of the zone
+    /// they are. Zero for a player already in it.
+    /// </summary>
+    public int PointsClearOfZone { get; set; }
 
     /// <summary>Points per game separating them from the first player out of the zone.</summary>
     public decimal AverageBehindSafety { get; set; }

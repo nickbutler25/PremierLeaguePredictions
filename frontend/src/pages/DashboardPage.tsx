@@ -156,8 +156,16 @@ export function DashboardPage() {
   }
 
   return (
+    // From md up the dashboard is pinned to the viewport and the card row takes whatever is left
+    // under the summary — and under the elimination banner when there is one. Cards scroll their
+    // own contents rather than the page growing, so the row fits on screen whatever is above it
+    // and whatever the league size. The subtraction is the header, which is a fixed 65px at
+    // these widths (py-3 either side of a 40px logo, plus its border).
+    //
+    // Below md there is a single stacked column and the page scrolls normally, which is what a
+    // phone wants — and leaves usePullToRefresh working against the window as it expects.
     <div
-      className="container mx-auto p-3 sm:p-4 space-y-3 sm:space-y-4"
+      className="container mx-auto p-3 sm:p-4 space-y-3 sm:space-y-4 md:h-[calc(100dvh-65px)] md:flex md:flex-col"
       data-testid="dashboard-content"
     >
       {/* Pull-to-Refresh Indicator */}
@@ -173,15 +181,18 @@ export function DashboardPage() {
         </div>
       )}
 
-      {/* Summary Header */}
-      <Summary />
+      {/* Summary Header. shrink-0 so the banner and tiles keep their natural height and the card
+          row below absorbs the difference. */}
+      <div className="md:shrink-0">
+        <Summary />
+      </div>
 
       {/* Three columns normally, two once a player is out. The picks control is not merely
           disabled for them, it is gone — they cannot pick again this season, so it would be a
           permanently dead card taking a third of the width. Dropping to two columns fills the
           space it leaves rather than parking an empty one on the end. */}
       <div
-        className={`grid gap-4 grid-cols-1 md:grid-cols-2 ${
+        className={`grid gap-4 grid-cols-1 md:grid-cols-2 md:flex-1 md:min-h-0 ${
           isEliminated ? 'lg:grid-cols-2' : 'lg:grid-cols-3'
         }`}
         data-testid="dashboard-grid"
@@ -198,8 +209,14 @@ export function DashboardPage() {
           </div>
         )}
 
-        <div data-testid="dashboard-fixtures-column">
-          <Fixtures />
+        {/* Fixtures is positioned like the other two now. With the row height coming from the
+            viewport rather than from content, nothing needs to be left in the flow to set it —
+            and leaving Fixtures in would let a long fixture list push the row past the screen
+            again, which is the whole thing being fixed. */}
+        <div data-testid="dashboard-fixtures-column" className="md:relative">
+          <div className="md:absolute md:inset-0">
+            <Fixtures />
+          </div>
         </div>
 
         {/* The standings card is lifted out of the flow from md up so it cannot set the row's

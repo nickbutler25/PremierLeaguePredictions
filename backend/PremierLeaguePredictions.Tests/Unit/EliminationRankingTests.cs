@@ -204,10 +204,61 @@ public class EliminationRankingTests : IDisposable
             .Select(e => e.UserId)
             .ToList();
 
+        // Descending, because Position is a league place: the worst player finishes last and so
+        // carries the highest number. It used to hold the order within the batch, where the
+        // worst was 1.
         response.EliminatedPlayers
-            .OrderBy(e => e.Position)
+            .OrderByDescending(e => e.Position)
             .Select(e => e.UserId)
             .Should().Equal(bottomTwo);
+    }
+
+    /// <summary>
+    /// Once a player is out, where they finished is settled.
+    /// </summary>
+    /// <remarks>
+    /// The eliminations page read the position from the live standings, so an eliminated
+    /// player's finishing place moved whenever the field changed around them. Their season is
+    /// over; the number has to come from what was recorded when they went out.
+    /// </remarks>
+    [Fact]
+    public async Task AnEliminatedPlayersPositionIsFixedWhenTheFieldChanges()
+    {
+        AddPlayedGameweek(1);
+        AddPlayedGameweek(2, eliminationCount: 1);
+
+        var doomed = AddPlayer("Doomed", new[] { 1, 2 }, Array.Empty<int>());
+        AddPlayer("Middle", new[] { 1, 2 }, new[] { 1 });
+        AddPlayer("Top", new[] { 1, 2 }, new[] { 1, 2 });
+        await _context.SaveChangesAsync();
+
+        await CreateService().ProcessGameweekEliminationsAsync(SeasonId, 2, adminUserId: null);
+
+        var recorded = (await CreateService().GetEliminationsOverviewAsync(SeasonId))
+            .Eliminated.Single(e => e.UserId == doomed).FinalPosition;
+
+        // Last of the three who were still in.
+        recorded.Should().Be(3);
+
+        // Two more players join and both outscore them, so a live reading would push the
+        // eliminated player from third to fifth.
+        AddPlayer("Late One", new[] { 1, 2 }, new[] { 1, 2 });
+        AddPlayer("Late Two", new[] { 1, 2 }, new[] { 1, 2 });
+        await _context.SaveChangesAsync();
+
+        var standings = await new LeagueService(
+                new UnitOfWork(_context),
+                NullLogger<LeagueService>.Instance,
+                new MemoryCache(new MemoryCacheOptions()))
+            .GetLeagueStandingsAsync(SeasonId);
+
+        standings.Standings.Single(e => e.UserId == doomed).Position.Should().Be(5,
+            "the live table has moved them, which is exactly what must not reach the page");
+
+        var afterwards = (await CreateService().GetEliminationsOverviewAsync(SeasonId))
+            .Eliminated.Single(e => e.UserId == doomed).FinalPosition;
+
+        afterwards.Should().Be(recorded);
     }
 
     [Fact]
