@@ -67,7 +67,8 @@ public class ResultsService : IResultsService
         _logger.LogInformation("Found current gameweek: GW{WeekNumber}", currentGameweek.WeekNumber);
 
         // Sync only the current gameweek
-        var gameweekResponse = await SyncGameweekResultsAsync(currentGameweek.SeasonId, currentGameweek.WeekNumber, cancellationToken);
+        var gameweekResponse = await SyncGameweekResultsAsync(
+            currentGameweek.SeasonId, currentGameweek.WeekNumber, cancellationToken: cancellationToken);
         response.FixturesUpdated = gameweekResponse.FixturesUpdated;
         response.PicksRecalculated = gameweekResponse.PicksRecalculated;
         response.UpdatedFixtures.AddRange(gameweekResponse.UpdatedFixtures);
@@ -93,13 +94,39 @@ public class ResultsService : IResultsService
     private static readonly TimeSpan PollLeadTime = TimeSpan.FromMinutes(15);
 
     /// <summary>
-    /// True when a fixture could still change: not settled, and either under way or due shortly.
+    /// How long a settled fixture keeps being polled after the last time we wrote to it.
     /// </summary>
-    private static bool NeedsPolling(Core.Entities.Fixture fixture, DateTime nowUtc) =>
-        !SettledStatuses.Contains(fixture.Status, StringComparer.OrdinalIgnoreCase)
-        && fixture.KickoffTime <= nowUtc.Add(PollLeadTime);
+    /// <remarks>
+    /// The free tier is delayed, not wrong: football-data serves a FINISHED record before it
+    /// has finalised it, then corrects it minutes later. Dropping a fixture from the poll on
+    /// the first FINISHED made that first reading permanent — Forest 1-0 Tottenham was written
+    /// at 16:04:12 on 2026-09-05 and the feed corrected it to the real 0-0 (VAR had disallowed
+    /// the goal) at 16:07:57, under four minutes after we had stopped looking.
+    ///
+    /// Measured from <see cref="Core.Entities.Fixture.UpdatedAt"/>, which only moves when a
+    /// poll actually changed something, so the window is "until the feed stops moving" rather
+    /// than a flat timer: a correction that lands at minute 29 buys another 30 minutes, while
+    /// a score nobody touches stops costing calls half an hour after it settles.
+    /// </remarks>
+    private static readonly TimeSpan SettledPollGrace = TimeSpan.FromMinutes(30);
 
-    public async Task<ResultsSyncResponse> SyncGameweekResultsAsync(string seasonId, int gameweekNumber, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// True when a fixture could still change: under way or due shortly, and either unsettled
+    /// or settled recently enough that the feed may still revise it.
+    /// </summary>
+    private static bool NeedsPolling(Core.Entities.Fixture fixture, DateTime nowUtc)
+    {
+        if (fixture.KickoffTime > nowUtc.Add(PollLeadTime))
+            return false;
+
+        if (!SettledStatuses.Contains(fixture.Status, StringComparer.OrdinalIgnoreCase))
+            return true;
+
+        return nowUtc - fixture.UpdatedAt < SettledPollGrace;
+    }
+
+    public async Task<ResultsSyncResponse> SyncGameweekResultsAsync(
+        string seasonId, int gameweekNumber, bool reconcile = false, CancellationToken cancellationToken = default)
     {
         var response = new ResultsSyncResponse { GameweeksProcessed = 1 };
 
@@ -130,11 +157,20 @@ public class ResultsService : IResultsService
         // football-data.org free-tier allowance for nothing — a full gameweek is 10 calls per
         // cycle when typically one match is actually in play.
         var now = DateTime.UtcNow;
-        var toPoll = fixturesBefore.Where(f => f.ExternalId != null && NeedsPolling(f, now)).ToList();
+
+        // A reconciliation deliberately ignores the settled filter: it exists to re-read the
+        // fixtures the routine sync has stopped watching, which is the only way to find a score
+        // that was already wrong when we stopped looking. Kickoff still has to have passed —
+        // an unplayed fixture has nothing to reconcile against.
+        var toPoll = fixturesBefore
+            .Where(f => f.ExternalId != null && (reconcile ? f.KickoffTime <= now : NeedsPolling(f, now)))
+            .ToList();
         var skipped = fixturesSnapshot.Count - toPoll.Count;
 
         _logger.LogInformation(
-            "Polling {Count} of {Total} fixtures from external API for GW {WeekNumber} ({Skipped} settled or not due)",
+            reconcile
+                ? "Reconciling {Count} of {Total} fixtures against the external API for GW {WeekNumber} ({Skipped} not yet kicked off)"
+                : "Polling {Count} of {Total} fixtures from external API for GW {WeekNumber} ({Skipped} settled or not due)",
             toPoll.Count, fixturesSnapshot.Count, gameweek.WeekNumber, skipped);
 
         // Nothing pollable means nothing can have changed, so skip the save, the re-read and
@@ -147,12 +183,47 @@ public class ResultsService : IResultsService
             return response;
         }
 
-        foreach (var fixture in toPoll)
+        // One matchday call covers every fixture in the gameweek, and it is the fresher of the
+        // two routes: measured live on 2026-09-05, matches/{id} served a snapshot up to 3m07s
+        // behind this one for the same fixture in the same second. A live score that is a cycle
+        // out of date is worse than useless — it gets written to the table as if it were true.
+        // Ten fixtures for one call also takes the burst off the free tier's 10 calls/min.
+        var byExternalId = new Dictionary<int, ExternalFixture>();
+        try
+        {
+            foreach (var match in await _footballDataService.GetFixturesByMatchdayAsync(
+                         gameweek.WeekNumber, cancellationToken))
+            {
+                byExternalId[match.Id] = match;
+            }
+        }
+        catch (Exception ex)
+        {
+            // Fall through to the per-fixture route below rather than abandoning the sync.
+            _logger.LogWarning(ex,
+                "Matchday {Matchday} fetch failed; falling back to per-fixture polling", gameweek.WeekNumber);
+        }
+
+        // Compare everything the matchday response covers, not just the fixtures that earned a
+        // poll. That call is already paid for, so verifying a fixture we had stopped watching
+        // costs nothing — and a fixture we have stopped watching is exactly where a late
+        // correction lands. Forest's corrected 0-0 sat in this very response, fetched and
+        // logged, and was discarded for not being on the poll list.
+        var toApply = fixturesBefore
+            .Where(f => f.ExternalId != null
+                        && f.KickoffTime <= now
+                        && (toPoll.Contains(f) || byExternalId.ContainsKey(f.ExternalId.Value)))
+            .ToList();
+
+        foreach (var fixture in toApply)
         {
             try
             {
-                // Fetch this specific fixture from the API
-                var externalFixture = await _footballDataService.GetFixtureByIdAsync(fixture.ExternalId!.Value, cancellationToken);
+                // Per-fixture only as a fallback, for a fixture rearranged out of this matchday
+                // and so absent from the response above. Never for one we already have.
+                var externalFixture = byExternalId.TryGetValue(fixture.ExternalId!.Value, out var fromMatchday)
+                    ? fromMatchday
+                    : await _footballDataService.GetFixtureByIdAsync(fixture.ExternalId!.Value, cancellationToken);
 
                 if (externalFixture != null)
                 {

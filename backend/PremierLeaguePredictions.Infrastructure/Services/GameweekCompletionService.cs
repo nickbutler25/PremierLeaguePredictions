@@ -108,7 +108,14 @@ public class GameweekCompletionService : IGameweekCompletionService
         // Pull results once more before judging the gameweek finished. The scheduled sync window
         // has closed by now, so if a late goal or a full-time whistle landed after the last sync
         // this is the only chance to record it.
-        await _resultsService.SyncGameweekResultsAsync(gameweek.SeasonId, gameweek.WeekNumber, cancellationToken);
+        //
+        // reconcile: this is the last look before the gameweek is settled and eliminations run
+        // off it, so it has to re-read the fixtures the routine sync has already stopped
+        // watching. Without it the call went through the same settled filter as the poll it is
+        // meant to backstop and skipped every FINISHED fixture — a safety net that could only
+        // ever catch what the thing it was backstopping had already caught.
+        await _resultsService.SyncGameweekResultsAsync(
+            gameweek.SeasonId, gameweek.WeekNumber, reconcile: true, cancellationToken);
 
         var fixtures = (await _unitOfWork.Fixtures.FindAsync(
             f => f.SeasonId == gameweek.SeasonId && f.GameweekNumber == gameweek.WeekNumber,

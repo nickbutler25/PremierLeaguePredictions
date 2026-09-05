@@ -32,6 +32,18 @@ public class FootballDataService : IFootballDataService
 
         _httpClient.BaseAddress = new Uri(BaseUrl);
         _httpClient.DefaultRequestHeaders.Add("X-Auth-Token", _apiKey);
+
+        // A live score is worthless the moment it is a cycle out of date, so never accept a
+        // cached representation of one — not from HttpClient, not from a proxy in between.
+        // This does not reach football-data's own edge cache (which is why the live path uses
+        // the matchday endpoint), but it guarantees the staleness is theirs and not ours.
+        _httpClient.DefaultRequestHeaders.CacheControl = new CacheControlHeaderValue
+        {
+            NoCache = true,
+            NoStore = true,
+            MustRevalidate = true
+        };
+        _httpClient.DefaultRequestHeaders.Pragma.ParseAdd("no-cache");
     }
 
     public async Task<IEnumerable<ExternalFixture>> GetFixturesAsync(int? season = null, CancellationToken cancellationToken = default)
@@ -94,6 +106,41 @@ public class FootballDataService : IFootballDataService
         LogFixtureResponse(externalId, content, fixture);
 
         return fixture;
+    }
+
+    public async Task<IEnumerable<ExternalFixture>> GetFixturesByMatchdayAsync(
+        int matchday, CancellationToken cancellationToken = default)
+    {
+        var url = $"competitions/{PremierLeagueCode}/matches?matchday={matchday}";
+        var response = await _httpClient.GetAsync(url, cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+            _logger.LogError("Failed to fetch matchday {Matchday}. Status: {StatusCode}, Response: {Response}",
+                matchday, response.StatusCode, errorContent);
+            throw new HttpRequestException(
+                $"Football Data API request failed with status {response.StatusCode}. URL: {url}. Response: {errorContent}");
+        }
+
+        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+        var data = JsonSerializer.Deserialize<FootballDataMatchesResponse>(content, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+
+        if (data?.Matches == null)
+        {
+            _logger.LogError("Failed to deserialize matchday {Matchday}. Content: {Content}", matchday, content);
+            throw new InvalidOperationException($"Failed to deserialize matchday {matchday} from Football Data API");
+        }
+
+        foreach (var match in data.Matches)
+        {
+            LogFixtureResponse(match.Id, content, match);
+        }
+
+        return data.Matches;
     }
 
     /// <summary>

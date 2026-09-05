@@ -10,8 +10,28 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 
+interface LoadErrorProps {
+  title: string;
+  error: unknown;
+  fallback: string;
+}
+
+function LoadError({ title, error, fallback }: LoadErrorProps) {
+  return (
+    <div className="container mx-auto p-6">
+      <Card>
+        <CardContent className="p-6">
+          <div className="text-center text-red-600 dark:text-red-400">
+            <p className="font-semibold">{title}</p>
+            <p className="text-sm mt-2">{(error as { message?: string })?.message || fallback}</p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export function BackfillPicksPage() {
-  console.log('BackfillPicksPage rendered');
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -21,34 +41,12 @@ export function BackfillPicksPage() {
 
   const teamsQuery = useQuery({
     queryKey: ['teams'],
-    queryFn: async () => {
-      try {
-        console.log('🔍 Fetching teams...');
-        const result = await teamsService.getTeams();
-        console.log('✅ Teams fetched:', result);
-        console.log('🔄 Returning teams result');
-        return result;
-      } catch (error) {
-        console.error('❌ Error fetching teams:', error);
-        throw error;
-      }
-    },
+    queryFn: () => teamsService.getTeams(),
   });
 
   const usersQuery = useQuery({
     queryKey: ['users'],
-    queryFn: async () => {
-      try {
-        console.log('🔍 Fetching users...');
-        const result = await usersService.getUsers();
-        console.log('✅ Users fetched:', result);
-        console.log('🔄 Returning users result');
-        return result;
-      } catch (error) {
-        console.error('❌ Error fetching users:', error);
-        throw error;
-      }
-    },
+    queryFn: () => usersService.getUsers(),
   });
 
   const gameweekQuery = useQuery({
@@ -60,35 +58,18 @@ export function BackfillPicksPage() {
   const loadingTeams = teamsQuery.isLoading;
   const teamsError = teamsQuery.error;
 
-  const users = usersQuery.data || [];
+  // By last name: the dropdown is scanned by eye to find one player, and the API returns them
+  // in no order a reader can follow. Copied before sorting rather than sorted in place, because
+  // the array behind it belongs to the React Query cache.
+  const users = [...(usersQuery.data || [])].sort(
+    (a, b) => a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName)
+  );
   const loadingUsers = usersQuery.isLoading;
   const usersError = usersQuery.error;
 
   const currentGameweek = gameweekQuery.data;
   const loadingGameweek = gameweekQuery.isLoading;
-
-  console.log(
-    '📊 Teams Query:',
-    'isLoading:',
-    teamsQuery.isLoading,
-    'isFetching:',
-    teamsQuery.isFetching,
-    'isSuccess:',
-    teamsQuery.isSuccess,
-    'data:',
-    teamsQuery.data
-  );
-  console.log(
-    '📊 Users Query:',
-    'isLoading:',
-    usersQuery.isLoading,
-    'isFetching:',
-    usersQuery.isFetching,
-    'isSuccess:',
-    usersQuery.isSuccess,
-    'data:',
-    usersQuery.data
-  );
+  const gameweekError = gameweekQuery.error;
 
   useEffect(() => {
     if (currentGameweek) {
@@ -102,35 +83,6 @@ export function BackfillPicksPage() {
       setPicks(newPicks);
     }
   }, [currentGameweek]);
-
-  useEffect(() => {
-    console.log('🔔 useEffect triggered - Query states changed:', {
-      teamsLoading: loadingTeams,
-      usersLoading: loadingUsers,
-      gameweekLoading: loadingGameweek,
-      teamsDataLength: teams.length,
-      usersDataLength: users.length,
-    });
-  }, [loadingTeams, loadingUsers, loadingGameweek, teams.length, users.length]);
-
-  console.log('=== RENDER STATE ===');
-  console.log('Loading states:', { loadingTeams, loadingUsers });
-  console.log('Errors:', { teamsError, usersError });
-  console.log('Data:', { teamsCount: teams.length, usersCount: users.length });
-  console.log('Teams array:', teams);
-  console.log('Users array:', users);
-
-  // Show what we're going to render
-  if (loadingTeams || loadingUsers || loadingGameweek) {
-    console.log('🔄 RENDERING: Loading spinner', { loadingTeams, loadingUsers, loadingGameweek });
-  } else if (teamsError) {
-    console.log('❌ RENDERING: Teams error', teamsError);
-  } else if (usersError) {
-    console.log('❌ RENDERING: Users error', usersError);
-  } else {
-    console.log('✅ RENDERING: Main content');
-  }
-  console.log('===================');
 
   const backfillMutation = useMutation({
     mutationFn: () => {
@@ -219,35 +171,26 @@ export function BackfillPicksPage() {
 
   if (teamsError) {
     return (
-      <div className="container mx-auto p-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center text-red-600 dark:text-red-400">
-              <p className="font-semibold">Error loading teams</p>
-              <p className="text-sm mt-2">
-                {(teamsError as { message?: string })?.message || 'Failed to load teams'}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <LoadError title="Error loading teams" error={teamsError} fallback="Failed to load teams" />
     );
   }
 
   if (usersError) {
     return (
-      <div className="container mx-auto p-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center text-red-600 dark:text-red-400">
-              <p className="font-semibold">Error loading users</p>
-              <p className="text-sm mt-2">
-                {(usersError as { message?: string })?.message || 'Failed to load users'}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <LoadError title="Error loading users" error={usersError} fallback="Failed to load users" />
+    );
+  }
+
+  // The gameweek decides how many slots the form has, so a failure here used to render a
+  // complete-looking page with nothing in it — indistinguishable from a season with nothing
+  // to backfill.
+  if (gameweekError) {
+    return (
+      <LoadError
+        title="Error loading gameweeks"
+        error={gameweekError}
+        fallback="Failed to load the current gameweek"
+      />
     );
   }
 

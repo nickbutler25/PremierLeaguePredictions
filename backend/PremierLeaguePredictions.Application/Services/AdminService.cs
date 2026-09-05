@@ -260,9 +260,18 @@ public class AdminService : IAdminService
         var user = await _unitOfWork.Users.GetByIdAsync(userId, cancellationToken);
         if (user == null) throw new KeyNotFoundException("User not found");
 
-        // Get all gameweeks
-        var allGameweeks = await _unitOfWork.Gameweeks.GetAllAsync(cancellationToken);
-        var gameweeksByNumber = allGameweeks.ToDictionary(g => g.WeekNumber);
+        // A backfill request carries only week numbers, so they have to be resolved against a
+        // season — and it can only mean the active one. Keyed across every season this threw
+        // outright on the duplicate ("an item with the same key has already been added") as
+        // soon as a second season existed, and before that it silently resolved a week to
+        // whichever season the repository happened to return first.
+        var activeSeason = (await _unitOfWork.Seasons.FindAsync(s => s.IsActive, cancellationToken))
+            .FirstOrDefault();
+        if (activeSeason == null) throw new InvalidOperationException("No active season");
+
+        var seasonGameweeks = await _unitOfWork.Gameweeks.FindAsync(
+            g => g.SeasonId == activeSeason.Name, cancellationToken);
+        var gameweeksByNumber = seasonGameweeks.ToDictionary(g => g.WeekNumber);
 
         // Get all fixtures to calculate points
         var allFixtures = await _unitOfWork.Fixtures.GetAllAsync(cancellationToken);
