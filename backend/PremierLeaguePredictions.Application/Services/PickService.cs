@@ -32,7 +32,21 @@ public class PickService : IPickService
 
     public async Task<IEnumerable<PickDto>> GetUserPicksAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        var picks = await _unitOfWork.Picks.FindAsync(p => p.UserId == userId, trackChanges: false, cancellationToken);
+        // The active season only. Gameweek numbers restart every season and the client keys
+        // this response by week number, so an unscoped read let a pick from another season
+        // collide with the real one: a stray E2E-TEST week 1 pick and the player's actual
+        // week 1 pick came back together and the page showed the wrong team, which read as
+        // though something had overwritten their pick. Nothing had.
+        var activeSeason = (await _unitOfWork.Seasons.FindAsync(
+            s => s.IsActive, trackChanges: false, cancellationToken)).FirstOrDefault();
+        if (activeSeason == null)
+        {
+            return Enumerable.Empty<PickDto>();
+        }
+
+        var picks = await _unitOfWork.Picks.FindAsync(
+            p => p.UserId == userId && p.SeasonId == activeSeason.Name,
+            trackChanges: false, cancellationToken);
         var picksList = picks.ToList();
 
         var teamIds = picksList.Select(p => p.TeamId).Distinct().ToList();

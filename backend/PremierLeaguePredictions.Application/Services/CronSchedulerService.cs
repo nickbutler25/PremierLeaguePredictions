@@ -31,6 +31,13 @@ public class CronSchedulerService : ICronSchedulerService
         _logger = logger;
     }
 
+    /// <summary>
+    /// The season jobs may be generated for. Null when there is none, which means no jobs.
+    /// </summary>
+    private async Task<string?> GetActiveSeasonNameAsync(CancellationToken cancellationToken) =>
+        (await _unitOfWork.Seasons.FindAsync(s => s.IsActive, cancellationToken))
+        .FirstOrDefault()?.Name;
+
     public async Task<SchedulePlan> GenerateWeeklyScheduleAsync(CancellationToken cancellationToken = default)
     {
         var now = DateTime.UtcNow;
@@ -51,8 +58,22 @@ public class CronSchedulerService : ICronSchedulerService
         // produced 158 jobs for a full season and hit cron-job.org's API rate limit.
         var windowStart = now.AddDays(-7);
 
+        // Scoped to the active season. A gameweek belonging to any other season - a finished
+        // one, or a leftover test season - must never be given jobs: on 2026-09-08 an E2E-TEST
+        // season's week 1 fell inside this window and was handed the full set, so real players
+        // got a 3h reminder and then an auto-pick email for a gameweek in a competition nobody
+        // was playing. !IsLocked is not a substitute for this; nothing had locked that gameweek
+        // and nothing was going to.
+        var activeSeason = await GetActiveSeasonNameAsync(cancellationToken);
+        if (activeSeason == null)
+        {
+            _logger.LogWarning("No active season; generating an empty schedule");
+            return plan;
+        }
+
         var allGameweeks = await _unitOfWork.Gameweeks.FindAsync(
-            g => !g.IsLocked // Only get gameweeks that aren't finalized yet
+            g => g.SeasonId == activeSeason
+                 && !g.IsLocked // Only get gameweeks that aren't finalized yet
                  && g.Deadline >= windowStart
                  && g.Deadline <= nextWeek,
             cancellationToken);
@@ -205,8 +226,14 @@ public class CronSchedulerService : ICronSchedulerService
     {
         // A gameweek qualifies once its deadline is behind us or comes within the planning
         // window. Anything further out is a future gameweek with nothing to complete.
+        var activeSeason = await GetActiveSeasonNameAsync(cancellationToken);
+        if (activeSeason == null)
+        {
+            return;
+        }
+
         var openGameweeks = (await _unitOfWork.Gameweeks.FindAsync(
-                g => !g.IsLocked && g.Deadline <= nextWeek,
+                g => g.SeasonId == activeSeason && !g.IsLocked && g.Deadline <= nextWeek,
                 cancellationToken))
             .OrderBy(g => g.Deadline)
             .ToList();
