@@ -65,6 +65,32 @@ describe('DangerZonePage', () => {
     vi.mocked(eliminationsService.getOverview).mockResolvedValue(overview(zone()));
   });
 
+  it('opens centred on the elimination line, not the top of the page', async () => {
+    // jsdom has no layout, so the call itself is the observable behaviour: the page told the
+    // browser to bring the cut into view, and centred it rather than pinning it to an edge.
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+
+    render(<DangerZonePage />);
+
+    const cutoff = await screen.findByTestId('elimination-cutoff');
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'center', behavior: 'auto' });
+    expect(scrollIntoView.mock.instances[0]).toBe(cutoff);
+  });
+
+  it('does not yank the page back to the line when the results refresh', async () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+
+    const { rerender } = render(<DangerZonePage />);
+    await screen.findByTestId('elimination-cutoff');
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+
+    rerender(<DangerZonePage />);
+    await screen.findByTestId('elimination-cutoff');
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+  });
+
   it('names the gameweek and how many go out', async () => {
     render(<DangerZonePage />);
 
@@ -109,9 +135,7 @@ describe('DangerZonePage', () => {
   });
 
   it('says so when nobody outside the zone is close', async () => {
-    vi.mocked(eliminationsService.getOverview).mockResolvedValue(
-      overview(zone({ justSafe: [] }))
-    );
+    vi.mocked(eliminationsService.getOverview).mockResolvedValue(overview(zone({ justSafe: [] })));
 
     render(<DangerZonePage />);
 

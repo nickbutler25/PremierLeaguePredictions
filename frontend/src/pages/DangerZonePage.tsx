@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { AtRiskPlayer, EliminationsOverview } from '@/types';
 import { eliminationsService } from '@/services/eliminations';
@@ -56,14 +57,31 @@ function DangerZoneTable({
 }) {
   const zone = data.dangerZone;
 
+  // Open on the cut rather than at the top of the page. The interesting part of this table is
+  // the line and the few rows either side of it; with a full chasing pack above it, the drop
+  // zone starts below the fold and the page opens on the least useful part of itself.
+  //
+  // Once only. The query is refetched as results come in, and re-centring the page under
+  // someone mid-read would be worse than not scrolling at all. Declared before the empty-zone
+  // return below so the hook order never changes.
+  const cutoffRef = useRef<HTMLDivElement>(null);
+  const hasCentred = useRef(false);
+
+  useEffect(() => {
+    if (hasCentred.current || !cutoffRef.current) return;
+    hasCentred.current = true;
+    // Jump rather than animate: this is the page's starting position, not a movement from
+    // somewhere, and smooth-scrolling on load reads as the page drifting on arrival.
+    cutoffRef.current.scrollIntoView({ block: 'center', behavior: 'auto' });
+  }, []);
+
   if (!zone || zone.players.length === 0) {
     return (
       <Card>
         <CardHeader>
           <CardTitle>Nobody is in danger</CardTitle>
           <CardDescription>
-            No elimination is configured for the gameweeks ahead, so there is no drop zone to
-            show.
+            No elimination is configured for the gameweeks ahead, so there is no drop zone to show.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -86,7 +104,9 @@ function DangerZoneTable({
           Gameweek {zone.gameweekNumber}
         </CardTitle>
         <CardDescription>
-          {zone.eliminationCount === 1 ? 'One player goes out' : `${zone.eliminationCount} players go out`}{' '}
+          {zone.eliminationCount === 1
+            ? 'One player goes out'
+            : `${zone.eliminationCount} players go out`}{' '}
           after this gameweek, on the fewest points.{' '}
           {zone.deadlinePassed ? (
             <>The deadline has passed, so only results can change this now.</>
@@ -138,6 +158,7 @@ function DangerZoneTable({
 
         {/* The cut. Everything below this line goes out if the gameweek ended now. */}
         <div
+          ref={cutoffRef}
           className="flex items-center gap-3 py-2"
           role="separator"
           aria-label="Elimination cut-off"

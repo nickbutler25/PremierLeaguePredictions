@@ -61,8 +61,13 @@ export function Layout({ children }: LayoutProps) {
       >
         Skip to main content
       </a>
+      {/* No backdrop-blur here. This header is in normal flow, not sticky or fixed, so nothing
+          ever scrolls beneath it — the only thing behind it is the flat page background, and
+          blurring a flat colour returns the same colour. It cost a compositing layer and a blur
+          pass on every repaint of the bar to produce no visible difference. MobileNav keeps its
+          blur: that one is `fixed` at the bottom and content really does pass under it. */}
       <header
-        className="border-b pt-[env(safe-area-inset-top)] bg-card/70 backdrop-blur-sm dark:bg-card/40"
+        className="border-b pt-[env(safe-area-inset-top)] bg-card/70 dark:bg-card/40"
         role="banner"
         data-testid="main-header"
       >

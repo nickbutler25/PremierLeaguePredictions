@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useRef, useState } from 'react';
+import { memo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import type { StandingEntry } from '@/types';
 import { Link } from 'react-router-dom';
@@ -22,6 +22,167 @@ import { FormBadge } from './FormBadge';
 interface LeagueStandingsProps {
   compact?: boolean;
 }
+
+interface StandingRowProps {
+  entry: StandingEntry;
+  isCurrentUser: boolean;
+  /** Set only on the signed-in player's row, so "jump to me" has something to scroll to. */
+  rowRef?: React.Ref<HTMLTableRowElement>;
+  compact: boolean;
+  showPick: boolean;
+  showRecord: boolean;
+  showGoalDifference: boolean;
+  recordVisibility: string;
+  goalDifferenceVisibility: string;
+}
+
+/**
+ * One row of the standings.
+ *
+ * Memoised because the dashboard refetches every two minutes to pick up live points, and that
+ * re-rendered all 266 rows each time whether anything had moved or not - the same work repeated
+ * for the life of the session, and a click landing inside one of those commits waits for it.
+ * Chrome measured 160ms of input delay against an INP of 304ms.
+ *
+ * This works because React Query's structural sharing keeps the object identity of an entry that
+ * has not changed between refetches, so the default shallow compare skips the row. Every other
+ * prop is a primitive. Keep it that way - passing a new object or an inline function would
+ * defeat the memo silently.
+ */
+const StandingRow = memo(function StandingRow({
+  entry,
+  isCurrentUser,
+  rowRef,
+  compact,
+  showPick,
+  showRecord,
+  showGoalDifference,
+  recordVisibility,
+  goalDifferenceVisibility,
+}: StandingRowProps) {
+  const goalDifferenceCell = (entry: StandingEntry) => (
+    <TableCell
+      className={`text-center text-xs sm:text-sm ${goalDifferenceVisibility} ${
+        entry.goalDifference > 0
+          ? 'text-green-600 dark:text-green-400'
+          : entry.goalDifference < 0
+            ? 'text-red-600 dark:text-red-400'
+            : ''
+      }`}
+      data-testid={`standing-gd-${entry.position}`}
+    >
+      {entry.goalDifference > 0 ? '+' : ''}
+      {entry.goalDifference}
+    </TableCell>
+  );
+
+  return (
+    <TableRow
+      ref={rowRef}
+      data-testid={`standing-row-${entry.position}`}
+      className={
+        isCurrentUser
+          ? 'bg-blue-50 dark:bg-violet-500/10 hover:bg-blue-100 dark:hover:bg-blue-950/40'
+          : ''
+      }
+    >
+      <TableCell
+        className="text-center font-medium text-xs sm:text-sm"
+        data-testid={`standing-position-${entry.position}`}
+      >
+        {entry.position}
+      </TableCell>
+      <TableCell
+        className={`text-xs sm:text-sm ${isCurrentUser ? 'font-bold' : ''}`}
+        data-testid={`standing-name-${entry.position}`}
+      >
+        <Link
+          to={`/users/${entry.userId}`}
+          className="block sm:inline truncate max-w-[100px] sm:max-w-none hover:underline underline-offset-4"
+          data-testid={`standing-name-link-${entry.position}`}
+        >
+          {entry.userName}
+        </Link>
+        {isCurrentUser && (
+          <span
+            className="ml-1 sm:ml-2 text-xs text-blue-600 dark:text-violet-300"
+            data-testid="current-user-indicator"
+          >
+            (You)
+          </span>
+        )}
+      </TableCell>
+      {showPick && (
+        <TableCell className="text-center" data-testid={`standing-pick-${entry.position}`}>
+          <PickCrest pick={entry.currentPick} showResultLetter />
+        </TableCell>
+      )}
+      {!compact && (
+        <TableCell
+          className="text-center text-xs sm:text-sm hidden sm:table-cell"
+          data-testid={`standing-played-${entry.position}`}
+        >
+          {entry.picksMade}
+        </TableCell>
+      )}
+      {showRecord && (
+        <TableCell
+          className={`text-center text-xs sm:text-sm ${recordVisibility} text-green-600 dark:text-green-400`}
+          data-testid={`standing-wins-${entry.position}`}
+        >
+          {entry.wins}
+        </TableCell>
+      )}
+      {showRecord && (
+        <TableCell
+          className={`text-center text-xs sm:text-sm ${recordVisibility} text-yellow-600 dark:text-yellow-400`}
+          data-testid={`standing-draws-${entry.position}`}
+        >
+          {entry.draws}
+        </TableCell>
+      )}
+      {showRecord && (
+        <TableCell
+          className={`text-center text-xs sm:text-sm ${recordVisibility} text-red-600 dark:text-red-400`}
+          data-testid={`standing-losses-${entry.position}`}
+        >
+          {entry.losses}
+        </TableCell>
+      )}
+      {showGoalDifference && compact && goalDifferenceCell(entry)}
+      <TableCell
+        className="text-center font-bold text-xs sm:text-sm tabular-nums"
+        data-testid={`standing-points-${entry.position}`}
+      >
+        {entry.totalPoints}
+      </TableCell>
+      {!compact && (
+        <TableCell className="text-center text-xs sm:text-sm hidden md:table-cell">
+          {entry.goalsFor}
+        </TableCell>
+      )}
+      {!compact && (
+        <TableCell className="text-center text-xs sm:text-sm hidden md:table-cell">
+          {entry.goalsAgainst}
+        </TableCell>
+      )}
+      {showGoalDifference && !compact && goalDifferenceCell(entry)}
+      {!compact && (
+        <TableCell className="hidden lg:table-cell" data-testid={`standing-form-${entry.position}`}>
+          {entry.form && entry.form.length > 0 ? (
+            <span className="flex items-center gap-1">
+              {entry.form.map((pick) => (
+                <FormBadge key={pick.gameweekNumber} pick={pick} />
+              ))}
+            </span>
+          ) : (
+            <span className="text-xs text-muted-foreground">No results yet</span>
+          )}
+        </TableCell>
+      )}
+    </TableRow>
+  );
+});
 
 export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
   const { user } = useAuth();
@@ -134,22 +295,6 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
   const recordWidth = compact ? 'w-9' : 'w-12';
   const goalDifferenceWidth = compact ? 'w-12' : 'w-16';
   const pointsWidth = compact ? 'w-12' : 'w-16';
-
-  const goalDifferenceCell = (entry: StandingEntry) => (
-    <TableCell
-      className={`text-center text-xs sm:text-sm ${goalDifferenceVisibility} ${
-        entry.goalDifference > 0
-          ? 'text-green-600 dark:text-green-400'
-          : entry.goalDifference < 0
-            ? 'text-red-600 dark:text-red-400'
-            : ''
-      }`}
-      data-testid={`standing-gd-${entry.position}`}
-    >
-      {entry.goalDifference > 0 ? '+' : ''}
-      {entry.goalDifference}
-    </TableCell>
-  );
 
   return (
     // The dashboard card fills the height it is given rather than setting its own. DashboardPage
@@ -313,121 +458,22 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
             </TableHeader>
             <TableBody>
               {visible.map((entry) => {
-                  const isCurrentUser = entry.userId === user?.id;
-                  return (
-                    <TableRow
-                      key={entry.userId}
-                      ref={isCurrentUser ? myRowRef : undefined}
-                      data-testid={`standing-row-${entry.position}`}
-                      className={
-                        isCurrentUser
-                          ? 'bg-blue-50 dark:bg-violet-500/10 hover:bg-blue-100 dark:hover:bg-blue-950/40'
-                          : ''
-                      }
-                    >
-                      <TableCell
-                        className="text-center font-medium text-xs sm:text-sm"
-                        data-testid={`standing-position-${entry.position}`}
-                      >
-                        {entry.position}
-                      </TableCell>
-                      <TableCell
-                        className={`text-xs sm:text-sm ${isCurrentUser ? 'font-bold' : ''}`}
-                        data-testid={`standing-name-${entry.position}`}
-                      >
-                        <Link
-                          to={`/users/${entry.userId}`}
-                          className="block sm:inline truncate max-w-[100px] sm:max-w-none hover:underline underline-offset-4"
-                          data-testid={`standing-name-link-${entry.position}`}
-                        >
-                          {entry.userName}
-                        </Link>
-                        {isCurrentUser && (
-                          <span
-                            className="ml-1 sm:ml-2 text-xs text-blue-600 dark:text-violet-300"
-                            data-testid="current-user-indicator"
-                          >
-                            (You)
-                          </span>
-                        )}
-                      </TableCell>
-                      {showPick && (
-                        <TableCell
-                          className="text-center"
-                          data-testid={`standing-pick-${entry.position}`}
-                        >
-                          <PickCrest pick={entry.currentPick} showResultLetter />
-                        </TableCell>
-                      )}
-                      {!compact && (
-                        <TableCell
-                          className="text-center text-xs sm:text-sm hidden sm:table-cell"
-                          data-testid={`standing-played-${entry.position}`}
-                        >
-                          {entry.picksMade}
-                        </TableCell>
-                      )}
-                      {showRecord && (
-                        <TableCell
-                          className={`text-center text-xs sm:text-sm ${recordVisibility} text-green-600 dark:text-green-400`}
-                          data-testid={`standing-wins-${entry.position}`}
-                        >
-                          {entry.wins}
-                        </TableCell>
-                      )}
-                      {showRecord && (
-                        <TableCell
-                          className={`text-center text-xs sm:text-sm ${recordVisibility} text-yellow-600 dark:text-yellow-400`}
-                          data-testid={`standing-draws-${entry.position}`}
-                        >
-                          {entry.draws}
-                        </TableCell>
-                      )}
-                      {showRecord && (
-                        <TableCell
-                          className={`text-center text-xs sm:text-sm ${recordVisibility} text-red-600 dark:text-red-400`}
-                          data-testid={`standing-losses-${entry.position}`}
-                        >
-                          {entry.losses}
-                        </TableCell>
-                      )}
-                      {showGoalDifference && compact && goalDifferenceCell(entry)}
-                      <TableCell
-                        className="text-center font-bold text-xs sm:text-sm tabular-nums"
-                        data-testid={`standing-points-${entry.position}`}
-                      >
-                        {entry.totalPoints}
-                      </TableCell>
-                      {!compact && (
-                        <TableCell className="text-center text-xs sm:text-sm hidden md:table-cell">
-                          {entry.goalsFor}
-                        </TableCell>
-                      )}
-                      {!compact && (
-                        <TableCell className="text-center text-xs sm:text-sm hidden md:table-cell">
-                          {entry.goalsAgainst}
-                        </TableCell>
-                      )}
-                      {showGoalDifference && !compact && goalDifferenceCell(entry)}
-                      {!compact && (
-                        <TableCell
-                          className="hidden lg:table-cell"
-                          data-testid={`standing-form-${entry.position}`}
-                        >
-                          {entry.form && entry.form.length > 0 ? (
-                            <span className="flex items-center gap-1">
-                              {entry.form.map((pick) => (
-                                <FormBadge key={pick.gameweekNumber} pick={pick} />
-                              ))}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">No results yet</span>
-                          )}
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  );
-                })}
+                const isCurrentUser = entry.userId === user?.id;
+                return (
+                  <StandingRow
+                    key={entry.userId}
+                    entry={entry}
+                    isCurrentUser={isCurrentUser}
+                    rowRef={isCurrentUser ? myRowRef : undefined}
+                    compact={compact}
+                    showPick={showPick}
+                    showRecord={showRecord}
+                    showGoalDifference={showGoalDifference}
+                    recordVisibility={recordVisibility}
+                    goalDifferenceVisibility={goalDifferenceVisibility}
+                  />
+                );
+              })}
             </TableBody>
           </Table>
 
