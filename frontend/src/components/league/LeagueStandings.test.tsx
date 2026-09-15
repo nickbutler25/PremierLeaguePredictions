@@ -127,19 +127,7 @@ describe('LeagueStandings columns', () => {
     // Nothing to reveal, so the column would be empty in every row.
     expect(header('Pick')).not.toBeInTheDocument();
     const headers = screen.getAllByRole('columnheader').map((h) => h.textContent);
-    expect(headers).toEqual([
-      '#',
-      'Name',
-      'P',
-      'W',
-      'D',
-      'L',
-      'Pts',
-      'GF',
-      'GA',
-      'GD',
-      'Form',
-    ]);
+    expect(headers).toEqual(['#', 'Name', 'P', 'W', 'D', 'L', 'Pts', 'GF', 'GA', 'GD', 'Form']);
   });
 });
 

@@ -68,7 +68,6 @@ function Message({
   );
 }
 
-
 function EliminatedCard({
   data,
   currentUserId,
@@ -91,9 +90,7 @@ function EliminatedCard({
         <CardTitle>Out of the competition</CardTitle>
         {/* No description once there are players: the gameweek headings and the columns already
             say what the table is, and a line of prose above them earns nothing. */}
-        {players.length === 0 && (
-          <CardDescription>Nobody has been eliminated yet.</CardDescription>
-        )}
+        {players.length === 0 && <CardDescription>Nobody has been eliminated yet.</CardDescription>}
       </CardHeader>
       <CardContent>
         {players.length === 0 ? (

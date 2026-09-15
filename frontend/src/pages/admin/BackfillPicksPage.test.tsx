@@ -32,8 +32,22 @@ describe('BackfillPicksPage', () => {
   const palace = { id: 236, name: 'Crystal Palace' };
 
   const players = [
-    { id: 'u-1', email: 'ward@example.com', firstName: 'Peter', lastName: 'Ward', isAdmin: false, createdAt: '' },
-    { id: 'u-2', email: 'best@example.com', firstName: 'Ann', lastName: 'Best', isAdmin: false, createdAt: '' },
+    {
+      id: 'u-1',
+      email: 'ward@example.com',
+      firstName: 'Peter',
+      lastName: 'Ward',
+      isAdmin: false,
+      createdAt: '',
+    },
+    {
+      id: 'u-2',
+      email: 'best@example.com',
+      firstName: 'Ann',
+      lastName: 'Best',
+      isAdmin: false,
+      createdAt: '',
+    },
   ];
 
   beforeEach(() => {

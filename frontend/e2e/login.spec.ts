@@ -14,7 +14,7 @@ test.describe('Login Flow', () => {
     await expect(page.getByTestId('login-card')).toBeVisible();
 
     // Check for title
-    await expect(page.getByText('Premier League Predictions')).toBeVisible();
+    await expect(page.getByText('EPL Manager Of The Year')).toBeVisible();
     await expect(page.getByText('Sign in to join the competition')).toBeVisible();
 
     // Check for Google login button container

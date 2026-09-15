@@ -177,9 +177,7 @@ describe('ProfilePage password section', () => {
     await waitFor(() => expect(authService.changePassword).toHaveBeenCalled());
 
     // The new password must not be left sitting in the form afterwards.
-    await waitFor(() =>
-      expect(screen.getByLabelText('New password')).toHaveValue('')
-    );
+    await waitFor(() => expect(screen.getByLabelText('New password')).toHaveValue(''));
     expect(screen.getByLabelText('Current password')).toHaveValue('');
   });
 

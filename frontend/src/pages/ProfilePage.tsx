@@ -43,7 +43,11 @@ export function ProfilePage() {
     setIsChangingPassword(true);
     setStatus(null);
     try {
-      const updated = await authService.changePassword(currentPassword, newPassword, confirmPassword);
+      const updated = await authService.changePassword(
+        currentPassword,
+        newPassword,
+        confirmPassword
+      );
       updateUser(updated);
 
       // Cleared on success so the new password is not left sitting in the form.
