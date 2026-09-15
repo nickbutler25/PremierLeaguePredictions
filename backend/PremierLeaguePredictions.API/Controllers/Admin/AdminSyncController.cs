@@ -79,11 +79,29 @@ public class AdminSyncController : ControllerBase
         return Ok(ApiResponse<ResultsSyncResponse>.SuccessResult(response, "Results synced successfully"));
     }
 
+    /// <param name="reconcile">
+    /// Re-read every fixture that has kicked off, including settled ones. Without this the
+    /// manual re-sync goes through the same filter as the routine job and is equally blind to
+    /// a score that was already wrong when polling stopped — which made it useless as a
+    /// recovery path exactly when it was needed.
+    /// </param>
     [HttpPost("results/gameweek/{seasonId}/{gameweekNumber}")]
-    public async Task<ActionResult<ApiResponse<ResultsSyncResponse>>> SyncGameweekResults(string seasonId, int gameweekNumber)
+    public async Task<ActionResult<ApiResponse<ResultsSyncResponse>>> SyncGameweekResults(
+        string seasonId, int gameweekNumber, [FromQuery] bool reconcile = false)
     {
         var decodedSeasonId = Uri.UnescapeDataString(seasonId);
-        var response = await _resultsService.SyncGameweekResultsAsync(decodedSeasonId, gameweekNumber);
+        var response = await _resultsService.SyncGameweekResultsAsync(decodedSeasonId, gameweekNumber, reconcile);
+
+        await _actionLogger.LogActionAsync(
+            reconcile ? "RECONCILE_GAMEWEEK_RESULTS" : "SYNC_GAMEWEEK_RESULTS",
+            new
+            {
+                seasonId = decodedSeasonId,
+                gameweekNumber,
+                fixturesUpdated = response.FixturesUpdated,
+                picksRecalculated = response.PicksRecalculated
+            });
+
         return Ok(ApiResponse<ResultsSyncResponse>.SuccessResult(response, "Gameweek results synced successfully"));
     }
 }

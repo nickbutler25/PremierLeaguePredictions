@@ -23,6 +23,13 @@ ALTER TABLE IF EXISTS season_participations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS user_eliminations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS pick_rules ENABLE ROW LEVEL SECURITY;
 
+-- Password reset tokens. RLS is enabled and NO policy is created for it on purpose: nothing
+-- outside the API has any business reading this table, and with RLS on and no policy, PostgREST
+-- returns nothing to anon or authenticated roles. The backend connects as the table owner and is
+-- unaffected. A row here is a live means of taking over an account until it expires, so this is
+-- the one table where "no access at all" is the correct policy.
+ALTER TABLE IF EXISTS password_reset_tokens ENABLE ROW LEVEL SECURITY;
+
 -- ============================================================================
 -- HELPER FUNCTIONS
 -- ============================================================================

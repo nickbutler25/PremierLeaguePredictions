@@ -25,6 +25,21 @@ public static class AppLinks
     /// </summary>
     public static string? Gameweek(IConfiguration configuration) => Page(configuration, "gameweek");
 
+    /// <summary>
+    /// Where a player goes to set a new password. Null when the site URL is not configured.
+    /// </summary>
+    /// <remarks>
+    /// Unlike the others, a caller must not fall back to sending the mail without this one. The
+    /// auto-pick email drops a dead link and still says something worth reading; a reset email is
+    /// nothing but the link, so PasswordResetService refuses to send rather than deliver a mail
+    /// the player can do nothing with.
+    /// </remarks>
+    public static string? ResetPassword(IConfiguration configuration, string token)
+    {
+        var page = Page(configuration, "reset-password");
+        return page == null ? null : $"{page}?token={Uri.EscapeDataString(token)}";
+    }
+
     private static string? Page(IConfiguration configuration, string path)
     {
         var baseUrl = configuration[ConfigurationKey]?.Trim();

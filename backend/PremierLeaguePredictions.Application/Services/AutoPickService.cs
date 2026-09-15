@@ -30,6 +30,12 @@ public class AutoPickService : IAutoPickService
         _logger = logger;
     }
 
+    /// <summary>
+    /// How far back a run will reach for an unassigned pick. Comfortably clears a normal
+    /// gameweek (deadline Friday, last fixture Monday) without reaching the one before it.
+    /// </summary>
+    private static readonly TimeSpan MaxAutoPickAge = TimeSpan.FromDays(14);
+
     /// <summary>One assignment, held back until the picks are safely saved.</summary>
     private sealed record Assignment(Guid UserId, string TeamName);
 
@@ -398,10 +404,34 @@ You're receiving this because you're participating in the current season.
     {
         var now = DateTime.UtcNow;
 
-        // Find gameweeks where the deadline has passed but the gameweek is still in progress (not locked)
-        // This allows auto-pick to run at any time during the gameweek after the deadline
+        // Gameweeks still in progress: deadline passed, not yet locked. Two bounds beyond that,
+        // both learned the hard way on 2026-09-08.
+        //
+        // Season, because this ran across every season in the database and assigned a pick in a
+        // leftover E2E-TEST season, emailing real players about a gameweek 1 they were not
+        // playing while the real competition was in week 4.
+        //
+        // Age, because !IsLocked was doing all the work of deciding what is "in progress", and
+        // nothing had locked a gameweek in weeks - GameweekCompletionService is the only writer
+        // of that flag. Every gameweek since the start of the season therefore still qualified,
+        // so a run reached back to week 1 indefinitely. A deadline more than a fortnight old is
+        // not a missed pick anyone can still be waiting on; it is a gameweek that was never
+        // closed off.
+        var oldestWorthAssigning = now.Subtract(MaxAutoPickAge);
+
+        var activeSeason = (await _unitOfWork.Seasons.FindAsync(s => s.IsActive, cancellationToken))
+            .FirstOrDefault();
+        if (activeSeason == null)
+        {
+            _logger.LogInformation("No active season; nothing to auto-pick");
+            return new AutoPickResult { PicksAssigned = 0, PicksFailed = 0, GameweeksProcessed = 0 };
+        }
+
         var activeGameweeksWithPassedDeadlines = await _unitOfWork.Gameweeks.FindAsync(
-            g => g.Deadline < now && !g.IsLocked,
+            g => g.SeasonId == activeSeason.Name
+                 && g.Deadline < now
+                 && g.Deadline >= oldestWorthAssigning
+                 && !g.IsLocked,
             cancellationToken);
 
         var gameweeksList = activeGameweeksWithPassedDeadlines.OrderBy(g => g.Deadline).ToList();

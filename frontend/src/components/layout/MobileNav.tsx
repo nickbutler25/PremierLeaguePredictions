@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { Home, Radio, Trophy, Skull, Settings } from 'lucide-react';
+import { Home, Radio, Trophy, Skull, Settings, Users, TriangleAlert } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -22,6 +22,16 @@ const tabs: Tab[] = [
     matchPrefix: true,
   },
   { to: '/league', label: 'League', icon: Trophy, testId: 'mobile-league-link' },
+  {
+    to: '/users',
+    label: 'Players',
+    icon: Users,
+    testId: 'mobile-players-link',
+    // /users/:id is the same page reached by tapping a name in the league table, so the tab
+    // stays lit when browsing someone else.
+    matchPrefix: true,
+  },
+  { to: '/danger-zone', label: 'Danger', icon: TriangleAlert, testId: 'mobile-danger-zone-link' },
   { to: '/eliminations', label: 'Out', icon: Skull, testId: 'mobile-eliminations-link' },
 ];
 
@@ -46,8 +56,11 @@ const adminTab: Tab = {
  * shrunk to phone width.
  */
 export function MobileNav({ isAdmin }: { isAdmin: boolean }) {
-  // Five is the most iOS shows before collapsing the rest behind "More", and admins land
-  // exactly on it.
+  // Six for a player, seven for an admin, against a ceiling of five when the bar was built —
+  // what iOS shows before collapsing the rest behind "More". These are flex-1 cells rather than
+  // a real tab bar so they do fit, but at ~53px on a 375px phone the labels are past comfortable
+  // and an admin's row is tight. This wants rethinking — an overflow menu, or folding Danger and
+  // Out together — rather than an eighth tab.
   const items = isAdmin ? [...tabs, adminTab] : tabs;
 
   // Named apart from the header's "Main navigation": both are in the DOM at once — only CSS

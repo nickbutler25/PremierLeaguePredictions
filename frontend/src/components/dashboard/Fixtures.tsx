@@ -118,8 +118,8 @@ export function Fixtures() {
   const availableGameweeks = Array.from(fixturesByGameweek.keys()).sort((a, b) => a - b);
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="flex flex-col h-full">
+      <CardHeader className="shrink-0">
         <CardTitle>Fixtures</CardTitle>
         <CardDescription>
           <span className="text-green-600 dark:text-green-400">●</span> Your pick{' '}
@@ -127,9 +127,9 @@ export function Fixtures() {
           <span className="text-gray-400 dark:text-muted-foreground">●</span> Future pick
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-col flex-1 min-h-0">
         {/* Gameweek Navigation */}
-        <div className="flex items-center justify-between mb-4 pb-3 border-b">
+        <div className="flex items-center justify-between mb-4 pb-3 border-b shrink-0">
           <button
             onClick={() => {
               const currentIndex = availableGameweeks.indexOf(displayGameweek);
@@ -164,8 +164,10 @@ export function Fixtures() {
           </button>
         </div>
 
-        {/* Fixtures List */}
-        <div className="space-y-3">
+        {/* Fixtures List. Scrolls within whatever height the card is given rather than setting
+            it: ten fixtures is taller than most screens have left once the header, the summary
+            tiles and an elimination banner are above it. The gameweek nav above stays put. */}
+        <div className="space-y-3 md:flex-1 md:min-h-0 md:overflow-y-auto">
           {displayFixtures.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">
               No fixtures available for this gameweek

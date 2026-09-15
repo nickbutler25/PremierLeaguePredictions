@@ -1,8 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
+import { memo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import type { StandingEntry } from '@/types';
 import { Link } from 'react-router-dom';
 import { leagueService } from '@/services/league';
 import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -19,8 +23,191 @@ interface LeagueStandingsProps {
   compact?: boolean;
 }
 
+interface StandingRowProps {
+  entry: StandingEntry;
+  isCurrentUser: boolean;
+  /** Set only on the signed-in player's row, so "jump to me" has something to scroll to. */
+  rowRef?: React.Ref<HTMLTableRowElement>;
+  compact: boolean;
+  showPick: boolean;
+  showRecord: boolean;
+  showGoalDifference: boolean;
+  recordVisibility: string;
+  goalDifferenceVisibility: string;
+}
+
+/**
+ * One row of the standings.
+ *
+ * Memoised because the dashboard refetches every two minutes to pick up live points, and that
+ * re-rendered all 266 rows each time whether anything had moved or not - the same work repeated
+ * for the life of the session, and a click landing inside one of those commits waits for it.
+ * Chrome measured 160ms of input delay against an INP of 304ms.
+ *
+ * This works because React Query's structural sharing keeps the object identity of an entry that
+ * has not changed between refetches, so the default shallow compare skips the row. Every other
+ * prop is a primitive. Keep it that way - passing a new object or an inline function would
+ * defeat the memo silently.
+ */
+const StandingRow = memo(function StandingRow({
+  entry,
+  isCurrentUser,
+  rowRef,
+  compact,
+  showPick,
+  showRecord,
+  showGoalDifference,
+  recordVisibility,
+  goalDifferenceVisibility,
+}: StandingRowProps) {
+  const goalDifferenceCell = (entry: StandingEntry) => (
+    <TableCell
+      className={`text-center text-xs sm:text-sm ${goalDifferenceVisibility} ${
+        entry.goalDifference > 0
+          ? 'text-green-600 dark:text-green-400'
+          : entry.goalDifference < 0
+            ? 'text-red-600 dark:text-red-400'
+            : ''
+      }`}
+      data-testid={`standing-gd-${entry.position}`}
+    >
+      {entry.goalDifference > 0 ? '+' : ''}
+      {entry.goalDifference}
+    </TableCell>
+  );
+
+  return (
+    <TableRow
+      ref={rowRef}
+      data-testid={`standing-row-${entry.position}`}
+      className={
+        isCurrentUser
+          ? 'bg-blue-50 dark:bg-violet-500/10 hover:bg-blue-100 dark:hover:bg-blue-950/40'
+          : ''
+      }
+    >
+      <TableCell
+        className="text-center font-medium text-xs sm:text-sm"
+        data-testid={`standing-position-${entry.position}`}
+      >
+        {entry.position}
+      </TableCell>
+      <TableCell
+        className={`text-xs sm:text-sm ${isCurrentUser ? 'font-bold' : ''}`}
+        data-testid={`standing-name-${entry.position}`}
+      >
+        <Link
+          to={`/users/${entry.userId}`}
+          className="block sm:inline truncate max-w-[100px] sm:max-w-none hover:underline underline-offset-4"
+          data-testid={`standing-name-link-${entry.position}`}
+        >
+          {entry.userName}
+        </Link>
+        {isCurrentUser && (
+          <span
+            className="ml-1 sm:ml-2 text-xs text-blue-600 dark:text-violet-300"
+            data-testid="current-user-indicator"
+          >
+            (You)
+          </span>
+        )}
+      </TableCell>
+      {showPick && (
+        <TableCell className="text-center" data-testid={`standing-pick-${entry.position}`}>
+          <PickCrest pick={entry.currentPick} showResultLetter />
+        </TableCell>
+      )}
+      {!compact && (
+        <TableCell
+          className="text-center text-xs sm:text-sm hidden sm:table-cell"
+          data-testid={`standing-played-${entry.position}`}
+        >
+          {entry.picksMade}
+        </TableCell>
+      )}
+      {showRecord && (
+        <TableCell
+          className={`text-center text-xs sm:text-sm ${recordVisibility} text-green-600 dark:text-green-400`}
+          data-testid={`standing-wins-${entry.position}`}
+        >
+          {entry.wins}
+        </TableCell>
+      )}
+      {showRecord && (
+        <TableCell
+          className={`text-center text-xs sm:text-sm ${recordVisibility} text-yellow-600 dark:text-yellow-400`}
+          data-testid={`standing-draws-${entry.position}`}
+        >
+          {entry.draws}
+        </TableCell>
+      )}
+      {showRecord && (
+        <TableCell
+          className={`text-center text-xs sm:text-sm ${recordVisibility} text-red-600 dark:text-red-400`}
+          data-testid={`standing-losses-${entry.position}`}
+        >
+          {entry.losses}
+        </TableCell>
+      )}
+      {showGoalDifference && compact && goalDifferenceCell(entry)}
+      <TableCell
+        className="text-center font-bold text-xs sm:text-sm tabular-nums"
+        data-testid={`standing-points-${entry.position}`}
+      >
+        {entry.totalPoints}
+      </TableCell>
+      {!compact && (
+        <TableCell className="text-center text-xs sm:text-sm hidden md:table-cell">
+          {entry.goalsFor}
+        </TableCell>
+      )}
+      {!compact && (
+        <TableCell className="text-center text-xs sm:text-sm hidden md:table-cell">
+          {entry.goalsAgainst}
+        </TableCell>
+      )}
+      {showGoalDifference && !compact && goalDifferenceCell(entry)}
+      {!compact && (
+        <TableCell className="hidden lg:table-cell" data-testid={`standing-form-${entry.position}`}>
+          {entry.form && entry.form.length > 0 ? (
+            <span className="flex items-center gap-1">
+              {entry.form.map((pick) => (
+                <FormBadge key={pick.gameweekNumber} pick={pick} />
+              ))}
+            </span>
+          ) : (
+            <span className="text-xs text-muted-foreground">No results yet</span>
+          )}
+        </TableCell>
+      )}
+    </TableRow>
+  );
+});
+
 export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
   const { user } = useAuth();
+
+  const [nameFilter, setNameFilter] = useState('');
+  const myRowRef = useRef<HTMLTableRowElement>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+
+  // Shorter on the dashboard purely for room: the card is a third of the width and the header
+  // has to carry the controls beside it. The card sits under a "League" heading in context
+  // anyway, so nothing is lost.
+  const title = compact ? 'Standings' : 'League Standings';
+
+  /**
+   * Scrolls the signed-in player's row into view.
+   *
+   * The filter has to be cleared first — a row the filter is hiding is not in the DOM, so there
+   * would be nothing to scroll to — and that clear has to be committed before we look for the
+   * row. React batches state updates in event handlers, so without flushSync the scroll would
+   * run against the markup as it was before the click.
+   */
+  const jumpToMe = () => {
+    if (nameFilter) flushSync(() => setNameFilter(''));
+    myRowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['league-standings'],
@@ -78,6 +265,16 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
   // Between gameweeks there is no pick to reveal, so the column would be empty in every row.
   const showPick = gameweekInProgress;
 
+  // Eliminated players are not in the table, so a player who is out has no row to jump to and
+  // gets no button. Their season lives on their player page instead.
+  const listed = data.standings.filter((entry) => !entry.isEliminated);
+  const meIsListed = listed.some((entry) => entry.userId === user?.id);
+
+  const query = nameFilter.trim().toLowerCase();
+  const visible = query
+    ? listed.filter((entry) => entry.userName.toLowerCase().includes(query))
+    : listed;
+
   // The full table carries the rest regardless. The compact one on the dashboard is narrow
   // enough that it has to choose: while a gameweek is being played, how everyone's goal
   // difference is moving is the live interest; between gameweeks nothing is moving, so the
@@ -98,45 +295,112 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
   const recordWidth = compact ? 'w-9' : 'w-12';
   const goalDifferenceWidth = compact ? 'w-12' : 'w-16';
   const pointsWidth = compact ? 'w-12' : 'w-16';
-  const averageWidth = compact ? 'w-12' : 'w-16';
-
-  const goalDifferenceCell = (entry: StandingEntry) => (
-    <TableCell
-      className={`text-center text-xs sm:text-sm ${goalDifferenceVisibility} ${
-        entry.goalDifference > 0
-          ? 'text-green-600 dark:text-green-400'
-          : entry.goalDifference < 0
-            ? 'text-red-600 dark:text-red-400'
-            : ''
-      }`}
-      data-testid={`standing-gd-${entry.position}`}
-    >
-      {entry.goalDifference > 0 ? '+' : ''}
-      {entry.goalDifference}
-    </TableCell>
-  );
 
   return (
-    <Card data-testid="league-standings-card">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0">
-        <CardTitle>League Standings</CardTitle>
-        {compact && (
-          <Link
-            to="/league"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Full standings →
-          </Link>
+    // The dashboard card fills the height it is given rather than setting its own. DashboardPage
+    // lifts it out of the grid flow from md up so that height comes from Picks and Fixtures; here
+    // the card just has to stretch to it and let the table scroll inside.
+    <Card
+      data-testid="league-standings-card"
+      className={compact ? 'flex flex-col h-full' : undefined}
+    >
+      <CardHeader className="space-y-3 shrink-0">
+        <div className="flex flex-row items-center justify-between gap-2 space-y-0">
+          <CardTitle>{title}</CardTitle>
+          {compact && (
+            <div className="flex items-center gap-1.5">
+              {/* The card scrolls its own rows, so once you have jumped to yourself there is no
+                  page scroll to get you back — this returns the table to first place. */}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => scrollerRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+                data-testid="standings-scroll-top"
+                className="h-7 px-2 text-xs whitespace-nowrap"
+              >
+                Top
+              </Button>
+              {meIsListed && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={jumpToMe}
+                  data-testid="standings-jump-to-me-compact"
+                  className="h-7 px-2 text-xs whitespace-nowrap"
+                >
+                  Jump to me
+                </Button>
+              )}
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 text-xs whitespace-nowrap"
+              >
+                <Link to="/league">Full Table</Link>
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* At a few hundred players, scrolling to find a name is the slow way round. The filter
+            runs over the rows already in hand, so it needs no request and no debounce. */}
+        {!compact && (
+          <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+            <Input
+              type="search"
+              value={nameFilter}
+              onChange={(e) => setNameFilter(e.target.value)}
+              placeholder="Filter by name"
+              aria-label="Filter standings by player name"
+              data-testid="standings-filter"
+              className="h-9 sm:max-w-xs"
+            />
+            {meIsListed && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={jumpToMe}
+                data-testid="standings-jump-to-me"
+                className="h-9 shrink-0"
+              >
+                Jump to me
+              </Button>
+            )}
+            {query && (
+              <span
+                className="text-sm text-muted-foreground"
+                data-testid="standings-filter-count"
+                role="status"
+              >
+                {visible.length} of {listed.length}
+              </span>
+            )}
+          </div>
         )}
       </CardHeader>
-      <CardContent>
+      <CardContent className={compact ? 'flex flex-col flex-1 min-h-0' : undefined}>
         {/* The compact table trades the default cell padding for tighter columns: at the
             dashboard's width, six columns of px-4 spend more room on padding than on values
             and push the last column off the card. overflow-x-auto is the backstop for a name
             long enough to overflow anyway — scrolling beats clipping the points. */}
+        {/* The dashboard card scrolls its own rows rather than growing to fit them: at a few
+            hundred players an uncapped table makes that column several screens taller than
+            Picks and Fixtures beside it.
+
+            From md up the card is given a height by DashboardPage, so flex-1 takes whatever is
+            left after the header and the key. min-h-0 is what allows it to shrink below its
+            content; without it a flex child refuses to and the scrollbar never appears. Below md
+            there is a single column and nothing to match, so the max-height is the cap. */}
         <div
+          ref={scrollerRef}
           className={`rounded-md border overflow-x-auto ${
-            compact ? '[&_th]:px-2 [&_td]:px-2' : ''
+            compact
+              ? '[&_th]:px-2 [&_td]:px-2 overflow-y-auto max-h-[26rem] md:max-h-none md:flex-1 md:min-h-0'
+              : ''
           }`}
         >
           <Table data-testid="standings-table">
@@ -173,9 +437,9 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
                   </TableHead>
                 )}
                 <TableHead className={`text-center ${pointsWidth} font-bold`}>Pts</TableHead>
-                {/* Only breaks a tie on points, so it sits after them — and only on the full
-                    table, where a sixth column does not push the points off the card. */}
-                {!compact && <TableHead className={`text-center ${averageWidth}`}>Avg</TableHead>}
+                {/* Points per game is still the first tiebreak in the ordering chain, but it is
+                    not shown: it only ever moves players level on points, and a column that is
+                    identical down the whole table on a normal week reads as noise. */}
                 {!compact && (
                   <TableHead className="text-center w-16 hidden md:table-cell">GF</TableHead>
                 )}
@@ -193,146 +457,42 @@ export function LeagueStandings({ compact = false }: LeagueStandingsProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.standings
-                .filter((entry) => !entry.isEliminated)
-                .map((entry) => {
-                  const isCurrentUser = entry.userId === user?.id;
-                  return (
-                    <TableRow
-                      key={entry.userId}
-                      data-testid={`standing-row-${entry.position}`}
-                      className={
-                        isCurrentUser
-                          ? 'bg-blue-50 dark:bg-violet-500/10 hover:bg-blue-100 dark:hover:bg-blue-950/40'
-                          : ''
-                      }
-                    >
-                      <TableCell
-                        className="text-center font-medium text-xs sm:text-sm"
-                        data-testid={`standing-position-${entry.position}`}
-                      >
-                        {entry.position}
-                      </TableCell>
-                      <TableCell
-                        className={`text-xs sm:text-sm ${isCurrentUser ? 'font-bold' : ''}`}
-                        data-testid={`standing-name-${entry.position}`}
-                      >
-                        <Link
-                          to={`/users/${entry.userId}`}
-                          className="block sm:inline truncate max-w-[100px] sm:max-w-none hover:underline underline-offset-4"
-                          data-testid={`standing-name-link-${entry.position}`}
-                        >
-                          {entry.userName}
-                        </Link>
-                        {isCurrentUser && (
-                          <span
-                            className="ml-1 sm:ml-2 text-xs text-blue-600 dark:text-violet-300"
-                            data-testid="current-user-indicator"
-                          >
-                            (You)
-                          </span>
-                        )}
-                      </TableCell>
-                      {showPick && (
-                        <TableCell
-                          className="text-center"
-                          data-testid={`standing-pick-${entry.position}`}
-                        >
-                          <PickCrest pick={entry.currentPick} showResultLetter />
-                        </TableCell>
-                      )}
-                      {!compact && (
-                        <TableCell
-                          className="text-center text-xs sm:text-sm hidden sm:table-cell"
-                          data-testid={`standing-played-${entry.position}`}
-                        >
-                          {entry.picksMade}
-                        </TableCell>
-                      )}
-                      {showRecord && (
-                        <TableCell
-                          className={`text-center text-xs sm:text-sm ${recordVisibility} text-green-600 dark:text-green-400`}
-                          data-testid={`standing-wins-${entry.position}`}
-                        >
-                          {entry.wins}
-                        </TableCell>
-                      )}
-                      {showRecord && (
-                        <TableCell
-                          className={`text-center text-xs sm:text-sm ${recordVisibility} text-yellow-600 dark:text-yellow-400`}
-                          data-testid={`standing-draws-${entry.position}`}
-                        >
-                          {entry.draws}
-                        </TableCell>
-                      )}
-                      {showRecord && (
-                        <TableCell
-                          className={`text-center text-xs sm:text-sm ${recordVisibility} text-red-600 dark:text-red-400`}
-                          data-testid={`standing-losses-${entry.position}`}
-                        >
-                          {entry.losses}
-                        </TableCell>
-                      )}
-                      {showGoalDifference && compact && goalDifferenceCell(entry)}
-                      <TableCell
-                        className="text-center font-bold text-xs sm:text-sm tabular-nums"
-                        data-testid={`standing-points-${entry.position}`}
-                      >
-                        {entry.totalPoints}
-                      </TableCell>
-                      {!compact && (
-                        <TableCell
-                          className="text-center text-xs sm:text-sm tabular-nums text-muted-foreground"
-                          data-testid={`standing-average-${entry.position}`}
-                        >
-                          {entry.averagePointsPerGame.toFixed(2)}
-                        </TableCell>
-                      )}
-                      {!compact && (
-                        <TableCell className="text-center text-xs sm:text-sm hidden md:table-cell">
-                          {entry.goalsFor}
-                        </TableCell>
-                      )}
-                      {!compact && (
-                        <TableCell className="text-center text-xs sm:text-sm hidden md:table-cell">
-                          {entry.goalsAgainst}
-                        </TableCell>
-                      )}
-                      {showGoalDifference && !compact && goalDifferenceCell(entry)}
-                      {!compact && (
-                        <TableCell
-                          className="hidden lg:table-cell"
-                          data-testid={`standing-form-${entry.position}`}
-                        >
-                          {entry.form && entry.form.length > 0 ? (
-                            <span className="flex items-center gap-1">
-                              {entry.form.map((pick) => (
-                                <FormBadge key={pick.gameweekNumber} pick={pick} />
-                              ))}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">No results yet</span>
-                          )}
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  );
-                })}
+              {visible.map((entry) => {
+                const isCurrentUser = entry.userId === user?.id;
+                return (
+                  <StandingRow
+                    key={entry.userId}
+                    entry={entry}
+                    isCurrentUser={isCurrentUser}
+                    rowRef={isCurrentUser ? myRowRef : undefined}
+                    compact={compact}
+                    showPick={showPick}
+                    showRecord={showRecord}
+                    showGoalDifference={showGoalDifference}
+                    recordVisibility={recordVisibility}
+                    goalDifferenceVisibility={goalDifferenceVisibility}
+                  />
+                );
+              })}
             </TableBody>
           </Table>
+
+          {visible.length === 0 && (
+            <p
+              className="text-sm text-muted-foreground text-center py-8"
+              data-testid="standings-no-matches"
+            >
+              No players match &ldquo;{nameFilter.trim()}&rdquo;.
+            </p>
+          )}
         </div>
 
-        <div className="mt-4 text-xs sm:text-sm text-muted-foreground">
+        <div className="mt-4 text-xs sm:text-sm text-muted-foreground shrink-0">
           <p className="font-semibold mb-2">Column Key:</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
             {!compact && (
               <div className="hidden sm:block">
                 <strong>P:</strong> Played
-              </div>
-            )}
-            {!compact && (
-              <div>
-                <strong>Avg:</strong> Points per game &mdash; breaks a tie on points
               </div>
             )}
             {showRecord && (

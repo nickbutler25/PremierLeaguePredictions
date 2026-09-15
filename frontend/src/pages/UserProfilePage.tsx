@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { PickSummary, TeamUsageEntry, UserProfile } from '@/types';
 import { usersService } from '@/services/users';
+import { leagueService } from '@/services/league';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { UserAvatar } from '@/components/UserAvatar';
@@ -13,14 +14,18 @@ export function UserProfilePage() {
   const { userId } = useParams<{ userId: string }>();
   const { user } = useAuth();
 
+  // Reached two ways: /users/:id from the league table, and a bare /users from the Players nav
+  // link, which means "me".
+  const targetId = userId ?? user?.id;
+
   const {
     data: profile,
     isLoading,
     error,
   } = useQuery({
-    queryKey: ['user-profile', userId],
-    queryFn: () => usersService.getProfile(userId!),
-    enabled: !!userId,
+    queryKey: ['user-profile', targetId],
+    queryFn: () => usersService.getProfile(targetId!),
+    enabled: !!targetId,
   });
 
   if (isLoading) {
@@ -39,12 +44,16 @@ export function UserProfilePage() {
 
   return (
     <div className="container mx-auto p-4 sm:p-6 space-y-6" data-testid="user-profile-page">
-      <Link
-        to="/league"
-        className="inline-block text-sm text-muted-foreground hover:text-foreground transition-colors"
-      >
-        &larr; Back to standings
-      </Link>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <Link
+          to="/league"
+          className="inline-block text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          &larr; Back to standings
+        </Link>
+
+        <PlayerSelector selectedId={profile.userId} />
+      </div>
 
       <Header profile={profile} isSelf={isSelf} />
 
@@ -54,6 +63,57 @@ export function UserProfilePage() {
         <TeamsCard profile={profile} isSelf={isSelf} />
         {!isSelf && <HeadToHeadCard profile={profile} />}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Jumps to any player's page without going back through the league table.
+ *
+ * Everyone in the season is listed, eliminated players included and labelled. The table filters
+ * them out because it is a table of the live competition; this is a way of looking someone up,
+ * and their season is still there to read — an eliminated player following the link from their
+ * own dashboard would otherwise be unable to find themselves.
+ */
+function PlayerSelector({ selectedId }: { selectedId: string }) {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const { data } = useQuery({
+    queryKey: ['league-standings'],
+    queryFn: () => leagueService.getStandings(),
+  });
+
+  const players = data?.standings;
+  if (!players?.length) return null;
+
+  // Whoever is signed in goes first, then the table's own order — most lookups are either
+  // yourself or someone near the top.
+  const ordered = [
+    ...players.filter((p) => p.userId === user?.id),
+    ...players.filter((p) => p.userId !== user?.id),
+  ];
+
+  return (
+    <div className="flex items-center gap-2">
+      <label htmlFor="player-selector" className="text-sm text-muted-foreground whitespace-nowrap">
+        View player
+      </label>
+      <select
+        id="player-selector"
+        value={selectedId}
+        onChange={(e) => navigate(`/users/${e.target.value}`)}
+        data-testid="player-selector"
+        className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      >
+        {ordered.map((player) => (
+          <option key={player.userId} value={player.userId}>
+            {player.userName}
+            {player.userId === user?.id ? ' (you)' : ''}
+            {player.isEliminated ? ' — eliminated' : ''}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }

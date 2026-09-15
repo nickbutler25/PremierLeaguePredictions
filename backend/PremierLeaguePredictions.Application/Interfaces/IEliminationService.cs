@@ -31,7 +31,14 @@ public interface IEliminationService
     /// <summary>
     /// Processes eliminations for a gameweek based on configured elimination count
     /// </summary>
-    Task<ProcessEliminationsResponse> ProcessGameweekEliminationsAsync(string seasonId, int gameweekNumber, Guid adminUserId, CancellationToken cancellationToken = default);
+    /// <param name="adminUserId">
+    /// The admin who triggered the run, or <c>null</c> when nobody did — the scheduled completion
+    /// job and the results sync both run unattended. It must be null rather than
+    /// <see cref="Guid.Empty"/> in that case: UserElimination.EliminatedBy is a foreign key to
+    /// users, and the empty guid is a value like any other, matching no row. Passing it made every
+    /// automatic elimination fail on a 23503 foreign key violation.
+    /// </param>
+    Task<ProcessEliminationsResponse> ProcessGameweekEliminationsAsync(string seasonId, int gameweekNumber, Guid? adminUserId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets elimination configuration for all gameweeks in a season

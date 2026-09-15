@@ -61,12 +61,20 @@ export function Layout({ children }: LayoutProps) {
       >
         Skip to main content
       </a>
+      {/* No backdrop-blur here. This header is in normal flow, not sticky or fixed, so nothing
+          ever scrolls beneath it — the only thing behind it is the flat page background, and
+          blurring a flat colour returns the same colour. It cost a compositing layer and a blur
+          pass on every repaint of the bar to produce no visible difference. MobileNav keeps its
+          blur: that one is `fixed` at the bottom and content really does pass under it. */}
       <header
-        className="border-b pt-[env(safe-area-inset-top)] bg-card/70 backdrop-blur-sm dark:bg-card/40"
+        className="border-b pt-[env(safe-area-inset-top)] bg-card/70 dark:bg-card/40"
         role="banner"
         data-testid="main-header"
       >
-        <div className="container mx-auto px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between">
+        {/* Tighter on a phone, where this bar sits above a tab bar carrying the navigation and
+            every pixel it takes is one the content loses. It cannot go entirely: the theme
+            toggle, the profile link and logout live here and have nowhere else on a phone. */}
+        <div className="container mx-auto px-3 sm:px-4 py-1.5 sm:py-3 flex items-center justify-between">
           <div className="flex items-center space-x-4 sm:space-x-8">
             <Link
               to="/dashboard"
@@ -76,8 +84,8 @@ export function Layout({ children }: LayoutProps) {
             >
               <img
                 src={theme === 'dark' ? '/pl-banner-logo-dark.png' : '/pl-banner-logo-light.png'}
-                alt="Premier League Predictions"
-                className="h-8 sm:h-10 w-auto"
+                alt="EPL Manager Of The Year"
+                className="h-7 sm:h-10 w-auto"
               />
             </Link>
             <nav
@@ -126,6 +134,32 @@ export function Layout({ children }: LayoutProps) {
                 League
               </NavLink>
               <NavLink
+                to="/users"
+                className={({ isActive }) =>
+                  `text-sm px-3 py-1.5 rounded-md font-medium transition-colors ${
+                    isActive
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-foreground hover:bg-accent'
+                  }`
+                }
+                data-testid="players-link"
+              >
+                Players
+              </NavLink>
+              <NavLink
+                to="/danger-zone"
+                className={({ isActive }) =>
+                  `text-sm px-3 py-1.5 rounded-md font-medium transition-colors ${
+                    isActive
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-foreground hover:bg-accent'
+                  }`
+                }
+                data-testid="danger-zone-link"
+              >
+                Danger Zone
+              </NavLink>
+              <NavLink
                 to="/eliminations"
                 className={({ isActive }) =>
                   `text-sm px-3 py-1.5 rounded-md font-medium transition-colors ${
@@ -161,7 +195,7 @@ export function Layout({ children }: LayoutProps) {
               variant="outline"
               size="sm"
               onClick={handleToggleTheme}
-              className="w-9 px-0"
+              className="w-8 h-8 sm:w-9 sm:h-9 px-0"
               aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
               title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
             >
@@ -208,7 +242,7 @@ export function Layout({ children }: LayoutProps) {
                   <UserAvatar
                     firstName={user.firstName}
                     lastName={user.lastName}
-                    className="w-7 h-7 sm:w-8 sm:h-8 text-xs"
+                    className="w-6 h-6 sm:w-8 sm:h-8 text-xs"
                   />
                   <span
                     className="text-xs sm:text-sm font-medium hidden sm:inline"
@@ -223,7 +257,7 @@ export function Layout({ children }: LayoutProps) {
                   size="sm"
                   onClick={handleLogout}
                   aria-label="Logout"
-                  className="text-xs sm:text-sm px-2 sm:px-3"
+                  className="text-xs sm:text-sm px-2 sm:px-3 h-8 sm:h-9"
                   data-testid="logout-button"
                 >
                   Logout

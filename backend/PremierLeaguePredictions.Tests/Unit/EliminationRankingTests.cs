@@ -204,10 +204,61 @@ public class EliminationRankingTests : IDisposable
             .Select(e => e.UserId)
             .ToList();
 
+        // Descending, because Position is a league place: the worst player finishes last and so
+        // carries the highest number. It used to hold the order within the batch, where the
+        // worst was 1.
         response.EliminatedPlayers
-            .OrderBy(e => e.Position)
+            .OrderByDescending(e => e.Position)
             .Select(e => e.UserId)
             .Should().Equal(bottomTwo);
+    }
+
+    /// <summary>
+    /// Once a player is out, where they finished is settled.
+    /// </summary>
+    /// <remarks>
+    /// The eliminations page read the position from the live standings, so an eliminated
+    /// player's finishing place moved whenever the field changed around them. Their season is
+    /// over; the number has to come from what was recorded when they went out.
+    /// </remarks>
+    [Fact]
+    public async Task AnEliminatedPlayersPositionIsFixedWhenTheFieldChanges()
+    {
+        AddPlayedGameweek(1);
+        AddPlayedGameweek(2, eliminationCount: 1);
+
+        var doomed = AddPlayer("Doomed", new[] { 1, 2 }, Array.Empty<int>());
+        AddPlayer("Middle", new[] { 1, 2 }, new[] { 1 });
+        AddPlayer("Top", new[] { 1, 2 }, new[] { 1, 2 });
+        await _context.SaveChangesAsync();
+
+        await CreateService().ProcessGameweekEliminationsAsync(SeasonId, 2, adminUserId: null);
+
+        var recorded = (await CreateService().GetEliminationsOverviewAsync(SeasonId))
+            .Eliminated.Single(e => e.UserId == doomed).FinalPosition;
+
+        // Last of the three who were still in.
+        recorded.Should().Be(3);
+
+        // Two more players join and both outscore them, so a live reading would push the
+        // eliminated player from third to fifth.
+        AddPlayer("Late One", new[] { 1, 2 }, new[] { 1, 2 });
+        AddPlayer("Late Two", new[] { 1, 2 }, new[] { 1, 2 });
+        await _context.SaveChangesAsync();
+
+        var standings = await new LeagueService(
+                new UnitOfWork(_context),
+                NullLogger<LeagueService>.Instance,
+                new MemoryCache(new MemoryCacheOptions()))
+            .GetLeagueStandingsAsync(SeasonId);
+
+        standings.Standings.Single(e => e.UserId == doomed).Position.Should().Be(5,
+            "the live table has moved them, which is exactly what must not reach the page");
+
+        var afterwards = (await CreateService().GetEliminationsOverviewAsync(SeasonId))
+            .Eliminated.Single(e => e.UserId == doomed).FinalPosition;
+
+        afterwards.Should().Be(recorded);
     }
 
     [Fact]
@@ -259,5 +310,57 @@ public class EliminationRankingTests : IDisposable
             .ProcessGameweekEliminationsAsync(SeasonId, 2, Guid.NewGuid());
 
         response.EliminatedPlayers.Single().UserId.Should().Be(heavyDefeats);
+    }
+
+    /// <summary>
+    /// An unattended run records no admin at all, rather than the empty guid.
+    /// </summary>
+    /// <remarks>
+    /// EliminatedBy is a foreign key to users. Guid.Empty is not a stand-in for "nobody" — it is
+    /// an ordinary value matching no row, so every automatic elimination died on
+    /// <c>23503 … FK_user_eliminations_users_eliminated_by</c>. The scheduled completion job and
+    /// the results sync both caught and logged it, so each run reported success while GW2 stayed
+    /// open and two players were never eliminated.
+    ///
+    /// Note what this test can and cannot do: the in-memory provider does not enforce foreign
+    /// keys, which is exactly why the original bug passed a green suite. It pins the intent — a
+    /// system run attributes to null — and would catch a regression to Guid.Empty. It would not
+    /// have caught the constraint. Only a test against real Postgres does that, and the ones we
+    /// have need a live database on localhost:5433.
+    /// </remarks>
+    [Fact]
+    public async Task ASystemTriggeredEliminationIsAttributedToNobody()
+    {
+        AddPlayedGameweek(1, eliminationCount: 1);
+
+        AddPlayer("Doomed", new[] { 1 }, Array.Empty<int>());
+        AddPlayer("Safe", new[] { 1 }, new[] { 1 });
+        await _context.SaveChangesAsync();
+
+        var response = await CreateService()
+            .ProcessGameweekEliminationsAsync(SeasonId, 1, adminUserId: null);
+
+        response.PlayersEliminated.Should().Be(1);
+        response.EliminatedPlayers.Single().EliminatedBy.Should().BeNull();
+
+        var persisted = await _context.UserEliminations.SingleAsync();
+        persisted.EliminatedBy.Should().BeNull();
+    }
+
+    /// <summary>An admin-triggered run still records who did it.</summary>
+    [Fact]
+    public async Task AnAdminTriggeredEliminationRecordsTheAdmin()
+    {
+        AddPlayedGameweek(1, eliminationCount: 1);
+
+        AddPlayer("Doomed", new[] { 1 }, Array.Empty<int>());
+        AddPlayer("Safe", new[] { 1 }, new[] { 1 });
+        var admin = AddPlayer("Admin", Array.Empty<int>(), Array.Empty<int>());
+        await _context.SaveChangesAsync();
+
+        var response = await CreateService()
+            .ProcessGameweekEliminationsAsync(SeasonId, 1, admin);
+
+        response.EliminatedPlayers.Single().EliminatedBy.Should().Be(admin);
     }
 }

@@ -55,8 +55,19 @@ public class GameweekService : IGameweekService
 
     public async Task<GameweekDto?> GetCurrentGameweekAsync(CancellationToken cancellationToken = default)
     {
+        // Scope to the active season for the same reason GetAllGameweeksAsync does. Unscoped,
+        // this picks the earliest open deadline in the *database* — a leftover test season's
+        // week 1 outranked the real season's week 4, and the backfill page, which renders one
+        // slot per gameweek before this one, drew nothing at all.
+        var activeSeason = (await _unitOfWork.Seasons.FindAsync(s => s.IsActive, cancellationToken))
+            .FirstOrDefault();
+        if (activeSeason == null)
+        {
+            return null;
+        }
+
         var gameweeks = await _unitOfWork.Gameweeks.FindAsync(
-            g => !g.IsLocked && g.Deadline > DateTime.UtcNow,
+            g => g.SeasonId == activeSeason.Name && !g.IsLocked && g.Deadline > DateTime.UtcNow,
             cancellationToken);
 
         var current = gameweeks.OrderBy(g => g.Deadline).FirstOrDefault();

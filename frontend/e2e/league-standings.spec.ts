@@ -18,12 +18,16 @@ test.describe('League Standings', () => {
     // Should have standings table
     await expect(page.getByTestId('standings-table')).toBeVisible();
 
-    // Should have table headers
+    // Headers are matched by role and exactly, never by loose text. getByText does substring
+    // matching over the whole table, so getByText('W') also matched every player whose name
+    // contains one — Wilson, Wright, Walker — and blew up on strict mode the moment the league
+    // held enough real names. D and L were already tightened for the same reason; W, # , Name
+    // and Pts were still waiting to break.
     const table = page.getByTestId('standings-table');
-    await expect(table.getByText('#')).toBeVisible(); // Position
-    await expect(table.getByText('Name')).toBeVisible();
-    await expect(table.getByText('Pts')).toBeVisible(); // Points
-    await expect(table.getByText('W')).toBeVisible(); // Wins
+    await expect(table.getByRole('columnheader', { name: '#', exact: true })).toBeVisible(); // Position
+    await expect(table.getByRole('columnheader', { name: 'Name', exact: true })).toBeVisible();
+    await expect(table.getByRole('columnheader', { name: 'Pts', exact: true })).toBeVisible(); // Points
+    await expect(table.getByRole('columnheader', { name: 'W', exact: true })).toBeVisible(); // Wins
     await expect(table.getByRole('columnheader', { name: 'D', exact: true })).toBeVisible(); // Draws
     await expect(table.getByRole('columnheader', { name: 'L', exact: true })).toBeVisible(); // Losses
   });

@@ -1,6 +1,6 @@
 {
-  "name": "EPL Predictions",
-  "short_name": "EPL Predict",
+  "name": "EPL Manager Of The Year",
+  "short_name": "EPL Manager",
   "description": "Premier League match predictions competition with elimination format",
   "start_url": "/",
   "display": "standalone",

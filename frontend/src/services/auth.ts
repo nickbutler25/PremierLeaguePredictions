@@ -37,6 +37,43 @@ const realAuthService = {
     return response.data.data!;
   },
 
+  /**
+   * Asks for a reset link. Resolves the same way whether or not the address is known — the API
+   * answers identically on purpose, so there is nothing here to tell them apart.
+   */
+  forgotPassword: async (email: string): Promise<string> => {
+    const response = await apiClient.post<ApiResponse<never>>('/api/v1/auth/forgot-password', {
+      email,
+    });
+    return response.data.message ?? '';
+  },
+
+  /** Spends the token from the emailed link. On success the API also signs them in. */
+  resetPassword: async (
+    token: string,
+    password: string,
+    confirmPassword: string
+  ): Promise<AuthResponse> => {
+    const response = await apiClient.post<ApiResponse<AuthResponse>>(
+      '/api/v1/auth/reset-password',
+      { token, password, confirmPassword }
+    );
+    return response.data.data!;
+  },
+
+  changePassword: async (
+    currentPassword: string,
+    newPassword: string,
+    confirmPassword: string
+  ): Promise<User> => {
+    const response = await apiClient.post<ApiResponse<User>>('/api/v1/users/me/password', {
+      currentPassword,
+      newPassword,
+      confirmPassword,
+    });
+    return response.data.data!;
+  },
+
   logout: async (): Promise<void> => {
     await apiClient.post('/api/v1/auth/logout');
   },

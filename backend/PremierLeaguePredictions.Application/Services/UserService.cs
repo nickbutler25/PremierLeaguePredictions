@@ -19,32 +19,14 @@ public class UserService : IUserService
     public async Task<UserDto?> GetUserByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var user = await _unitOfWork.Users.GetByIdAsync(id, cancellationToken);
-        return user != null ? new UserDto
-        {
-            Id = user.Id,
-            Email = user.Email,
-            FirstName = user.FirstName,
-            LastName = user.LastName,
-            PhotoUrl = user.PhotoUrl,
-            IsAdmin = user.IsAdmin,
-            ThemePreference = user.ThemePreference
-        } : null;
+        return user != null ? UserDto.From(user) : null;
     }
 
     public async Task<UserDto?> GetUserByEmailAsync(string email, CancellationToken cancellationToken = default)
     {
         var users = await _unitOfWork.Users.FindAsync(u => u.Email == email, cancellationToken);
         var user = users.FirstOrDefault();
-        return user != null ? new UserDto
-        {
-            Id = user.Id,
-            Email = user.Email,
-            FirstName = user.FirstName,
-            LastName = user.LastName,
-            PhotoUrl = user.PhotoUrl,
-            IsAdmin = user.IsAdmin,
-            ThemePreference = user.ThemePreference
-        } : null;
+        return user != null ? UserDto.From(user) : null;
     }
 
     public async Task<IEnumerable<UserListDto>> GetAllUsersAsync(CancellationToken cancellationToken = default)
@@ -74,16 +56,7 @@ public class UserService : IUserService
         _unitOfWork.Users.Update(user);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return new UserDto
-        {
-            Id = user.Id,
-            Email = user.Email,
-            FirstName = user.FirstName,
-            LastName = user.LastName,
-            PhotoUrl = user.PhotoUrl,
-            IsAdmin = user.IsAdmin,
-            ThemePreference = user.ThemePreference
-        };
+        return UserDto.From(user);
     }
 
     public async Task<UserDto> SetUserPhotoAsync(Guid id, string? photoUrl, CancellationToken cancellationToken = default)
@@ -98,16 +71,29 @@ public class UserService : IUserService
         _unitOfWork.Users.Update(user);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return new UserDto
-        {
-            Id = user.Id,
-            Email = user.Email,
-            FirstName = user.FirstName,
-            LastName = user.LastName,
-            PhotoUrl = user.PhotoUrl,
-            IsAdmin = user.IsAdmin,
-            ThemePreference = user.ThemePreference
-        };
+        return UserDto.From(user);
+    }
+
+    public async Task<UserDto?> ChangePasswordAsync(
+        Guid id, string currentPassword, string newPassword, CancellationToken cancellationToken = default)
+    {
+        var user = await _unitOfWork.Users.GetByIdAsync(id, cancellationToken);
+        if (user == null) throw new KeyNotFoundException("User not found");
+
+        // A Google-only account has no password to check the current one against, so there is
+        // nothing to change here. The profile page leaves the section out for these users; this
+        // is the guard for anyone calling the endpoint directly.
+        if (string.IsNullOrEmpty(user.PasswordHash)) return null;
+
+        if (!BCrypt.Net.BCrypt.Verify(currentPassword, user.PasswordHash)) return null;
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+        user.UpdatedAt = DateTime.UtcNow;
+
+        _unitOfWork.Users.Update(user);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return UserDto.From(user);
     }
 
     public async Task<UserDto> SetThemePreferenceAsync(Guid id, string theme, CancellationToken cancellationToken = default)
@@ -121,16 +107,7 @@ public class UserService : IUserService
         _unitOfWork.Users.Update(user);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return new UserDto
-        {
-            Id = user.Id,
-            Email = user.Email,
-            FirstName = user.FirstName,
-            LastName = user.LastName,
-            PhotoUrl = user.PhotoUrl,
-            IsAdmin = user.IsAdmin,
-            ThemePreference = user.ThemePreference
-        };
+        return UserDto.From(user);
     }
 
     public async Task<UserDto> SetUserAdminAsync(Guid id, bool isAdmin, CancellationToken cancellationToken = default)
@@ -144,16 +121,7 @@ public class UserService : IUserService
         _unitOfWork.Users.Update(user);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return new UserDto
-        {
-            Id = user.Id,
-            Email = user.Email,
-            FirstName = user.FirstName,
-            LastName = user.LastName,
-            PhotoUrl = user.PhotoUrl,
-            IsAdmin = user.IsAdmin,
-            ThemePreference = user.ThemePreference
-        };
+        return UserDto.From(user);
     }
 
     public async Task DeleteUserAsync(Guid id, CancellationToken cancellationToken = default)

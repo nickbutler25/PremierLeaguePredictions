@@ -19,10 +19,16 @@ public class GameweekCompletionService : IGameweekCompletionService
     private static readonly string[] SettledStatuses = ["FINISHED", "AWARDED", "CANCELLED"];
 
     /// <summary>
-    /// Eliminations performed by the scheduler are attributed to the empty guid rather than a
-    /// person. Matches what the automatic path in ResultsService already records.
+    /// Eliminations performed by the scheduler are attributed to nobody. Matches what the
+    /// automatic path in ResultsService records.
     /// </summary>
-    private static readonly Guid SystemAdminId = Guid.Empty;
+    /// <remarks>
+    /// Null, not <see cref="Guid.Empty"/>. EliminatedBy is a foreign key to users, so the empty
+    /// guid is not a stand-in for "no admin" — it is a value matching no row, and every automatic
+    /// elimination died on a 23503 against FK_user_eliminations_users_eliminated_by until this
+    /// became null. The column is already nullable; nothing needed a migration.
+    /// </remarks>
+    private static readonly Guid? SystemAdminId = null;
 
     private readonly IUnitOfWork _unitOfWork;
     private readonly IResultsService _resultsService;
@@ -102,7 +108,14 @@ public class GameweekCompletionService : IGameweekCompletionService
         // Pull results once more before judging the gameweek finished. The scheduled sync window
         // has closed by now, so if a late goal or a full-time whistle landed after the last sync
         // this is the only chance to record it.
-        await _resultsService.SyncGameweekResultsAsync(gameweek.SeasonId, gameweek.WeekNumber, cancellationToken);
+        //
+        // reconcile: this is the last look before the gameweek is settled and eliminations run
+        // off it, so it has to re-read the fixtures the routine sync has already stopped
+        // watching. Without it the call went through the same settled filter as the poll it is
+        // meant to backstop and skipped every FINISHED fixture — a safety net that could only
+        // ever catch what the thing it was backstopping had already caught.
+        await _resultsService.SyncGameweekResultsAsync(
+            gameweek.SeasonId, gameweek.WeekNumber, reconcile: true, cancellationToken);
 
         var fixtures = (await _unitOfWork.Fixtures.FindAsync(
             f => f.SeasonId == gameweek.SeasonId && f.GameweekNumber == gameweek.WeekNumber,
