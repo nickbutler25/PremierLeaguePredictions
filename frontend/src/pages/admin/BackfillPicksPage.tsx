@@ -4,7 +4,6 @@ import { adminService } from '@/services/admin';
 import { teamsService } from '@/services/teams';
 import { usersService } from '@/services/users';
 import { gameweeksService } from '@/services/gameweeks';
-import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -32,7 +31,6 @@ function LoadError({ title, error, fallback }: LoadErrorProps) {
 }
 
 export function BackfillPicksPage() {
-  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedUserId, setSelectedUserId] = useState<string>('');
@@ -86,12 +84,14 @@ export function BackfillPicksPage() {
 
   const backfillMutation = useMutation({
     mutationFn: () => {
-      const userId = selectedUserId || user?.id;
-      if (!userId) throw new Error('No user selected');
+      // No fallback to the signed-in admin. This used to read
+      // `selectedUserId || user?.id`, so submitting with nothing chosen quietly backfilled the
+      // admin's own picks instead of refusing — a silent write to the wrong player's season.
+      if (!selectedUserId) throw new Error('No user selected');
       const validPicks = picks
         .filter((p) => p.teamId !== '')
         .map((p) => ({ ...p, teamId: parseInt(p.teamId, 10) }));
-      return adminService.backfillPicks(userId, validPicks);
+      return adminService.backfillPicks(selectedUserId, validPicks);
     },
     onSuccess: (response) => {
       toast({
@@ -131,11 +131,10 @@ export function BackfillPicksPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const userId = selectedUserId || user?.id;
-    if (!userId) {
+    if (!selectedUserId) {
       toast({
         title: 'Validation Error',
-        description: 'Please select a user',
+        description: 'Please select a user to backfill picks for',
         variant: 'destructive',
       });
       return;
@@ -251,7 +250,7 @@ export function BackfillPicksPage() {
             </div>
 
             <div className="flex gap-2 pt-4">
-              <Button type="submit" disabled={backfillMutation.isPending}>
+              <Button type="submit" disabled={backfillMutation.isPending || !selectedUserId}>
                 {backfillMutation.isPending ? 'Backfilling...' : 'Backfill Picks'}
               </Button>
             </div>

@@ -84,7 +84,7 @@ export function Layout({ children }: LayoutProps) {
             >
               <img
                 src={theme === 'dark' ? '/pl-banner-logo-dark.png' : '/pl-banner-logo-light.png'}
-                alt="Premier League Predictions"
+                alt="EPL Manager Of The Year"
                 className="h-7 sm:h-10 w-auto"
               />
             </Link>

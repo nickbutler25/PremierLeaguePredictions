@@ -157,7 +157,7 @@ export function LoginPage() {
     >
       <Card className="w-full max-w-md" data-testid="login-card">
         <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-3xl font-bold">Premier League Predictions</CardTitle>
+          <CardTitle className="text-3xl font-bold">EPL Manager Of The Year</CardTitle>
           <CardDescription>Sign in to join the competition</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

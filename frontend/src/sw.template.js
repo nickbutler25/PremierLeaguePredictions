@@ -1,4 +1,4 @@
-// Service Worker for EPL Predictions PWA.
+// Service Worker for the EPL Manager Of The Year PWA.
 //
 // Built, not copied: __BUILD_ID__ is replaced at build time by the plugin in vite.config.ts.
 // That matters twice over. The cache names change every deploy, so an old build's caches are
@@ -162,7 +162,7 @@ async function syncPicks() {
 // Push notifications (future feature)
 self.addEventListener('push', (event) => {
   const data = event.data ? event.data.json() : {};
-  const title = data.title || 'EPL Predictions';
+  const title = data.title || 'EPL Manager Of The Year';
   const options = {
     body: data.body || 'New update available',
     icon: '/pwa-icon-192.png',
